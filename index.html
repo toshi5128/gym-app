@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0a0b0d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ATLAS">
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+<title>ATLAS</title>
+<style>
+  :root{
+    --bg:#0a0b0d; --bg-glow:#15171c;
+    --surface:#15171c; --surface-2:#1b1e24; --surface-3:#262a32;
+    --hair:rgba(255,255,255,.08); --hair-2:rgba(255,255,255,.045);
+    --txt:#f6f7f9; --txt-2:#a7adb8; --txt-3:#646a75;
+    --acc:#ffffff; --acc-dim:rgba(255,255,255,.10); --danger:#ff6a6a;
+    --r-lg:22px; --r-md:16px; --r-sm:12px;
+    --shadow:0 18px 44px -22px rgba(0,0,0,.85);
+    --font-jp:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic UI",system-ui,sans-serif;
+    --font-disp:'Space Grotesk','Zen Kaku Gothic New',-apple-system,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;}
+  body{
+    background:var(--bg); color:var(--txt); font-family:var(--font-jp);
+    font-size:15px; line-height:1.5;
+    padding-bottom:calc(108px + env(safe-area-inset-bottom));
+    font-feature-settings:"tnum" 1; -webkit-font-smoothing:antialiased;
+    background-image:radial-gradient(120% 55% at 50% -8%, var(--bg-glow) 0%, var(--bg) 58%);
+    background-attachment:fixed;
+  }
+  svg{display:block;}
+  .brand .t,.brand .sub,.eyebrow,.lbl,.stat .k,.hero .info .k,
+  .ring .pct s,.day .check,.tag{font-family:var(--font-disp);}
+  .tnum,.stat .v,.ring .pct b,.hero .info .v,.best,.vv,.rt-time{
+    font-family:var(--font-disp); font-variant-numeric:tabular-nums; letter-spacing:-.005em;}
+
+  header{position:sticky; top:0; z-index:30;
+    padding:calc(16px + env(safe-area-inset-top)) 20px 14px;
+    background:linear-gradient(180deg, rgba(10,11,13,.96) 62%, rgba(10,11,13,0)); backdrop-filter:blur(12px);}
+  .brand{display:flex; align-items:center; gap:12px;}
+  .mark{width:36px; height:36px; border-radius:11px; flex-shrink:0; background:var(--surface-2);
+    border:1px solid var(--hair); display:flex; align-items:center; justify-content:center; color:var(--txt);}
+  .brand .t{font-size:19px; font-weight:700; letter-spacing:.26em;}
+  .brand .sub{font-size:10px; color:var(--txt-3); letter-spacing:.28em; margin-top:1px; font-weight:700;}
+  .brand .date{margin-left:auto; text-align:right;}
+  .brand .date .d{font-size:14px; font-weight:700; font-family:var(--font-disp);}
+  .brand .date .w{font-size:11px; color:var(--txt-3); letter-spacing:.12em;}
+
+  .container{padding:6px 20px 0; max-width:560px; margin:0 auto;}
+  .eyebrow{font-size:11px; font-weight:600; letter-spacing:.18em; color:var(--txt-3);
+    text-transform:uppercase; margin:26px 4px 12px; display:flex; align-items:center; gap:10px;}
+  .eyebrow::after{content:""; flex:1; height:1px; background:var(--hair-2);}
+
+  .card{background:linear-gradient(180deg, var(--surface) 0%, #111317 100%);
+    border:1px solid var(--hair); border-radius:var(--r-lg); padding:18px; margin-bottom:14px; box-shadow:var(--shadow);}
+  .row{display:flex; gap:10px; align-items:center;}
+  .lbl{font-size:11px; font-weight:600; letter-spacing:.14em; color:var(--txt-3);
+    text-transform:uppercase; display:block; margin:0 0 9px 2px;}
+
+  .hero{background:linear-gradient(180deg,#181b21,#111317); border:1px solid var(--hair);
+    border-radius:var(--r-lg); padding:20px; margin-bottom:6px; display:flex; align-items:center; gap:20px; box-shadow:var(--shadow);}
+  .ring{position:relative; width:80px; height:80px; flex-shrink:0;}
+  .ring svg{transform:rotate(-90deg);}
+  .ring .pct{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;}
+  .ring .pct b{font-size:22px; font-weight:700; line-height:1;}
+  .ring .pct s{font-size:9px; color:var(--txt-3); text-decoration:none; letter-spacing:.16em; margin-top:4px; font-weight:700;}
+  .hero .info .k{font-size:11px; color:var(--txt-3); letter-spacing:.16em; font-weight:700; text-transform:uppercase;}
+  .hero .info .v{font-size:26px; font-weight:700; margin:4px 0 2px;}
+  .hero .info .v small{font-size:14px; color:var(--txt-3); font-weight:700;}
+  .hero .info .m{font-size:12px; color:var(--txt-2);}
+
+  .days{display:grid; grid-template-columns:repeat(4,1fr); gap:8px;}
+  .day{position:relative; text-align:center; cursor:pointer; background:var(--surface-2);
+    border:1px solid var(--hair); border-radius:var(--r-md); padding:18px 0 16px; font-weight:700;
+    font-size:15px; color:var(--txt-2); transition:transform .12s, background .15s, color .15s, border-color .15s; overflow:hidden;}
+  .day:active{transform:scale(.96);}
+  .day.sel{background:var(--acc); color:#0a0b0d; border-color:transparent;}
+  .day.suggest:not(.sel){border-color:rgba(255,255,255,.45);}
+  .day.suggest:not(.sel) .dot{position:absolute; top:9px; right:9px; width:6px; height:6px;
+    border-radius:50%; background:var(--acc); box-shadow:0 0 0 4px var(--acc-dim);}
+  .day .check{position:absolute; bottom:6px; left:50%; transform:translateX(-50%); font-size:9px; letter-spacing:.1em; color:var(--txt-3); font-weight:700;}
+  .day.sel .check{color:rgba(10,11,13,.55);}
+  .suggest-note{font-size:12px; color:var(--txt-2); margin:12px 4px 0; display:flex; gap:8px; align-items:center;}
+  .suggest-note::before{content:""; width:5px; height:5px; border-radius:50%; background:var(--acc); flex-shrink:0;}
+
+  /* target / overload */
+  .target{margin-top:10px; padding:11px 13px; background:var(--surface-2); border:1px solid var(--hair);
+    border-radius:var(--r-sm); font-size:12px; color:var(--txt-2); display:flex; align-items:center; gap:9px;}
+  .target .pin{font-family:var(--font-disp); font-size:10px; font-weight:700; letter-spacing:.12em; color:var(--txt-3);
+    border:1px solid var(--hair); border-radius:6px; padding:2px 6px; flex-shrink:0;}
+  .target b{color:var(--txt); font-weight:700;}
+  .prbadge{font-family:var(--font-disp); font-size:9px; font-weight:700; letter-spacing:.1em; color:#0a0b0d;
+    background:var(--acc); border-radius:5px; padding:2px 6px; margin-left:6px;}
+
+  .menu-item{display:flex; align-items:center; gap:14px; padding:14px 8px; cursor:pointer; border-bottom:1px solid var(--hair-2);}
+  .menu-item:last-child{border-bottom:none;}
+  .chk{width:24px; height:24px; border-radius:50%; border:1.5px solid var(--surface-3);
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:.15s;}
+  .chk svg{width:13px; height:13px; stroke:transparent;}
+  .menu-item.cur .chk{border-color:var(--acc);}
+  .menu-item.ok .chk{background:var(--acc); border-color:var(--acc);}
+  .menu-item.ok .chk svg{stroke:#0a0b0d;}
+  .menu-item .mn{flex:1;}
+  .menu-item .mn b{font-weight:700; font-size:15px; display:block;}
+  .menu-item.ok .mn b{color:var(--txt-2);}
+  .menu-item .mn s{font-size:12px; color:var(--txt-3); text-decoration:none;}
+  .menu-item .go{color:var(--txt-3); display:flex;}
+  .menu-item .go svg{width:18px; height:18px; stroke:currentColor;}
+  .menu-item.cur .go{color:var(--acc);}
+
+  select,input,button.btn{background:var(--surface-2); border:1px solid var(--hair); color:var(--txt);
+    border-radius:var(--r-md); padding:14px; font-size:16px; width:100%; outline:none; font-family:inherit; transition:border-color .15s;}
+  select:focus,input:focus{border-color:rgba(255,255,255,.4);}
+  select{appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23646a75' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat; background-position:right 16px center; padding-right:40px;}
+  input[type=number]{text-align:center; font-weight:700; font-variant-numeric:tabular-nums; font-family:var(--font-disp);}
+  .set-line{display:grid; grid-template-columns:28px 1fr 1fr 36px; gap:9px; align-items:center; margin-bottom:9px;}
+  .set-line .no{color:var(--txt-3); text-align:center; font-size:13px; font-weight:700; font-family:var(--font-disp);}
+  .field{position:relative;}
+  .field .unit{position:absolute; right:13px; top:50%; transform:translateY(-50%); font-size:11px; color:var(--txt-3); pointer-events:none; font-weight:600;}
+  .field input{padding-right:34px;}
+
+  button.btn{cursor:pointer; font-weight:700; letter-spacing:.02em;}
+  button.primary,button.solid{background:var(--acc); border-color:transparent; color:#0a0b0d;}
+  button.primary:active,button.solid:active{transform:translateY(1px);}
+  button.solid{font-size:16px; padding:16px;}
+  button.ghost{background:var(--surface-2); color:var(--txt-2);}
+  button.sm{padding:11px 14px; font-size:13px; width:auto; font-weight:700;}
+  .del{color:var(--txt-3); background:none; border:none; font-size:20px; cursor:pointer; line-height:1; padding:4px;}
+  .del:active{color:var(--danger);}
+
+  .item{background:var(--surface); border:1px solid var(--hair); border-radius:var(--r-md); padding:14px 16px; margin-bottom:9px;}
+  .item .n{font-weight:700; display:flex; align-items:center; gap:9px;}
+  .item .s{font-size:13px; color:var(--txt-2); line-height:1.6; margin-top:5px;}
+  .tag{font-size:10px; font-weight:700; letter-spacing:.08em; color:var(--txt-3); background:var(--surface-3); padding:3px 9px; border-radius:20px;}
+  .vol{color:var(--txt); font-weight:700;}
+  .top-mini{font-size:12px; color:var(--txt-3); margin-top:8px;}
+  .empty{color:var(--txt-3); text-align:center; padding:46px 16px; font-size:14px; line-height:1.8;}
+  .empty svg{width:30px; height:30px; stroke:var(--surface-3); margin:0 auto 12px;}
+
+  .hist-day{margin-bottom:22px;}
+  .hist-date{font-size:13px; font-weight:700; letter-spacing:.03em; margin-bottom:11px; display:flex; align-items:center; gap:10px; font-family:var(--font-disp);}
+  .hist-date .rt{color:var(--txt-3); font-weight:600; font-family:var(--font-jp);}
+  .hist-date .vv{margin-left:auto; color:var(--txt-3); font-weight:600; font-size:12px;}
+
+  .stat-grid{display:grid; grid-template-columns:1fr 1fr; gap:11px; margin-bottom:4px;}
+  .stat{background:linear-gradient(180deg,var(--surface),#111317); border:1px solid var(--hair); border-radius:var(--r-md); padding:16px;}
+  .stat .v{font-size:27px; font-weight:700;}
+  .stat .v small{font-size:14px; color:var(--txt-3); font-weight:700;}
+  .stat .k{font-size:11px; color:var(--txt-3); margin-top:3px; letter-spacing:.12em; font-weight:700; text-transform:uppercase;}
+  .best{color:var(--txt); font-weight:700;}
+
+  /* sparkline */
+  .spark{width:100%; height:auto; margin-top:10px;}
+  .spark-empty{font-size:11px; color:var(--txt-3); margin-top:8px;}
+
+  /* bodyweight */
+  .bw-head{display:flex; align-items:baseline; gap:10px;}
+  .bw-head .big{font-size:30px; font-weight:700; font-family:var(--font-disp);}
+  .bw-head .big small{font-size:14px; color:var(--txt-3);}
+  .bw-head .delta{font-size:12px; font-weight:700; font-family:var(--font-disp);}
+  .bw-input{display:grid; grid-template-columns:1fr auto; gap:9px; margin-top:13px;}
+
+  .ex-pick{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px;}
+  .chip{background:var(--surface-2); border:1px solid var(--hair); border-radius:30px; padding:9px 14px; font-size:13px; font-weight:600; cursor:pointer; transition:.12s; color:var(--txt-2);}
+  .chip:active{transform:scale(.95);}
+  .chip.on{background:var(--acc); border-color:transparent; color:#0a0b0d;}
+
+  .set-row{display:flex; align-items:center; gap:10px; justify-content:space-between; padding:12px 2px; border-bottom:1px solid var(--hair-2);}
+  .set-row:last-child{border-bottom:none;}
+  .toggle{width:46px; height:27px; border-radius:20px; background:var(--surface-3); position:relative; cursor:pointer; transition:.15s; flex-shrink:0;}
+  .toggle.on{background:var(--acc);}
+  .toggle::after{content:""; position:absolute; top:3px; left:3px; width:21px; height:21px; border-radius:50%; background:#fff; transition:.15s;}
+  .toggle.on::after{left:22px; background:#0a0b0d;}
+  .step{display:flex; align-items:center; gap:10px;}
+  .step button{width:38px; height:38px; border-radius:10px; background:var(--surface-2); border:1px solid var(--hair); color:var(--txt); font-size:20px; cursor:pointer; font-family:var(--font-disp);}
+  .step .val{font-family:var(--font-disp); font-weight:700; min-width:54px; text-align:center;}
+
+  nav{position:fixed; bottom:calc(14px + env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%); z-index:40;
+    display:flex; gap:2px; padding:6px; background:rgba(20,22,27,.82); backdrop-filter:blur(22px) saturate(1.4);
+    border:1px solid var(--hair); border-radius:24px; box-shadow:0 20px 50px -20px rgba(0,0,0,.9);}
+  nav button{background:none; border:none; color:var(--txt-3); cursor:pointer; padding:8px 11px; border-radius:18px;
+    display:flex; flex-direction:column; align-items:center; gap:4px; font-size:10px; font-weight:700; letter-spacing:.04em; transition:.15s; min-width:50px;}
+  nav button svg{width:21px; height:21px; stroke:currentColor; fill:none; stroke-width:1.7;}
+  nav button.active{color:#0a0b0d; background:var(--acc);}
+
+  /* rest timer bar */
+  .restbar{position:fixed; left:16px; right:16px; bottom:calc(92px + env(safe-area-inset-bottom)); max-width:528px;
+    margin:0 auto; z-index:45; background:var(--surface-2); border:1px solid var(--hair); border-radius:18px;
+    box-shadow:0 18px 40px -16px rgba(0,0,0,.85); padding:12px 14px; display:none; align-items:center; gap:12px; overflow:hidden;}
+  .restbar.show{display:flex; animation:slideUp .25s ease;}
+  .restbar.done{border-color:var(--acc);}
+  .restbar .prog{position:absolute; top:0; left:0; height:3px; background:var(--acc); transition:width .2s linear;}
+  .restbar .rt-mid{flex:1;}
+  .restbar .rt-time{font-size:24px; font-weight:700; line-height:1;}
+  .restbar .rt-lbl{font-size:10px; color:var(--txt-3); letter-spacing:.14em; font-weight:700; text-transform:uppercase; margin-top:2px; font-family:var(--font-disp);}
+  .restbar button{background:var(--surface-3); border:1px solid var(--hair); color:var(--txt); border-radius:11px;
+    padding:9px 11px; font-size:13px; font-weight:700; cursor:pointer; font-family:var(--font-disp);}
+  .restbar button.x{background:none; border:none; color:var(--txt-3); font-size:20px; padding:6px;}
+  @keyframes slideUp{from{opacity:0; transform:translateY(10px);}to{opacity:1; transform:none;}}
+
+  .toast{position:fixed; bottom:118px; left:50%; transform:translateX(-50%) translateY(8px); background:var(--txt); color:#0a0b0d;
+    padding:12px 20px; border-radius:30px; font-size:14px; font-weight:700; opacity:0; transition:.28s cubic-bezier(.2,.8,.2,1);
+    pointer-events:none; z-index:60; box-shadow:0 14px 30px -10px rgba(0,0,0,.7);}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  /* PR celebration */
+  .prflash{position:fixed; top:0; left:0; right:0; z-index:70; display:flex; justify-content:center; pointer-events:none;
+    padding-top:calc(70px + env(safe-area-inset-top));}
+  .prflash .box{background:var(--acc); color:#0a0b0d; border-radius:18px; padding:14px 20px; display:flex; align-items:center; gap:13px;
+    box-shadow:0 20px 50px -16px rgba(0,0,0,.7); transform:translateY(-160px); transition:transform .4s cubic-bezier(.2,.9,.2,1);}
+  .prflash.show .box{transform:translateY(0);}
+  .prflash svg{width:30px; height:30px; stroke:#0a0b0d; fill:none; stroke-width:1.7;}
+  .prflash b{font-size:16px; font-weight:700; display:block; font-family:var(--font-disp); letter-spacing:.04em;}
+  .prflash span{font-size:12px; opacity:.8;}
+
+  .fade-in{animation:fade .3s ease;}
+  @keyframes fade{from{opacity:0; transform:translateY(6px);}to{opacity:1; transform:none;}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="mark"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6.5 6v12M3.5 8.5v7M17.5 6v12M20.5 8.5v7M6.5 12h11"/></svg></div>
+    <div><div class="t">ATLAS</div><div class="sub">STRENGTH LOG</div></div>
+    <div class="date"><div class="d" id="hdrDate"></div><div class="w" id="hdrWeek"></div></div>
+  </div>
+</header>
+
+<div class="container" id="view"></div>
+
+<nav id="nav"></nav>
+
+<div class="restbar" id="restbar">
+  <div class="prog" id="restProg"></div>
+  <button data-rt="m">−15</button>
+  <div class="rt-mid"><div class="rt-time" id="restTime">1:30</div><div class="rt-lbl" id="restLbl">REST</div></div>
+  <button data-rt="p">+15</button>
+  <button class="x" data-rt="x">×</button>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="prflash" id="prflash"><div class="box"><span id="prico"></span><div><b>自己ベスト更新</b><span id="prsub"></span></div></div></div>
+
+<script>
+/* ============ アイコン ============ */
+const IC={
+  today:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M13 2L4.5 13.5H11l-1 8.5 9-12H12l1-8z" stroke-linejoin="round" stroke-linecap="round"/></svg>',
+  history:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3.5" y="5" width="17" height="16" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4" stroke-linecap="round"/></svg>',
+  stats:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 4v16h16" stroke-linecap="round"/><path d="M7.5 14l3.5-3.5 3 3 4.5-5.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  routine:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3.5l8 4.2-8 4.2-8-4.2z" stroke-linejoin="round"/><path d="M4 12l8 4.2 8-4.2" stroke-linejoin="round" stroke-linecap="round"/></svg>',
+  more:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M4 21v-6M4 11V3M12 21v-9M12 8V3M20 21v-4M20 13V3"/><path d="M2 15h4M10 8h4M18 17h4"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5 11-11"/></svg>',
+  chevron:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
+  dot:'<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="12" r="4"/></svg>',
+  award:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="6"/><path d="M9 14.5L8 22l4-2.2L16 22l-1-7.5"/></svg>',
+};
+
+/* ============ データ層 ============ */
+const DEFAULT_EX=[
+  {id:'bench',name:'ベンチプレス',muscle:'胸'},{id:'incb',name:'インクラインベンチ',muscle:'胸'},{id:'fly',name:'ダンベルフライ',muscle:'胸'},
+  {id:'dead',name:'デッドリフト',muscle:'背中'},{id:'row',name:'ベントオーバーロウ',muscle:'背中'},{id:'lat',name:'ラットプルダウン',muscle:'背中'},
+  {id:'ohp',name:'ショルダープレス',muscle:'肩'},{id:'side',name:'サイドレイズ',muscle:'肩'},
+  {id:'squat',name:'スクワット',muscle:'脚'},{id:'legp',name:'レッグプレス',muscle:'脚'},{id:'curl',name:'アームカール',muscle:'腕'},
+];
+const DEFAULT_ROUTINES=[
+  {id:'r_chest',name:'胸',exIds:['bench','incb','fly']},{id:'r_back',name:'背中',exIds:['dead','row','lat']},
+  {id:'r_sho',name:'肩',exIds:['ohp','side']},{id:'r_leg',name:'足',exIds:['squat','legp']},
+];
+const MUSCLES=['胸','背中','脚','肩','腕','腹','その他'];
+const KEY_EX='gym_exercises_v2',KEY_LOG='gym_logs_v2',KEY_RT='gym_routines_v3',KEY_BW='gym_bw_v1',KEY_SET='gym_settings_v1';
+function load(k,def){ try{return JSON.parse(localStorage.getItem(k)) ?? def;}catch(e){return def;} }
+function save(k,v){ localStorage.setItem(k,JSON.stringify(v)); }
+
+let exercises=load(KEY_EX,DEFAULT_EX), logs=load(KEY_LOG,[]), routines=load(KEY_RT,DEFAULT_ROUTINES);
+let bw=load(KEY_BW,[]);                       // [{date, kg}]
+let settings=load(KEY_SET,{rest:90, autoTimer:true, sound:true});
+
+function saveAll(){ save(KEY_EX,exercises); save(KEY_LOG,logs); save(KEY_RT,routines); save(KEY_BW,bw); save(KEY_SET,settings); }
+function exObj(id){ return exercises.find(x=>x.id===id); }
+function exName(id){ const e=exObj(id); return e?e.name:'(削除済)'; }
+function exMuscle(id){ const e=exObj(id); return e?e.muscle:''; }
+function rtObj(id){ return routines.find(r=>r.id===id); }
+function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+const WK=['日','月','火','水','木','金','土'];
+function fmtDate(s){ const [y,m,d]=s.split('-'); return `${Number(m)}/${Number(d)}（${WK[new Date(s).getDay()]}）`; }
+function est1rm(w,r){ return w*(1+r/30); }                    // Epley
+
+(function(){ const d=new Date();
+  document.getElementById('hdrDate').textContent=`${d.getMonth()+1}月${d.getDate()}日`;
+  document.getElementById('hdrWeek').textContent=`${WK[d.getDay()]}曜日`;
+})();
+
+/* ============ ナビ ============ */
+const TABS=[['log','今日',IC.today],['history','履歴',IC.history],['stats','記録',IC.stats],['routine','分割',IC.routine],['more','設定',IC.more]];
+let tab='log';
+document.getElementById('nav').innerHTML=TABS.map(([id,label,ic])=>`<button data-tab="${id}" class="${id==='log'?'active':''}">${ic}${label}</button>`).join('');
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{ tab=b.dataset.tab; document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x===b)); render(); });
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),1500); }
+
+/* ============ サウンド / 振動 ============ */
+let actx=null;
+function beep(){
+  if(!settings.sound) return;
+  try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+    [0,0.18,0.36].forEach(t=>{ const o=actx.createOscillator(),g=actx.createGain();
+      o.frequency.value=880; o.connect(g); g.connect(actx.destination);
+      const s=actx.currentTime+t; g.gain.setValueAtTime(0.001,s); g.gain.exponentialRampToValueAtTime(0.3,s+0.02);
+      g.gain.exponentialRampToValueAtTime(0.001,s+0.15); o.start(s); o.stop(s+0.16); });
+  }catch(e){}
+  if(navigator.vibrate) navigator.vibrate([120,60,120]);
+}
+
+/* ============ インターバルタイマー ============ */
+const Timer={ id:null, total:0, remain:0, last:0, running:false,
+  start(sec){ this.total=sec; this.remain=sec; this.last=Date.now(); this.running=true;
+    const b=document.getElementById('restbar'); b.classList.add('show'); b.classList.remove('done');
+    document.getElementById('restLbl').textContent='REST'; this.paint(); this.run(); },
+  run(){ clearInterval(this.id); this.id=setInterval(()=>{ const now=Date.now(); this.remain-=(now-this.last)/1000; this.last=now;
+    if(this.remain<=0){ this.remain=0; this.done(); } this.paint(); },200); },
+  done(){ clearInterval(this.id); this.running=false; beep();
+    const b=document.getElementById('restbar'); b.classList.add('done');
+    document.getElementById('restLbl').textContent='次のセットへ'; document.getElementById('restTime').textContent='00:00';
+    document.getElementById('restProg').style.width='100%';
+    clearTimeout(this._h); this._h=setTimeout(()=>this.hide(),6000); },
+  add(d){ if(!this.running && this.remain<=0){ this.start(Math.max(15,d>0?d:15)); return; }
+    this.remain=Math.max(0,this.remain+d); this.total=Math.max(this.total,this.remain); this.paint(); },
+  hide(){ clearInterval(this.id); this.running=false; document.getElementById('restbar').classList.remove('show','done'); },
+  paint(){ const m=Math.floor(this.remain/60), s=Math.ceil(this.remain%60);
+    document.getElementById('restTime').textContent=`${m}:${String(s).padStart(2,'0')}`;
+    document.getElementById('restProg').style.width=(this.total?(1-this.remain/this.total)*100:0)+'%'; },
+};
+document.getElementById('restbar').addEventListener('click',e=>{ const a=e.target.closest('[data-rt]'); if(!a)return;
+  const k=a.dataset.rt; if(k==='m')Timer.add(-15); else if(k==='p')Timer.add(15); else Timer.hide(); });
+
+/* ============ 今日 ============ */
+let selRt=null, draftExId=null, draftSets=[{w:'',r:''}];
+function todaysLogs(){ return logs.filter(l=>l.date===todayStr()); }
+function lastRecord(exId){ const p=logs.filter(l=>l.exId===exId&&l.date!==todayStr()).sort((a,b)=>b.date.localeCompare(a.date)); return p[0]||null; }
+function doneTodayEx(exId){ return todaysLogs().some(l=>l.exId===exId); }
+function bestBefore(exId){ // 今日より前のベスト
+  let maxW=0,max1=0;
+  logs.filter(l=>l.exId===exId&&l.date!==todayStr()).forEach(l=>l.sets.forEach(s=>{ if(s.w>maxW)maxW=s.w; const e=est1rm(s.w,s.r); if(e>max1)max1=e; }));
+  return {maxW, max1};
+}
+function suggestRt(){ const past=logs.filter(l=>l.date!==todayStr()&&l.rtId).sort((a,b)=>b.date.localeCompare(a.date));
+  if(!past.length) return routines[0]?.id||null; const i=routines.findIndex(r=>r.id===past[0].rtId);
+  return i<0?(routines[0]?.id||null):routines[(i+1)%routines.length].id; }
+function ringSVG(pct){ const R=34,C=2*Math.PI*R,off=C*(1-pct);
+  return `<svg width="80" height="80" viewBox="0 0 80 80"><circle cx="40" cy="40" r="${R}" fill="none" stroke="#262a32" stroke-width="6"/>
+    <circle cx="40" cy="40" r="${R}" fill="none" stroke="url(#g)" stroke-width="6" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${off}"/>
+    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8a909b"/><stop offset="1" stop-color="#ffffff"/></linearGradient></defs></svg>`; }
+
+function renderLog(){
+  const v=document.getElementById('view');
+  if(selRt===null){ const tl=todaysLogs().find(l=>l.rtId); selRt=tl?tl.rtId:suggestRt(); }
+  const sug=suggestRt(); const rt=rtObj(selRt);
+  const totalEx=rt?rt.exIds.length:0, doneEx=rt?rt.exIds.filter(id=>doneTodayEx(id)).length:0;
+  const pct=totalEx?doneEx/totalEx:0;
+  const todayVol=todaysLogs().reduce((a,l)=>a+l.sets.reduce((x,s)=>x+s.w*s.r,0),0);
+
+  const dayChips=routines.map(r=>{ const all=r.exIds.length&&r.exIds.every(id=>doneTodayEx(id)); const some=r.exIds.some(id=>doneTodayEx(id));
+    return `<div class="day ${r.id===selRt?'sel':''} ${r.id===sug?'suggest':''}" data-rt="${r.id}">
+      ${r.id!==selRt&&r.id===sug?'<span class="dot"></span>':''}${r.name}${all?'<span class="check">DONE</span>':(some?'<span class="check">···</span>':'')}</div>`; }).join('');
+  const lastSugDay=logs.filter(l=>l.rtId===sug&&l.date!==todayStr()).sort((a,b)=>b.date.localeCompare(a.date))[0];
+  const sugNote=(selRt===sug&&lastSugDay)?`前回の「${rtObj(sug)?.name}」は ${fmtDate(lastSugDay.date)} ・ 今日のおすすめ`:'';
+
+  let menuHtml='';
+  if(rt){ menuHtml=rt.exIds.map(id=>{ const ok=doneTodayEx(id),cur=id===draftExId,last=lastRecord(id);
+    const sub=last?`前回 ${last.sets.map(s=>s.w+'×'+s.r).join(' / ')}`:'記録なし';
+    return `<div class="menu-item ${ok?'ok':''} ${cur?'cur':''}" data-pick="${id}"><div class="chk">${IC.check}</div>
+      <div class="mn"><b>${exName(id)}</b><s>${sub}</s></div><div class="go">${cur?IC.dot:IC.chevron}</div></div>`; }).join(''); }
+  if(draftExId===null&&rt){ draftExId=rt.exIds.find(id=>!doneTodayEx(id))||rt.exIds[0]; }
+
+  const allOpts=exercises.map(e=>`<option value="${e.id}" ${e.id===draftExId?'selected':''}>${e.name}（${e.muscle}）</option>`).join('');
+  const last=draftExId?lastRecord(draftExId):null;
+  const best=draftExId?bestBefore(draftExId):{maxW:0,max1:0};
+  let targetHtml='';
+  if(draftExId){
+    if(last){ const top=last.sets.reduce((a,s)=>est1rm(s.w,s.r)>est1rm(a.w,a.r)?s:a);
+      targetHtml=`<div class="target"><span class="pin">目標</span><span>前回best <b>${top.w}kg×${top.r}</b> を超える${best.maxW?` ／ 自己ベスト <b>${best.maxW}kg</b>`:''}</span></div>`; }
+    else targetHtml=`<div class="target"><span class="pin">初回</span><span>記録なし。基準を作ろう。</span></div>`;
+  }
+  const lastHtml=last?`<div class="top-mini">前回 ${fmtDate(last.date)}：${last.sets.map(s=>s.w+'kg×'+s.r).join(' / ')}</div>`:'';
+  const setLines=draftSets.map((s,i)=>`<div class="set-line"><span class="no">${i+1}</span>
+    <div class="field"><input type="number" inputmode="decimal" placeholder="0" value="${s.w}" data-si="${i}" data-f="w"><span class="unit">kg</span></div>
+    <div class="field"><input type="number" inputmode="numeric" placeholder="0" value="${s.r}" data-si="${i}" data-f="r"><span class="unit">回</span></div>
+    <button class="del" data-del="${i}">×</button></div>`).join('');
+
+  v.innerHTML=`<div class="fade-in">
+    <div class="hero">
+      <div class="ring">${ringSVG(pct)}<div class="pct"><b>${doneEx}/${totalEx||'–'}</b><s>DONE</s></div></div>
+      <div class="info"><div class="k">${rt?rt.name+' DAY':'TODAY'}</div>
+        <div class="v tnum">${(todayVol/1000).toFixed(todayVol>=1000?1:2)}<small> t</small></div>
+        <div class="m">本日のボリューム <b class="tnum">${todayVol.toLocaleString()}kg</b></div></div>
+    </div>
+    <div class="eyebrow">今日のメニュー</div>
+    <div class="days">${dayChips}</div>
+    ${sugNote?`<div class="suggest-note">${sugNote}</div>`:''}
+    ${rt?`<div class="eyebrow">${rt.name}の種目</div><div class="card" style="padding:4px 14px;">${menuHtml||'<div class="empty" style="padding:26px">この日に種目が未登録です。<br>「分割」タブで追加できます。</div>'}</div>`:''}
+    <div class="eyebrow">記録する</div>
+    <div class="card">
+      <label class="lbl">種目</label>
+      <select id="exSel">${allOpts}</select>
+      ${targetHtml}${lastHtml}
+      <div style="height:16px"></div>
+      <label class="lbl">セット（重量 × 回数）</label>
+      ${setLines}
+      <div class="row" style="margin-top:8px; gap:8px; flex-wrap:wrap;">
+        <button class="btn ghost sm" id="addSet">＋ セット追加</button>
+        <button class="btn ghost sm" id="copyLast" ${last?'':'disabled style=opacity:.35'}>前回をコピー</button>
+        <button class="btn ghost sm" id="restNow">休憩 ${settings.rest}s</button>
+      </div>
+      <div style="height:16px"></div>
+      <button class="btn solid" id="saveLog">記録する</button>
+    </div>
+    <div class="eyebrow">今日やった種目</div>
+    <div id="todayList"></div>
+  </div>`;
+
+  v.querySelectorAll('[data-rt]').forEach(d=>d.onclick=()=>{ selRt=d.dataset.rt; draftExId=null; draftSets=[{w:'',r:''}]; renderLog(); });
+  v.querySelectorAll('[data-pick]').forEach(m=>m.onclick=()=>{ draftExId=m.dataset.pick; draftSets=[{w:'',r:''}]; renderLog(); });
+  document.getElementById('exSel').onchange=e=>{ draftExId=e.target.value; renderLog(); };
+  document.getElementById('addSet').onclick=()=>{ const l=draftSets[draftSets.length-1]; draftSets.push({w:l?l.w:'',r:l?l.r:''}); renderLog(); };
+  document.getElementById('copyLast').onclick=()=>{ if(last){ draftSets=last.sets.map(s=>({w:s.w,r:s.r})); renderLog(); } };
+  document.getElementById('restNow').onclick=()=>Timer.start(settings.rest);
+  v.querySelectorAll('input[data-si]').forEach(inp=>inp.oninput=e=>{ draftSets[+e.target.dataset.si][e.target.dataset.f]=e.target.value; });
+  v.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ draftSets.splice(+b.dataset.del,1); if(!draftSets.length)draftSets=[{w:'',r:''}]; renderLog(); });
+  document.getElementById('saveLog').onclick=saveDraft;
+  renderTodayList();
+}
+
+function saveDraft(){
+  const sets=draftSets.filter(s=>s.w!==''&&s.r!=='').map(s=>({w:Number(s.w),r:Number(s.r)}));
+  if(!sets.length){ toast('重量と回数を入力してください'); return; }
+  const before=bestBefore(draftExId);
+  const tMaxW=Math.max(...sets.map(s=>s.w)); const tMax1=Math.max(...sets.map(s=>est1rm(s.w,s.r)));
+  logs.push({id:uid(), date:todayStr(), exId:draftExId, sets, rtId:selRt});
+  saveAll();
+  // PR判定
+  if(before.maxW>0 && (tMaxW>before.maxW || tMax1>before.max1+0.01)){
+    const what = tMaxW>before.maxW ? `最大重量 ${before.maxW} → ${tMaxW}kg` : `推定1RM ${Math.round(before.max1)} → ${Math.round(tMax1)}kg`;
+    celebratePR(`${exName(draftExId)} ・ ${what}`);
+  } else { toast('記録しました'); }
+  if(settings.autoTimer) Timer.start(settings.rest);
+  draftSets=[{w:'',r:''}];
+  const rt=rtObj(selRt); if(rt){ const nx=rt.exIds.find(id=>!doneTodayEx(id)); if(nx) draftExId=nx; }
+  renderLog();
+}
+
+function celebratePR(sub){
+  beep();
+  document.getElementById('prico').innerHTML=IC.award;
+  document.getElementById('prsub').textContent=sub;
+  const f=document.getElementById('prflash'); f.classList.add('show');
+  clearTimeout(celebratePR._t); celebratePR._t=setTimeout(()=>f.classList.remove('show'),3000);
+}
+
+function renderTodayList(){
+  const el=document.getElementById('todayList'); const t=todaysLogs();
+  if(!t.length){ el.innerHTML=`<div class="empty">${IC.today.replace('<svg','<svg width=30 height=30')}まだ今日の記録はありません。<br>上で種目を選んで始めましょう。</div>`; return; }
+  el.innerHTML=t.map(l=>{ const vol=l.sets.reduce((a,s)=>a+s.w*s.r,0);
+    return `<div class="item"><div class="row" style="justify-content:space-between"><span class="n">${exName(l.exId)} <span class="tag">${exMuscle(l.exId)}</span></span>
+      <button class="del" data-rm="${l.id}">×</button></div><div class="s tnum">${l.sets.map(s=>s.w+'kg×'+s.r).join(' / ')}　<span class="vol">計 ${vol}kg</span></div></div>`; }).join('');
+  el.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{ logs=logs.filter(x=>x.id!==b.dataset.rm); saveAll(); renderLog(); toast('削除しました'); });
+}
+
+/* ============ 履歴 ============ */
+function renderHistory(){
+  const v=document.getElementById('view');
+  if(!logs.length){ v.innerHTML=`<div class="empty">${IC.history.replace('<svg','<svg width=30 height=30')}まだ記録がありません。</div>`; return; }
+  const byDate={}; logs.forEach(l=>{ (byDate[l.date]=byDate[l.date]||[]).push(l); });
+  const dates=Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
+  v.innerHTML=`<div class="fade-in">`+dates.map(d=>{ const rtId=byDate[d].find(l=>l.rtId)?.rtId; const rtName=rtId&&rtObj(rtId)?`${rtObj(rtId).name}の日`:'';
+    const items=byDate[d].map(l=>`<div class="item"><div class="n">${exName(l.exId)} <span class="tag">${exMuscle(l.exId)}</span></div><div class="s tnum">${l.sets.map(s=>s.w+'kg×'+s.r).join(' / ')}</div></div>`).join('');
+    const vol=byDate[d].reduce((a,l)=>a+l.sets.reduce((x,s)=>x+s.w*s.r,0),0);
+    return `<div class="hist-day"><div class="hist-date">${fmtDate(d)}${rtName?`<span class="rt">${rtName}</span>`:''}<span class="vv tnum">${vol.toLocaleString()}kg</span></div>${items}</div>`; }).join('')+`</div>`;
+}
+
+/* ============ スパークライン ============ */
+function spark(vals){
+  if(vals.length<2) return `<div class="spark-empty">データが2回分たまると推移グラフが出ます</div>`;
+  const W=300,H=50,P=5, min=Math.min(...vals), max=Math.max(...vals), rng=max-min||1;
+  const X=i=>P+i/(vals.length-1)*(W-2*P), Y=val=>H-P-(val-min)/rng*(H-2*P);
+  const d=vals.map((val,i)=>`${i?'L':'M'}${X(i).toFixed(1)} ${Y(val).toFixed(1)}`).join(' ');
+  const area=`M${X(0).toFixed(1)} ${H} L`+vals.map((val,i)=>`${X(i).toFixed(1)} ${Y(val).toFixed(1)}`).join(' L')+` L${X(vals.length-1).toFixed(1)} ${H} Z`;
+  return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <path d="${area}" fill="url(#ag)" stroke="none"/>
+    <path d="${d}" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+    <circle cx="${X(vals.length-1).toFixed(1)}" cy="${Y(vals[vals.length-1]).toFixed(1)}" r="3" fill="#fff"/>
+    <defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="rgba(255,255,255,.18)"/><stop offset="1" stop-color="rgba(255,255,255,0)"/></linearGradient></defs></svg>`;
+}
+
+/* ============ 記録（グラフ） ============ */
+function renderStats(){
+  const v=document.getElementById('view');
+  const days=new Set(logs.map(l=>l.date)).size;
+  const totalVol=logs.reduce((a,l)=>a+l.sets.reduce((x,s)=>x+s.w*s.r,0),0);
+
+  // 体重
+  const bwSorted=[...bw].sort((a,b)=>a.date.localeCompare(b.date));
+  const cur=bwSorted[bwSorted.length-1], prev=bwSorted[bwSorted.length-2];
+  let delta=''; if(cur&&prev){ const dd=(cur.kg-prev.kg); delta=`<span class="delta" style="color:${dd>0?'#ff9a6a':(dd<0?'#6ad1a0':'var(--txt-3)')}">${dd>0?'+':''}${dd.toFixed(1)}kg</span>`; }
+  const bwCard=`<div class="card">
+    <div class="bw-head"><div class="big">${cur?cur.kg.toFixed(1):'--'}<small> kg</small></div>${delta}<span style="margin-left:auto;font-size:11px;color:var(--txt-3)">${cur?fmtDate(cur.date):''}</span></div>
+    ${spark(bwSorted.map(x=>x.kg))}
+    <div class="bw-input"><div class="field"><input id="bwIn" type="number" inputmode="decimal" placeholder="今日の体重" value=""><span class="unit">kg</span></div>
+      <button class="btn primary" style="width:auto;padding:0 20px" id="bwSave">記録</button></div>
+  </div>`;
+
+  let perEx=exercises.map(e=>{ const ls=logs.filter(l=>l.exId===e.id); if(!ls.length)return null;
+    let maxW=0,max1=0,lastDate=''; const byDate={};
+    ls.forEach(l=>{ l.sets.forEach(s=>{ if(s.w>maxW)maxW=s.w; const es=est1rm(s.w,s.r); if(es>max1)max1=es; byDate[l.date]=Math.max(byDate[l.date]||0,es); }); if(l.date>lastDate)lastDate=l.date; });
+    const trend=Object.keys(byDate).sort().map(d=>Math.round(byDate[d]));
+    return {name:e.name,muscle:e.muscle,maxW,max1:Math.round(max1),lastDate,trend};
+  }).filter(Boolean).sort((a,b)=>b.max1-a.max1);
+
+  v.innerHTML=`<div class="fade-in">
+    <div class="stat-grid">
+      <div class="stat"><div class="v tnum">${days}<small> 日</small></div><div class="k">トレ日数</div></div>
+      <div class="stat"><div class="v tnum">${(totalVol/1000).toFixed(1)}<small> t</small></div><div class="k">累計ボリューム</div></div>
+    </div>
+    <div class="eyebrow">体重の推移</div>
+    ${bwCard}
+    <div class="eyebrow">種目別ベスト＆推移（推定1RM）</div>
+    ${perEx.length?perEx.map(p=>`<div class="item">
+      <div class="row" style="justify-content:space-between"><span class="n">${p.name} <span class="tag">${p.muscle}</span></span><span class="best tnum">最大 ${p.maxW}kg</span></div>
+      <div class="s tnum">推定1RM ${p.max1}kg ／ 最終 ${fmtDate(p.lastDate)}</div>
+      ${spark(p.trend)}</div>`).join(''):`<div class="empty">${IC.stats.replace('<svg','<svg width=30 height=30')}記録が貯まるとベストと推移が出ます。</div>`}
+  </div>`;
+
+  document.getElementById('bwSave').onclick=()=>{
+    const val=parseFloat(document.getElementById('bwIn').value); if(!val||val<=0){ toast('体重を入力してください'); return; }
+    const i=bw.findIndex(x=>x.date===todayStr()); if(i>=0)bw[i].kg=val; else bw.push({date:todayStr(),kg:val});
+    saveAll(); toast('体重を記録しました'); renderStats();
+  };
+}
+
+/* ============ 分割 ============ */
+function renderRoutine(){
+  const v=document.getElementById('view');
+  v.innerHTML=`<div class="fade-in"><div style="padding:6px 4px 14px; color:var(--txt-3); font-size:13px; line-height:1.7;">分割ごとに種目を割り当てます。「今日」タブで前回の続きを自動でおすすめします。</div>
+    ${routines.map(r=>{ const onIds=new Set(r.exIds);
+      const chips=exercises.map(e=>`<span class="chip ${onIds.has(e.id)?'on':''}" data-rt="${r.id}" data-ex="${e.id}">${e.name}</span>`).join('');
+      return `<div class="card"><div class="row" style="justify-content:space-between"><strong style="font-size:17px">${r.name}の日</strong><span class="tag">${r.exIds.length} 種目</span></div><div class="ex-pick">${chips}</div></div>`; }).join('')}</div>`;
+  v.querySelectorAll('[data-ex]').forEach(c=>c.onclick=()=>{ const r=rtObj(c.dataset.rt),id=c.dataset.ex;
+    if(r.exIds.includes(id))r.exIds=r.exIds.filter(x=>x!==id); else r.exIds.push(id); saveAll(); renderRoutine(); });
+}
+
+/* ============ 設定（種目・タイマー・データ） ============ */
+function renderMore(){
+  const v=document.getElementById('view');
+  v.innerHTML=`<div class="fade-in">
+    <div class="eyebrow">インターバル設定</div>
+    <div class="card">
+      <div class="set-row"><div>記録後に休憩タイマーを自動開始</div><div class="toggle ${settings.autoTimer?'on':''}" id="tgAuto"></div></div>
+      <div class="set-row"><div>終了時に音・振動</div><div class="toggle ${settings.sound?'on':''}" id="tgSound"></div></div>
+      <div class="set-row"><div>休憩の長さ</div><div class="step"><button id="rMinus">−</button><span class="val" id="rVal">${settings.rest}s</span><button id="rPlus">＋</button></div></div>
+    </div>
+
+    <div class="eyebrow">種目を追加</div>
+    <div class="card">
+      <input id="newName" placeholder="種目名（例：ディップス）">
+      <div style="height:10px"></div>
+      <select id="newMuscle">${MUSCLES.map(m=>`<option>${m}</option>`).join('')}</select>
+      <div style="height:12px"></div>
+      <button class="btn primary" id="addEx">追加する</button>
+    </div>
+    <div class="eyebrow">登録済みの種目（${exercises.length}）</div>
+    ${exercises.map(e=>`<div class="item"><div class="row" style="justify-content:space-between"><span class="n">${e.name} <span class="tag">${e.muscle}</span></span><button class="del" data-rmex="${e.id}">×</button></div></div>`).join('')}
+
+    <div class="eyebrow">データ（バックアップ）</div>
+    <div class="card">
+      <div style="font-size:13px;color:var(--txt-2);line-height:1.7;margin-bottom:13px">全記録はこの端末内に保存されます。機種変や万一の消失に備え、ときどき書き出しておくと安心です。</div>
+      <button class="btn primary" id="expBtn" style="margin-bottom:9px">バックアップを書き出す</button>
+      <button class="btn ghost" id="impBtn">バックアップを読み込む</button>
+      <input type="file" id="impFile" accept="application/json" style="display:none">
+    </div>
+  </div>`;
+
+  const tgA=document.getElementById('tgAuto'); tgA.onclick=()=>{ settings.autoTimer=!settings.autoTimer; saveAll(); tgA.classList.toggle('on'); };
+  const tgS=document.getElementById('tgSound'); tgS.onclick=()=>{ settings.sound=!settings.sound; saveAll(); tgS.classList.toggle('on'); if(settings.sound)beep(); };
+  document.getElementById('rMinus').onclick=()=>{ settings.rest=Math.max(15,settings.rest-15); saveAll(); document.getElementById('rVal').textContent=settings.rest+'s'; };
+  document.getElementById('rPlus').onclick=()=>{ settings.rest=Math.min(600,settings.rest+15); saveAll(); document.getElementById('rVal').textContent=settings.rest+'s'; };
+
+  document.getElementById('addEx').onclick=()=>{ const name=document.getElementById('newName').value.trim(); const muscle=document.getElementById('newMuscle').value;
+    if(!name){ toast('種目名を入力してください'); return; } exercises.push({id:uid(),name,muscle}); saveAll(); toast('追加しました'); renderMore(); };
+  v.querySelectorAll('[data-rmex]').forEach(b=>b.onclick=()=>{ const used=logs.some(l=>l.exId===b.dataset.rmex);
+    if(used&&!confirm('過去記録は残りますが、一覧から削除しますか？'))return; const id=b.dataset.rmex;
+    exercises=exercises.filter(x=>x.id!==id); routines.forEach(r=>r.exIds=r.exIds.filter(x=>x!==id)); saveAll(); renderMore(); });
+
+  document.getElementById('expBtn').onclick=exportData;
+  document.getElementById('impBtn').onclick=()=>document.getElementById('impFile').click();
+  document.getElementById('impFile').onchange=importData;
+}
+
+/* ============ バックアップ ============ */
+function exportData(){
+  const data={app:'ATLAS', ver:1, exportedAt:new Date().toISOString(), exercises, logs, routines, bw, settings};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a'); const d=new Date();
+  const stamp=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+  a.href=URL.createObjectURL(blob); a.download=`atlas-backup-${stamp}.json`; a.click(); URL.revokeObjectURL(a.href);
+  toast('書き出しました');
+}
+function importData(e){
+  const file=e.target.files[0]; if(!file)return;
+  const reader=new FileReader();
+  reader.onload=()=>{ try{ const d=JSON.parse(reader.result);
+    if(!d.logs||!d.exercises){ toast('対応していないファイルです'); return; }
+    if(!confirm('現在のデータをこのバックアップで置き換えます。よろしいですか？'))return;
+    exercises=d.exercises||DEFAULT_EX; logs=d.logs||[]; routines=d.routines||DEFAULT_ROUTINES; bw=d.bw||[]; settings=Object.assign({rest:90,autoTimer:true,sound:true},d.settings||{});
+    saveAll(); selRt=null; draftExId=null; toast('読み込みました'); renderMore();
+  }catch(err){ toast('読み込みに失敗しました'); } };
+  reader.readAsText(file); e.target.value='';
+}
+
+/* ============ ルーター ============ */
+function render(){
+  if(tab==='log') renderLog();
+  else if(tab==='history') renderHistory();
+  else if(tab==='stats') renderStats();
+  else if(tab==='routine') renderRoutine();
+  else if(tab==='more') renderMore();
+}
+render();
+
+/* ============ PWA: サービスワーカー登録（https/Pages公開時に有効） ============ */
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>
