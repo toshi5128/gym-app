@@ -122,7 +122,20 @@
   .dayadd{margin-left:8px; background:var(--surface-3); border:1px solid var(--hair); color:var(--txt-2);
     border-radius:18px; padding:5px 11px; font-size:11px; font-weight:700; cursor:pointer; font-family:var(--font-jp);}
 
-  .days{display:grid; grid-template-columns:repeat(4,1fr); gap:8px;}
+  .days{display:grid; grid-template-columns:repeat(5,1fr); gap:7px;}
+  .exrow{display:flex; gap:10px; overflow-x:auto; padding:4px 2px 12px; margin-top:10px; scroll-snap-type:x proximity; -webkit-overflow-scrolling:touch;}
+  .exrow::-webkit-scrollbar{height:0; display:none;}
+  .exo{flex:0 0 auto; width:166px; scroll-snap-align:start; text-align:left; padding:14px; border-radius:var(--r-md); background:var(--surface); border:1px solid var(--hair); box-shadow:var(--shadow); cursor:pointer; transition:transform .08s, border-color .15s, box-shadow .15s;}
+  .exo:active{transform:scale(.97);}
+  .exo.on{border-color:var(--blue); box-shadow:0 0 0 2px var(--blue-dim), var(--shadow);}
+  .exo-top{display:flex; align-items:flex-start; justify-content:space-between; gap:8px;}
+  .exo-top b{font-size:15px; font-weight:700; color:var(--txt); line-height:1.25;}
+  .exo-i{flex:0 0 auto; width:21px; height:21px; border-radius:50%; border:1px solid var(--hair); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; font-style:italic; color:var(--txt-3); font-family:var(--font-disp);}
+  .exo-sub{font-size:11.5px; color:var(--txt-3); margin-top:8px; line-height:1.35;}
+  .exo-done{color:var(--blue); font-weight:800;}
+  .rec-ex{display:flex; align-items:center; gap:11px; margin-bottom:11px;}
+  .rec-ex b{font-size:19px; font-weight:800; color:var(--txt); letter-spacing:-.01em;}
+  .rec-ex .rec-mus{flex:0 0 auto; font-size:11px; font-weight:800; color:var(--blue); background:var(--blue-dim); padding:3px 10px; border-radius:20px; letter-spacing:.04em;}
   .day{position:relative; text-align:center; cursor:pointer; background:var(--surface-2);
     border:1px solid var(--hair); border-radius:var(--r-md); padding:18px 0 16px; font-weight:700;
     font-size:15px; color:var(--txt-2); transition:transform .12s, background .15s, color .15s, border-color .15s; overflow:hidden;}
@@ -984,25 +997,13 @@ function renderLog(keepScroll){
     </div>`;
   }
 
-  // 今週のプラン & 今日のセッション提案（ウォームアップ→メイン）
-  const wkStart=weekStartStr(todayStr());
-  const wkDoneRt=new Set(logs.filter(l=>l.date>=wkStart).map(l=>l.rtId).filter(Boolean));
-  const planChips=routines.map(r=>`<span class="plan-chip ${wkDoneRt.has(r.id)?'done':''} ${rt&&r.id===rt.id?'sel':''}">${r.name}</span>`).join('');
-  const remainNames=routines.filter(r=>!wkDoneRt.has(r.id)).map(r=>r.name);
-  const weekPlanHtml=`<div class="eyebrow">今週のプラン</div>
-    <div class="card wk-card"><div class="wk-sub">完了 ${wkDoneRt.size}/${routines.length}${remainNames.length?'　残り：'+remainNames.join('・'):'　— 今週は全部達成！'}</div>
-    <div class="plan-chips">${planChips}</div></div>`;
-  let sessionHtml='';
-  if(rt && rt.exIds.length){ const gr=goalRange();
-    const rows=rt.exIds.map(id=>{ const sug=suggestNext(id); const tw=sug.w||0;
-      const wu=tw?warmupSets(tw,settings.bar).map(s=>`${s.w}×${s.r}`).join(' → '):'';
-      const main=tw?`${sug.w}kg × ${sug.r}回 × ${sug.sets}セット`:`まず ${gr.lo}〜${gr.hi}回 で基準づくり`;
-      return `<div class="sp-ex"><div class="sp-name">${exName(id)}</div>
-        ${wu?`<div class="sp-line"><span class="sp-tag warm">W-UP</span><span>${wu} → 本番</span></div>`:''}
-        <div class="sp-line"><span class="sp-tag main">メイン</span><span>${main}</span></div></div>`; }).join('');
-    sessionHtml=`<div class="eyebrow">今日のセッション（ウォームアップ→メイン）</div>
-      <div class="card sp-card">${rows}<div class="hint" style="margin-top:2px">ウォームアップ＝本番前に軽い重さで温めるセット（記録不要）。メイン＝記録する本番。重さは前回までの記録から自動提案。</div></div>`;
-  }
+  // 今日のメニュー：選んだ部位（日）の種目を横スクロールで一覧表示
+  const exRowHtml = rt ? (rt.exIds.length ? rt.exIds.map(id=>{ const ok=doneTodayEx(id), cur=id===draftExId, last=lastRecord(id);
+      const sub=last?`前回 ${last.sets.map(s=>s.w+'×'+s.r).join(' / ')}`:'記録なし';
+      return `<div class="exo ${cur?'on':''} ${ok?'ok':''}" data-pick="${id}">
+        <div class="exo-top"><b>${exName(id)}</b><span class="exo-i" data-guide="${id}">i</span></div>
+        <div class="exo-sub">${ok?'<span class="exo-done">完了</span> ・ ':''}${sub}</div></div>`; }).join('')
+    : '<div class="empty" style="padding:22px">この日に種目が未登録です。<br>「分割」タブで追加できます。</div>') : '';
 
   v.innerHTML=`<div class="fade-in">
     ${qsHtml}
@@ -1014,21 +1015,14 @@ function renderLog(keepScroll){
         <div class="m">${isToday()?'本日':'この日'}のボリューム <b class="tnum">${todayVol.toLocaleString()}kg</b></div>
         ${(()=>{ const P=physObj(settings.physique); return `<div class="goal-mini" id="heroGoal">${P?'ゴール：'+P.name+'・'+PHASE_LABEL[P.phase].split('（')[0]:'＋ なりたい体を選ぶ'}</div>`; })()}</div>
     </div>
-    ${weekPlanHtml}
-    ${sessionHtml}
-    <div class="eyebrow">今日のメニュー</div>
+    <div class="eyebrow">今日のメニュー（部位を選ぶ）</div>
     <div class="days">${dayChips}</div>
     ${sugNote?`<div class="suggest-note">${sugNote}</div>`:''}
-    ${rt?`<div class="eyebrow">${rt.name}の種目</div><div class="card" style="padding:4px 14px;">${menuHtml||'<div class="empty" style="padding:26px">この日に種目が未登録です。<br>「分割」タブで追加できます。</div>'}</div>`:''}
+    ${rt?`<div class="exrow">${exRowHtml}</div>`:''}
     <div class="eyebrow">記録する</div>
     <div class="card">
-      ${(pickerOpen || !draftExId) ? `
-      <label class="lbl">種目（部位を選ぶ）</label>
-      <div class="mus-row">${musChips}</div>
-      <div class="ex-pick-grid">${exPickBtns}</div>` : `
-      <label class="lbl">種目</label>
-      <button class="ex-selected" id="exChange"><span class="exs-mus">${exMuscle(draftExId)||'種目'}</span><span class="exs-name">${exName(draftExId)}</span><span class="exs-act">変更</span></button>`}
-      ${draftExId?`<button class="exg-link" id="exGuideBtn"><span class="exg-ic">i</span>この種目の動き・コツを見る</button>`:''}
+      ${draftExId?`<div class="rec-ex"><span class="rec-mus">${exMuscle(draftExId)||''}</span><b>${exName(draftExId)}</b></div>
+      <button class="exg-link" id="exGuideBtn"><span class="exg-ic">i</span>この種目の動き・コツを見る</button>`:'<div class="hint" style="border:none;margin:0 0 6px">上の「今日のメニュー」から種目を選んでください。</div>'}
       ${targetHtml}${lastHtml}
       <div style="height:16px"></div>
       <label class="lbl">セット（重量 × 回数）</label>
@@ -1065,11 +1059,8 @@ function renderLog(keepScroll){
   const _dt=document.getElementById('dToday'); if(_dt)_dt.onclick=()=>setWorkDate(todayStr());
   const _ce=document.getElementById('cancelEdit'); if(_ce)_ce.onclick=()=>{ editId=null; draftSets=[{w:'',r:''}]; renderLog(); };
 
-  v.querySelectorAll('[data-rt]').forEach(d=>d.onclick=()=>{ selRt=d.dataset.rt; draftExId=null; draftSets=[{w:'',r:''}]; renderLog(); });
-  v.querySelectorAll('[data-pick]').forEach(m=>m.onclick=()=>{ draftExId=m.dataset.pick; pickMuscle=exMuscle(draftExId)||null; pickerOpen=false; draftSets=[{w:'',r:''}]; renderLog(true); });
-  v.querySelectorAll('[data-mus]').forEach(c=>c.onclick=()=>{ pickMuscle=c.dataset.mus; pickerOpen=true; renderLog(true); });
-  v.querySelectorAll('[data-expick]').forEach(b=>b.onclick=()=>{ draftExId=b.dataset.expick; pickMuscle=exMuscle(draftExId)||null; pickerOpen=false; draftSets=[{w:'',r:''}]; renderLog(true); });
-  { const ec=document.getElementById('exChange'); if(ec)ec.onclick=()=>{ pickerOpen=true; renderLog(true); }; }
+  v.querySelectorAll('[data-rt]').forEach(d=>d.onclick=()=>{ selRt=d.dataset.rt; draftExId=null; draftSets=[{w:'',r:''}]; renderLog(true); });
+  v.querySelectorAll('[data-pick]').forEach(m=>m.onclick=()=>{ draftExId=m.dataset.pick; draftSets=[{w:'',r:''}]; renderLog(true); });
   const _eg=document.getElementById('exGuideBtn'); if(_eg)_eg.onclick=()=>openExGuide(draftExId);
   v.querySelectorAll('[data-guide]').forEach(b=>b.onclick=ev=>{ ev.stopPropagation(); openExGuide(b.dataset.guide); });
   document.getElementById('addSet').onclick=()=>{ const l=draftSets[draftSets.length-1]; draftSets.push({w:l?l.w:'',r:l?l.r:''}); renderLog(true); const f=document.querySelector(`input[data-si="${draftSets.length-1}"][data-f="w"]`); if(f)f.focus(); };
