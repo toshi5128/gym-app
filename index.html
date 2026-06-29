@@ -324,6 +324,11 @@
   .ex-pick{text-align:left; padding:13px 14px; border-radius:var(--r-md); background:var(--surface-2); border:1px solid var(--hair); color:var(--txt); font-size:13.5px; font-weight:600; cursor:pointer; font-family:inherit; width:100%; transition:transform .08s, border-color .15s; line-height:1.3;}
   .ex-pick.on{border-color:var(--blue); background:var(--blue-dim); color:var(--blue); font-weight:800;}
   .ex-pick:active{transform:scale(.97);}
+  .ex-selected{display:flex; align-items:center; gap:11px; width:100%; margin-top:4px; padding:13px 14px; border-radius:var(--r-md); background:var(--surface-2); border:1px solid var(--hair); cursor:pointer; font-family:inherit; transition:transform .08s, border-color .15s;}
+  .ex-selected:active{transform:scale(.99);}
+  .ex-selected .exs-mus{font-size:11px; font-weight:800; color:var(--blue); background:var(--blue-dim); padding:3px 10px; border-radius:20px; letter-spacing:.04em; flex-shrink:0;}
+  .ex-selected .exs-name{font-size:16px; font-weight:700; color:var(--txt); flex:1; text-align:left; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .ex-selected .exs-act{font-size:12.5px; font-weight:700; color:var(--blue); flex-shrink:0;}
 
   /* exercise guide */
   .exg-link{display:flex; align-items:center; gap:9px; width:100%; margin-top:10px; background:var(--surface-2); border:1px solid var(--hair); color:var(--txt-2); border-radius:var(--r-md); padding:11px 14px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:transform .08s;}
@@ -755,7 +760,7 @@ function bigChart(pts){ if(pts.length<2) return `<div class="spark-empty">デー
     <text x="${L}" y="${H-7}" class="ct">${pts[0].d}</text><text x="${W-R}" y="${H-7}" class="ct" text-anchor="end">${pts[pts.length-1].d}</text>
     <path d="${area}" fill="rgba(168,132,47,.12)" stroke="none"/>
     <path d="${line}" fill="none" stroke="#b0892f" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>${dots}</svg>`; }
-let chartExId=null, measSel='chest', cmpA=0, cmpB=-1, barType='barbell', toolKind=null, calMonth=null, pickMuscle=null, animateIn=true;
+let chartExId=null, measSel='chest', cmpA=0, cmpB=-1, barType='barbell', toolKind=null, calMonth=null, pickMuscle=null, animateIn=true, pickerOpen=false;
 function countUp(el,to,dec){ if(!el)return; const dur=750,t0=performance.now(); const run=(t)=>{ let p=Math.min(1,(t-t0)/dur); p=1-Math.pow(1-p,3); el.textContent=(to*p).toFixed(dec); if(p<1)requestAnimationFrame(run); }; requestAnimationFrame(run); }
 
 /* ===== なりたい体（ゴール）エンジン ===== */
@@ -1017,9 +1022,12 @@ function renderLog(keepScroll){
     ${rt?`<div class="eyebrow">${rt.name}の種目</div><div class="card" style="padding:4px 14px;">${menuHtml||'<div class="empty" style="padding:26px">この日に種目が未登録です。<br>「分割」タブで追加できます。</div>'}</div>`:''}
     <div class="eyebrow">記録する</div>
     <div class="card">
+      ${(pickerOpen || !draftExId) ? `
       <label class="lbl">種目（部位を選ぶ）</label>
       <div class="mus-row">${musChips}</div>
-      <div class="ex-pick-grid">${exPickBtns}</div>
+      <div class="ex-pick-grid">${exPickBtns}</div>` : `
+      <label class="lbl">種目</label>
+      <button class="ex-selected" id="exChange"><span class="exs-mus">${exMuscle(draftExId)||'種目'}</span><span class="exs-name">${exName(draftExId)}</span><span class="exs-act">変更</span></button>`}
       ${draftExId?`<button class="exg-link" id="exGuideBtn"><span class="exg-ic">i</span>この種目の動き・コツを見る</button>`:''}
       ${targetHtml}${lastHtml}
       <div style="height:16px"></div>
@@ -1058,9 +1066,10 @@ function renderLog(keepScroll){
   const _ce=document.getElementById('cancelEdit'); if(_ce)_ce.onclick=()=>{ editId=null; draftSets=[{w:'',r:''}]; renderLog(); };
 
   v.querySelectorAll('[data-rt]').forEach(d=>d.onclick=()=>{ selRt=d.dataset.rt; draftExId=null; draftSets=[{w:'',r:''}]; renderLog(); });
-  v.querySelectorAll('[data-pick]').forEach(m=>m.onclick=()=>{ draftExId=m.dataset.pick; pickMuscle=exMuscle(draftExId)||null; draftSets=[{w:'',r:''}]; renderLog(true); });
-  v.querySelectorAll('[data-mus]').forEach(c=>c.onclick=()=>{ pickMuscle=c.dataset.mus; renderLog(true); });
-  v.querySelectorAll('[data-expick]').forEach(b=>b.onclick=()=>{ draftExId=b.dataset.expick; pickMuscle=exMuscle(draftExId)||null; draftSets=[{w:'',r:''}]; renderLog(true); });
+  v.querySelectorAll('[data-pick]').forEach(m=>m.onclick=()=>{ draftExId=m.dataset.pick; pickMuscle=exMuscle(draftExId)||null; pickerOpen=false; draftSets=[{w:'',r:''}]; renderLog(true); });
+  v.querySelectorAll('[data-mus]').forEach(c=>c.onclick=()=>{ pickMuscle=c.dataset.mus; pickerOpen=true; renderLog(true); });
+  v.querySelectorAll('[data-expick]').forEach(b=>b.onclick=()=>{ draftExId=b.dataset.expick; pickMuscle=exMuscle(draftExId)||null; pickerOpen=false; draftSets=[{w:'',r:''}]; renderLog(true); });
+  { const ec=document.getElementById('exChange'); if(ec)ec.onclick=()=>{ pickerOpen=true; renderLog(true); }; }
   const _eg=document.getElementById('exGuideBtn'); if(_eg)_eg.onclick=()=>openExGuide(draftExId);
   v.querySelectorAll('[data-guide]').forEach(b=>b.onclick=ev=>{ ev.stopPropagation(); openExGuide(b.dataset.guide); });
   document.getElementById('addSet').onclick=()=>{ const l=draftSets[draftSets.length-1]; draftSets.push({w:l?l.w:'',r:l?l.r:''}); renderLog(true); const f=document.querySelector(`input[data-si="${draftSets.length-1}"][data-f="w"]`); if(f)f.focus(); };
