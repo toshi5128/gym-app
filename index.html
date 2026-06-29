@@ -308,6 +308,20 @@
   .cmp-span{color:var(--blue); font-weight:700;}
   .cmp-lbl{display:block; font-size:9px; font-weight:700; letter-spacing:.1em; color:var(--txt-3); text-transform:uppercase; margin:8px 0 3px;}
 
+  /* exercise guide */
+  .exg-link{display:flex; align-items:center; gap:9px; width:100%; margin-top:10px; background:var(--surface-2); border:1px solid var(--hair); color:var(--txt-2); border-radius:var(--r-md); padding:11px 14px; font-size:13px; font-weight:700; cursor:pointer; font-family:inherit; transition:transform .08s;}
+  .exg-link:active{transform:scale(.99);}
+  .exg-ic{width:20px; height:20px; border-radius:50%; background:var(--blue-dim); color:var(--blue); display:inline-flex; align-items:center; justify-content:center; font-family:var(--font-disp); font-weight:800; font-style:italic; font-size:12px; flex-shrink:0;}
+  .exg-i{width:26px; height:26px; flex-shrink:0; border-radius:50%; border:1px solid var(--hair); background:var(--surface-2); color:var(--txt-3); font-family:var(--font-disp); font-weight:800; font-size:13px; font-style:italic; cursor:pointer; margin-right:6px; line-height:1; transition:transform .08s;}
+  .exg-i:active{transform:scale(.88);}
+  .exg-name{font-size:20px; font-weight:800;}
+  .exg-mus{font-size:12.5px; color:var(--blue); font-weight:700; margin-top:3px;}
+  .exg-sec{margin-top:14px;}
+  .exg-lbl{font-size:10px; font-weight:700; letter-spacing:.12em; color:var(--txt-3); text-transform:uppercase; font-family:var(--font-disp);}
+  .exg-ol, .exg-ul{margin:8px 0 0; padding-left:20px;}
+  .exg-ol li, .exg-ul li{font-size:13.5px; color:var(--txt); line-height:1.7; margin-bottom:5px;}
+  .exg-yt{display:flex; align-items:center; justify-content:center; text-decoration:none; margin-top:18px;}
+
   /* calendar (history) */
   .cal-card{padding:14px 13px 15px;}
   .cal-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:11px;}
@@ -759,6 +773,44 @@ function showGuide(){ const el=document.getElementById('onboard'); el.style.disp
   document.getElementById('guideDone').onclick=()=>{ settings.guideSeen=true; saveAll(); el.style.display='none'; };
 }
 
+/* ===== 種目の動き解説 ===== */
+const EX_GUIDE={
+  'ベンチプレス':{t:'胸（大胸筋）・肩前・三頭',how:['ベンチに仰向けで寝て、バーを肩幅より少し広く握る','胸の中央までゆっくり下ろす','胸を張ったままバーを真上へ押し上げる'],cue:['肩甲骨を寄せて胸を張る','お尻はベンチにつけたまま']},
+  'インクラインベンチ':{t:'胸の上部・肩前',how:['30〜45度に起こしたベンチに座る','バー/ダンベルを鎖骨〜胸の上部へ下ろす','まっすぐ上へ押し上げる'],cue:['角度を上げすぎると肩の種目になる','胸の上部を意識']},
+  'ダンベルフライ':{t:'胸（大胸筋）',how:['仰向けでダンベルを胸の真上に構える','ひじを軽く曲げたまま弧を描いて横に開く','胸が伸びたら同じ軌道で閉じる'],cue:['ひじの角度は固定','重さよりも胸のストレッチ重視']},
+  'ダンベルプレス':{t:'胸・肩前・三頭',how:['仰向けでダンベルを胸の横に構える','胸を張って真上へ押し上げる','コントロールして胸の横まで下ろす'],cue:['手首を立てる','下ろしすぎて肩を痛めない範囲で']},
+  'デッドリフト':{t:'背中・お尻・もも裏（全身）',how:['足は腰幅、バーは脛のすぐ近く','背中をまっすぐにし股関節から曲げてバーを握る','床を押すように立ち上がる'],cue:['背中を丸めない','バーは体の近くを通す']},
+  'ベントオーバーロウ':{t:'背中（広背筋・僧帽筋）',how:['膝を軽く曲げ上体を前傾させる','バーをお腹に向けて引き上げる','コントロールして下ろす'],cue:['背中はまっすぐキープ','ひじを後ろに引く意識']},
+  'ラットプルダウン':{t:'背中（広背筋＝逆三角の幅）',how:['バーを肩幅より広く握って座る','胸を張ってバーを鎖骨へ引き下げる','ゆっくり戻す'],cue:['反動を使わない','ひじを下へ引くと背中に効く']},
+  '懸垂（チンニング）':{t:'背中（広背筋）・腕',how:['バーを肩幅で握りぶら下がる','胸をバーに近づけるように引き上げる','コントロールして下ろす'],cue:['肩をすくめない','きつければ補助やバンドを使う']},
+  'シーテッドロウ':{t:'背中（中央・厚み）',how:['マシンに座りハンドルを握る','胸を張ってお腹へ引く','ゆっくり戻す'],cue:['背中を丸めない','肩甲骨を寄せる']},
+  'ショルダープレス':{t:'肩（三角筋）',how:['ダンベル/バーを肩の高さで構える','まっすぐ頭上へ押し上げる','コントロールして肩まで下ろす'],cue:['腰を反りすぎない','耳の横〜やや前で押す']},
+  'サイドレイズ':{t:'肩の横（三角筋中部）',how:['ダンベルを体の横に持つ','ひじを軽く曲げ、横へ肩の高さまで上げる','ゆっくり下ろす'],cue:['反動を使わない','軽めの重さで効かせる']},
+  'リアレイズ':{t:'肩の後ろ（三角筋後部）',how:['上体を前傾しダンベルを下に構える','ひじを軽く曲げ後ろ〜横に開く','ゆっくり戻す'],cue:['首をすくめない','軽い重さで丁寧に']},
+  'スクワット':{t:'もも・お尻（下半身全体）',how:['バーを肩に担ぐ（自重なら胸の前で手を組む）','足は肩幅・つま先はやや外','お尻を後ろに引いてしゃがみ、立ち上がる'],cue:['膝とつま先の向きを揃える','背中はまっすぐ']},
+  'レッグプレス':{t:'もも・お尻',how:['マシンに座り足をプレートに乗せる','膝を曲げて下ろす','かかとで押して戻す'],cue:['腰を浮かせない','膝をロックしない']},
+  'レッグカール':{t:'もも裏（ハムストリングス）',how:['足首をパッドにかける','かかとをお尻に近づけるように曲げる','ゆっくり戻す'],cue:['反動を使わない','もも裏の収縮を意識']},
+  'レッグエクステンション':{t:'もも前（大腿四頭筋）',how:['マシンに座り足首をパッドの下に','膝を伸ばして持ち上げる','ゆっくり戻す'],cue:['反動を使わない','上で1秒止める']},
+  'カーフレイズ':{t:'ふくらはぎ',how:['つま先立ちの体勢をつくる','かかとを上げて伸び上がる','ゆっくり下ろしてストレッチ'],cue:['可動域を大きく','反動を使わない']},
+  'アームカール':{t:'力こぶ（上腕二頭筋）',how:['ダンベル/バーを下げて持つ','ひじを固定して曲げ上げる','ゆっくり下ろす'],cue:['ひじを前後に振らない','下ろしきって伸ばす']},
+  'トライセプスプッシュダウン':{t:'二の腕（上腕三頭筋）',how:['ケーブルのバーを上から握る','ひじを脇に固定し下へ押し下げる','ゆっくり戻す'],cue:['ひじを動かさない','下で腕を伸ばしきる']},
+  'ハンマーカール':{t:'腕（二頭筋・前腕）',how:['ダンベルを縦（親指が上）に持つ','ひじを固定して曲げ上げる','ゆっくり下ろす'],cue:['手首を返さない','ひじを固定']},
+};
+function openExGuide(exId){ const e=exObj(exId); if(!e)return; const g=EX_GUIDE[e.name];
+  const yt=`https://www.youtube.com/results?search_query=${encodeURIComponent(e.name+' やり方 フォーム')}`;
+  const el=document.getElementById('onboard'); el.style.display='flex';
+  el.innerHTML=`<div class="ob-card">
+    <div class="exg-name">${e.name}</div>
+    <div class="exg-mus">主に効く：${g?g.t:e.muscle}</div>
+    ${g?`<div class="exg-sec"><span class="exg-lbl">動きの流れ</span><ol class="exg-ol">${g.how.map(h=>`<li>${h}</li>`).join('')}</ol></div>
+        <div class="exg-sec"><span class="exg-lbl">フォームのコツ</span><ul class="exg-ul">${g.cue.map(c=>`<li>${c}</li>`).join('')}</ul></div>`
+      :`<div class="hint" style="border:none;padding:0;margin:10px 0">この種目の文章解説はまだありません。下のボタンで動画を確認できます。</div>`}
+    <a class="btn solid exg-yt" href="${yt}" target="_blank" rel="noopener">動画で動きを見る（YouTube）</a>
+    <button class="btn ghost" id="exgClose" style="width:100%;margin-top:9px">閉じる</button>
+  </div>`;
+  document.getElementById('exgClose').onclick=()=>{ el.style.display='none'; };
+}
+
 (function(){ const d=new Date();
   document.getElementById('hdrDate').textContent=`${d.getMonth()+1}月${d.getDate()}日`;
   document.getElementById('hdrWeek').textContent=`${WK[d.getDay()]}曜日`;
@@ -852,7 +904,7 @@ function renderLog(keepScroll){
   if(rt){ menuHtml=rt.exIds.map(id=>{ const ok=doneTodayEx(id),cur=id===draftExId,last=lastRecord(id);
     const sub=last?`前回 ${last.sets.map(s=>s.w+'×'+s.r).join(' / ')}`:'記録なし';
     return `<div class="menu-item ${ok?'ok':''} ${cur?'cur':''}" data-pick="${id}"><div class="chk">${IC.check}</div>
-      <div class="mn"><b>${exName(id)}</b><s>${sub}</s></div><div class="go">${cur?IC.dot:IC.chevron}</div></div>`; }).join(''); }
+      <div class="mn"><b>${exName(id)}</b><s>${sub}</s></div><button class="exg-i" data-guide="${id}">i</button><div class="go">${cur?IC.dot:IC.chevron}</div></div>`; }).join(''); }
   if(draftExId===null&&rt){ draftExId=rt.exIds.find(id=>!doneTodayEx(id))||rt.exIds[0]; }
 
   const allOpts=exercises.map(e=>`<option value="${e.id}" ${e.id===draftExId?'selected':''}>${e.name}（${e.muscle}）</option>`).join('');
@@ -933,6 +985,7 @@ function renderLog(keepScroll){
     <div class="card">
       <label class="lbl">種目</label>
       <select id="exSel">${allOpts}</select>
+      ${draftExId?`<button class="exg-link" id="exGuideBtn"><span class="exg-ic">i</span>この種目の動き・コツを見る</button>`:''}
       ${targetHtml}${lastHtml}
       <div style="height:16px"></div>
       <label class="lbl">セット（重量 × 回数）</label>
@@ -972,6 +1025,8 @@ function renderLog(keepScroll){
   v.querySelectorAll('[data-rt]').forEach(d=>d.onclick=()=>{ selRt=d.dataset.rt; draftExId=null; draftSets=[{w:'',r:''}]; renderLog(); });
   v.querySelectorAll('[data-pick]').forEach(m=>m.onclick=()=>{ draftExId=m.dataset.pick; draftSets=[{w:'',r:''}]; renderLog(true); const c=document.getElementById('exSel'); if(c)c.scrollIntoView({behavior:'smooth',block:'center'}); });
   document.getElementById('exSel').onchange=e=>{ draftExId=e.target.value; renderLog(true); };
+  const _eg=document.getElementById('exGuideBtn'); if(_eg)_eg.onclick=()=>openExGuide(draftExId);
+  v.querySelectorAll('[data-guide]').forEach(b=>b.onclick=ev=>{ ev.stopPropagation(); openExGuide(b.dataset.guide); });
   document.getElementById('addSet').onclick=()=>{ const l=draftSets[draftSets.length-1]; draftSets.push({w:l?l.w:'',r:l?l.r:''}); renderLog(true); const f=document.querySelector(`input[data-si="${draftSets.length-1}"][data-f="w"]`); if(f)f.focus(); };
   document.getElementById('copyLast').onclick=()=>{ if(last){ draftSets=last.sets.map(s=>({w:s.w,r:s.r})); renderLog(true); } };
   document.getElementById('restNow').onclick=()=>Timer.start(draftExId?restFor(draftExId):settings.rest);
