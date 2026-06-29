@@ -1586,7 +1586,11 @@ photoAllDB().then(a=>{ photoCache=a; if(tab==='log'||tab==='history') render(); 
 
 /* ============ PWA: サービスワーカー登録（https/Pages公開時に有効） ============ */
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+  // 新しいバージョンが有効になったら自動で1回だけリロード（更新が確実に届く）
+  let _swReloaded=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{ if(_swReloaded)return; _swReloaded=true; location.reload(); });
+  window.addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js').then(reg=>{ reg.update();
+    setInterval(()=>reg.update(), 60*60*1000); }).catch(()=>{}); });
 }
 </script>
 </body>

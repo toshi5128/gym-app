@@ -1,6 +1,7 @@
-/* ATLAS service worker — アプリ本体をキャッシュしてオフラインでも起動できるようにする
-   アプリを更新したら CACHE のバージョン(atlas-vN)を上げること。 */
-const CACHE = 'atlas-v5';
+/* ATLAS service worker
+   HTMLは「ネットワーク優先」（常に最新を取得、オフライン時のみキャッシュ）、
+   アイコン等の静的アセットは「キャッシュ優先」。更新したら CACHE のバージョンを上げる。 */
+const CACHE = 'atlas-v6';
 const ASSETS = [
   './',
   './index.html',
@@ -23,14 +24,29 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
+  const url = new URL(req.url);
+  const isHTML = req.mode === 'navigate' || url.pathname === '/' || url.pathname.endsWith('/') || url.pathname.endsWith('index.html');
+
+  if (isHTML) {
+    // ネットワーク優先：常に最新のHTMLを表示。失敗時のみキャッシュにフォールバック
+    e.respondWith(
+      fetch(req).then(res => {
+        const copy = res.clone();
+        caches.open(CACHE).then(c => c.put('./index.html', copy));
+        return res;
+      }).catch(() => caches.match('./index.html').then(r => r || caches.match('./')))
+    );
+    return;
+  }
+
+  // 静的アセット：キャッシュ優先（高速＆オフライン対応）
   e.respondWith(
     caches.match(req).then(cached => cached || fetch(req).then(res => {
-      // 同一オリジンのGETは取得ついでにキャッシュ（フォント等のCDNはそのまま素通し）
-      if (new URL(req.url).origin === location.origin) {
+      if (url.origin === location.origin) {
         const copy = res.clone();
         caches.open(CACHE).then(c => c.put(req, copy));
       }
       return res;
-    }).catch(() => caches.match('./index.html')))
+    }).catch(() => cached))
   );
 });
