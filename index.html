@@ -18,14 +18,38 @@
     --surface:#15171c; --surface-2:#1b1e24; --surface-3:#262a32;
     --hair:rgba(255,255,255,.08); --hair-2:rgba(255,255,255,.045);
     --txt:#f6f7f9; --txt-2:#a7adb8; --txt-3:#646a75;
-    --acc:#ffffff; --acc-dim:rgba(255,255,255,.10); --danger:#ff6a6a;
+    --acc:#ffffff; --acc-dim:rgba(255,255,255,.10); --on-acc:#0a0b0d; --danger:#ff6a6a;
     --blue:#5aa9ff; --blue2:#3d7dff; --blue-dim:rgba(90,169,255,.16);
     --hl:inset 0 1px 0 rgba(255,255,255,.05);
     --r-lg:22px; --r-md:16px; --r-sm:12px;
     --shadow:0 18px 44px -22px rgba(0,0,0,.85);
+    --card-grad:#111317;
     --font-jp:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic UI",system-ui,sans-serif;
     --font-disp:'Space Grotesk','Zen Kaku Gothic New',-apple-system,system-ui,sans-serif;
   }
+  /* ===== ライトテーマ（屋外でも見やすい） ===== */
+  :root[data-theme="light"]{
+    --bg:#eef1f5; --bg-glow:#ffffff;
+    --surface:#ffffff; --surface-2:#f3f5f8; --surface-3:#e6eaf0;
+    --hair:rgba(16,20,28,.14); --hair-2:rgba(16,20,28,.07);
+    --txt:#14171c; --txt-2:#4b5563; --txt-3:#8a93a0;
+    --acc:#14171c; --acc-dim:rgba(20,23,28,.08); --on-acc:#ffffff; --danger:#dc4640;
+    --blue:#2f7bf0; --blue2:#2563eb; --blue-dim:rgba(47,123,240,.12);
+    --hl:inset 0 1px 0 rgba(255,255,255,.6);
+    --shadow:0 14px 34px -20px rgba(20,30,60,.26);
+    --card-grad:#f7f9fc;
+  }
+  :root[data-theme="light"] .hero{ background:linear-gradient(180deg,#ffffff,#eaf1fb); }
+  :root[data-theme="light"] .suggest-card{ background:linear-gradient(180deg,#f1f6ff,#ffffff); }
+  :root[data-theme="light"] .goal-card, :root[data-theme="light"] .goal-cta{ background:linear-gradient(180deg,#edf4ff,#ffffff); }
+  :root[data-theme="light"] header{ background:linear-gradient(180deg, rgba(238,241,245,.96) 60%, rgba(238,241,245,0)); }
+  :root[data-theme="light"] nav{ background:rgba(255,255,255,.86); box-shadow:0 20px 50px -22px rgba(30,45,80,.28); }
+  :root[data-theme="light"] .toggle::after{ box-shadow:0 1px 3px rgba(20,30,60,.25); }
+  :root[data-theme="light"] .onboard{ background:rgba(238,241,245,.97); }
+  .seg3{display:inline-flex; gap:4px; background:var(--surface-3); padding:4px; border-radius:12px; flex-shrink:0;}
+  .seg3-b{font-size:12px; font-weight:700; padding:7px 13px; border-radius:9px; color:var(--txt-2); cursor:pointer; font-family:var(--font-disp); transition:transform .08s, background-color .15s, color .15s;}
+  .seg3-b.on{background:var(--acc); color:var(--on-acc);}
+  .seg3-b:active{transform:scale(.96);}
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{margin:0;}
   body{
@@ -59,7 +83,7 @@
     text-transform:uppercase; margin:26px 4px 12px; display:flex; align-items:center; gap:10px;}
   .eyebrow::after{content:""; flex:1; height:1px; background:var(--hair-2);}
 
-  .card{background:linear-gradient(180deg, var(--surface) 0%, #111317 100%);
+  .card{background:linear-gradient(180deg, var(--surface) 0%, var(--card-grad) 100%);
     border:1px solid var(--hair); border-radius:var(--r-lg); padding:18px; margin-bottom:14px; box-shadow:var(--shadow), var(--hl);}
   .row{display:flex; gap:10px; align-items:center;}
   .lbl{font-size:11px; font-weight:600; letter-spacing:.14em; color:var(--txt-3);
@@ -86,7 +110,7 @@
     font-weight:700; font-size:15px; padding:0 14px; font-family:var(--font-disp); -webkit-appearance:none; appearance:none; text-align:center;}
   .dpick.edit{border-color:rgba(90,169,255,.5); background:var(--blue-dim);}
   .dpick::-webkit-calendar-picker-indicator{filter:invert(1); opacity:.55; cursor:pointer;}
-  .datebar .dtoday{height:48px; padding:0 16px; border-radius:13px; background:var(--acc); color:#0a0b0d; border:none;
+  .datebar .dtoday{height:48px; padding:0 16px; border-radius:13px; background:var(--acc); color:var(--on-acc); border:none;
     font-weight:700; font-size:13px; cursor:pointer; flex-shrink:0; font-family:var(--font-disp);}
 
   .del.edit{padding:4px 7px;}
@@ -118,7 +142,7 @@
   .target .pin{font-family:var(--font-disp); font-size:10px; font-weight:700; letter-spacing:.12em; color:var(--txt-3);
     border:1px solid var(--hair); border-radius:6px; padding:2px 6px; flex-shrink:0;}
   .target b{color:var(--txt); font-weight:700;}
-  .prbadge{font-family:var(--font-disp); font-size:9px; font-weight:700; letter-spacing:.1em; color:#0a0b0d;
+  .prbadge{font-family:var(--font-disp); font-size:9px; font-weight:700; letter-spacing:.1em; color:var(--on-acc);
     background:var(--acc); border-radius:5px; padding:2px 6px; margin-left:6px;}
 
   .menu-item{display:flex; align-items:center; gap:14px; padding:14px 8px; cursor:pointer; border-bottom:1px solid var(--hair-2);}
@@ -128,7 +152,7 @@
   .chk svg{width:13px; height:13px; stroke:transparent;}
   .menu-item.cur .chk{border-color:var(--blue);}
   .menu-item.ok .chk{background:var(--acc); border-color:var(--acc);}
-  .menu-item.ok .chk svg{stroke:#0a0b0d;}
+  .menu-item.ok .chk svg{stroke:var(--on-acc);}
   .menu-item .mn{flex:1;}
   .menu-item .mn b{font-weight:700; font-size:15px; display:block;}
   .menu-item.ok .mn b{color:var(--txt-2);}
@@ -196,7 +220,7 @@
   .ex-pick{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px;}
   .chip{background:var(--surface-2); border:1px solid var(--hair); border-radius:30px; padding:9px 14px; font-size:13px; font-weight:600; cursor:pointer; transition:.12s; color:var(--txt-2);}
   .chip:active{transform:scale(.95);}
-  .chip.on{background:var(--acc); border-color:transparent; color:#0a0b0d;}
+  .chip.on{background:var(--acc); border-color:transparent; color:var(--on-acc);}
 
   .set-row{display:flex; align-items:center; gap:10px; justify-content:space-between; padding:12px 2px; border-bottom:1px solid var(--hair-2);}
   .set-row:last-child{border-bottom:none;}
@@ -223,7 +247,7 @@
   .wu{font-family:var(--font-disp); font-weight:700; padding:6px 0; border-bottom:1px solid var(--hair-2); font-size:14px;}
   .wu:last-child{border-bottom:none;}
   .plates{display:flex; flex-wrap:wrap; gap:7px; margin:2px 0 8px;}
-  .plate{min-width:36px; height:42px; padding:0 10px; display:flex; align-items:center; justify-content:center; background:var(--acc); color:#0a0b0d; border-radius:8px; font-family:var(--font-disp); font-weight:700; font-size:15px;}
+  .plate{min-width:36px; height:42px; padding:0 10px; display:flex; align-items:center; justify-content:center; background:var(--acc); color:var(--on-acc); border-radius:8px; font-family:var(--font-disp); font-weight:700; font-size:15px;}
   /* onboarding */
   .onboard{position:fixed; inset:0; z-index:80; background:rgba(10,11,13,.97); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; padding:24px; overflow-y:auto;}
   .ob-card{max-width:430px; width:100%; padding:8px 0;}
@@ -234,7 +258,7 @@
   .ob-days{display:grid; grid-template-columns:repeat(5,1fr); gap:8px;}
   .ob-opt{background:var(--surface-2); border:1px solid var(--hair); border-radius:14px; padding:14px 16px; cursor:pointer; font-weight:700; transition:.12s;}
   .ob-day{text-align:center; padding:14px 0; font-family:var(--font-disp);}
-  .ob-opt.on{background:var(--acc); color:#0a0b0d; border-color:transparent;}
+  .ob-opt.on{background:var(--acc); color:var(--on-acc); border-color:transparent;}
   .ob-opt small{display:block; font-weight:400; font-size:12px; color:var(--txt-3); margin-top:3px;}
   .ob-opt.on small{color:rgba(10,11,13,.62);}
 
@@ -253,7 +277,7 @@
   .banner b{color:#ffe9c2;}
   .rir-row{display:flex; gap:7px;}
   .rir{flex:1; text-align:center; background:var(--surface-2); border:1px solid var(--hair); border-radius:10px; padding:10px 0; font-size:13px; font-weight:700; cursor:pointer; color:var(--txt-2);}
-  .rir.on{background:var(--acc); color:#0a0b0d; border-color:transparent;}
+  .rir.on{background:var(--acc); color:var(--on-acc); border-color:transparent;}
   .tmpl-days{font-size:12px; color:var(--txt-3); margin-top:6px;}
 
   /* bar toggle (warmup / plate) */
@@ -292,7 +316,7 @@
   .qs-step{display:flex; align-items:center; gap:12px; padding:10px 2px; cursor:pointer; border-bottom:1px solid var(--hair-2);}
   .qs-step:last-of-type{border-bottom:none;}
   .qs-chk{width:22px; height:22px; border-radius:50%; border:1.5px solid var(--surface-3); display:flex; align-items:center; justify-content:center; flex-shrink:0;}
-  .qs-chk svg{width:12px; height:12px; stroke:#0a0b0d;}
+  .qs-chk svg{width:12px; height:12px; stroke:var(--on-acc);}
   .qs-step.ok .qs-chk{background:var(--blue); border-color:var(--blue);}
   .qs-step.ok span{color:var(--txt-3); text-decoration:line-through;}
   .qs-step span{flex:1; font-weight:600;}
@@ -344,7 +368,7 @@
   .std-seg .seg.on{background:linear-gradient(160deg,var(--blue),var(--blue2)); color:#fff;}
   .mchips{display:flex; flex-wrap:wrap; gap:7px; margin-bottom:12px;}
   .mchip{background:var(--surface-2); border:1px solid var(--hair); border-radius:20px; padding:7px 13px; font-size:13px; font-weight:600; cursor:pointer; color:var(--txt-2);}
-  .mchip.on{background:var(--acc); color:#0a0b0d; border-color:transparent;}
+  .mchip.on{background:var(--acc); color:var(--on-acc); border-color:transparent;}
   .cmp{display:grid; grid-template-columns:1fr 1fr; gap:9px;}
   .cmp .cmp-slot{}
   .cmp .cmp-img{aspect-ratio:3/4; border-radius:12px; overflow:hidden; background:var(--surface-2); cursor:pointer;}
@@ -378,7 +402,7 @@
   .weektabs{display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-bottom:14px;}
   .weektab{text-align:center; padding:10px 0; border-radius:12px; background:var(--surface-2); border:1px solid var(--hair);
     font-family:var(--font-disp); font-weight:700; font-size:13px; color:var(--txt-2); cursor:pointer;}
-  .weektab.on{background:var(--acc); color:#0a0b0d; border-color:transparent;}
+  .weektab.on{background:var(--acc); color:var(--on-acc); border-color:transparent;}
   .weektab small{display:block; font-size:9px; color:var(--txt-3); font-weight:600; margin-top:2px; font-family:var(--font-jp);}
   .weektab.on small{color:rgba(10,11,13,.6);}
   .lift-block{margin-bottom:14px;}
@@ -403,7 +427,7 @@
   .advice .ai::before{counter-increment:a; content:counter(a); font-family:var(--font-disp); font-weight:700; color:var(--txt); flex-shrink:0; width:18px;}
   .zsel{display:flex; flex-wrap:wrap; gap:7px; margin:10px 0;}
   .zchip{background:var(--surface-2); border:1px solid var(--hair); border-radius:20px; padding:8px 13px; font-size:12px; font-weight:600; cursor:pointer; color:var(--txt-2);}
-  .zchip.on{background:var(--acc); color:#0a0b0d; border-color:transparent;}
+  .zchip.on{background:var(--acc); color:var(--on-acc); border-color:transparent;}
   .zfix{background:var(--surface-2); border-radius:12px; padding:13px; font-size:13px; line-height:1.7;}
   .zfix .fx{color:var(--txt); font-weight:700;}
   .disclaimer{font-size:11px; color:var(--txt-3); line-height:1.7; padding:6px 4px 0;}
@@ -434,7 +458,7 @@
   .restbar button.x{background:none; border:none; color:var(--txt-3); font-size:20px; padding:6px;}
   @keyframes slideUp{from{opacity:0; transform:translateY(10px);}to{opacity:1; transform:none;}}
 
-  .toast{position:fixed; bottom:118px; left:50%; transform:translateX(-50%) translateY(8px); background:var(--txt); color:#0a0b0d;
+  .toast{position:fixed; bottom:118px; left:50%; transform:translateX(-50%) translateY(8px); background:var(--txt); color:var(--on-acc);
     padding:12px 20px; border-radius:30px; font-size:14px; font-weight:700; opacity:0; transition:.28s cubic-bezier(.2,.8,.2,1);
     pointer-events:none; z-index:60; box-shadow:0 14px 30px -10px rgba(0,0,0,.7);}
   .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
@@ -527,7 +551,13 @@ function save(k,v){ localStorage.setItem(k,JSON.stringify(v)); }
 let exercises=load(KEY_EX,DEFAULT_EX), logs=load(KEY_LOG,[]), routines=load(KEY_RT,DEFAULT_ROUTINES);
 let bw=load(KEY_BW,[]);                       // [{date, kg}]
 let meas=load(KEY_MEAS,[]);                   // [{date, key, v}] 採寸(cm)
-let settings=Object.assign({rest:90, autoTimer:true, sound:true, autoRestType:true, bar:20, smithBar:10, units:'kg', sex:'male', goal:'hypertrophy', level:'int', days:4, physique:null, onboarded:false, guideSeen:false, qsDismissed:false, migratedArm:false, fixedSplit5:false}, load(KEY_SET,{}));
+let settings=Object.assign({rest:90, autoTimer:true, sound:true, autoRestType:true, bar:20, smithBar:10, units:'kg', sex:'male', goal:'hypertrophy', level:'int', days:4, physique:null, theme:'dark', onboarded:false, guideSeen:false, qsDismissed:false, migratedArm:false, fixedSplit5:false}, load(KEY_SET,{}));
+function applyTheme(){ const mq=window.matchMedia('(prefers-color-scheme: light)');
+  const t = settings.theme==='auto' ? (mq.matches?'light':'dark') : (settings.theme||'dark');
+  document.documentElement.setAttribute('data-theme', t);
+  const m=document.querySelector('meta[name="theme-color"]'); if(m)m.content = (t==='light'?'#eef1f5':'#0a0b0d'); }
+(function(){ const mq=window.matchMedia('(prefers-color-scheme: light)'); if(mq.addEventListener)mq.addEventListener('change',()=>{ if(settings.theme==='auto')applyTheme(); }); })();
+applyTheme();
 let prog=load(KEY_PROG,{program:'531', week:1, cycle:1, tm:{bench:null,squat:null,dead:null}});  // パワーリフティングプログラム
 
 function saveAll(){ save(KEY_EX,exercises); save(KEY_LOG,logs); save(KEY_RT,routines); save(KEY_BW,bw); save(KEY_MEAS,meas); save(KEY_SET,settings); save(KEY_PROG,prog); }
@@ -782,7 +812,7 @@ function loadForEdit(id){ const l=logs.find(x=>x.id===id); if(!l)return; editId=
   draftSets=l.sets.map(s=>({w:s.w,r:s.r})); draftRir=(l.rir!==undefined?l.rir:null); if(l.rtId)selRt=l.rtId; renderLog();
   const sel=document.getElementById('exSel'); if(sel)sel.scrollIntoView({behavior:'smooth',block:'center'}); }
 function ringSVG(pct){ const R=34,C=2*Math.PI*R,off=C*(1-pct);
-  return `<svg width="80" height="80" viewBox="0 0 80 80"><circle cx="40" cy="40" r="${R}" fill="none" stroke="#262a32" stroke-width="6"/>
+  return `<svg width="80" height="80" viewBox="0 0 80 80"><circle cx="40" cy="40" r="${R}" fill="none" stroke="var(--surface-3)" stroke-width="6"/>
     <circle cx="40" cy="40" r="${R}" fill="none" stroke="url(#g)" stroke-width="6" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${off}"/>
     <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3d7dff"/><stop offset="1" stop-color="#5aa9ff"/></linearGradient></defs></svg>`; }
 
@@ -1239,6 +1269,12 @@ function renderMore(){
       <button class="btn ghost" id="openGuide">使い方ガイドを見る</button>
     </div>
 
+    <div class="eyebrow">表示</div>
+    <div class="card">
+      <div class="set-row"><div>テーマ<br><span style="font-size:11px;color:var(--txt-3)">屋外で見にくい時はライト／自動に</span></div>
+        <div class="seg3">${[['dark','ダーク'],['light','ライト'],['auto','自動']].map(([val,lab])=>`<span class="seg3-b ${settings.theme===val?'on':''}" data-theme="${val}">${lab}</span>`).join('')}</div></div>
+    </div>
+
     <div class="eyebrow">インターバル設定</div>
     <div class="card">
       <div class="set-row"><div>記録後に休憩タイマーを自動開始</div><div class="toggle ${settings.autoTimer?'on':''}" id="tgAuto"></div></div>
@@ -1278,6 +1314,7 @@ function renderMore(){
   document.getElementById('redoOb').onclick=()=>showOnboard();
   document.getElementById('pickPhys2').onclick=()=>openPhysiquePicker();
   document.getElementById('openGuide').onclick=()=>showGuide();
+  v.querySelectorAll('[data-theme]').forEach(b=>b.onclick=()=>{ settings.theme=b.dataset.theme; saveAll(); applyTheme(); renderMore(); });
   const tgA=document.getElementById('tgAuto'); tgA.onclick=()=>{ settings.autoTimer=!settings.autoTimer; saveAll(); tgA.classList.toggle('on'); };
   const tgRT=document.getElementById('tgRestType'); tgRT.onclick=()=>{ settings.autoRestType=!settings.autoRestType; saveAll(); tgRT.classList.toggle('on'); };
   const tgS=document.getElementById('tgSound'); tgS.onclick=()=>{ settings.sound=!settings.sound; saveAll(); tgS.classList.toggle('on'); if(settings.sound)beep(); };
@@ -1316,11 +1353,11 @@ function importData(e){
     if(!d.logs||!d.exercises){ toast('対応していないファイルです'); return; }
     if(!confirm('現在のデータをこのバックアップで置き換えます。よろしいですか？'))return;
     exercises=d.exercises||DEFAULT_EX; logs=d.logs||[]; routines=d.routines||DEFAULT_ROUTINES; bw=d.bw||[]; meas=d.meas||[];
-    settings=Object.assign({rest:90,autoTimer:true,sound:true,autoRestType:true,bar:20,smithBar:10,units:'kg',sex:'male',goal:'hypertrophy',level:'int',days:4,physique:null,onboarded:true},d.settings||{});
+    settings=Object.assign({rest:90,autoTimer:true,sound:true,autoRestType:true,bar:20,smithBar:10,units:'kg',sex:'male',goal:'hypertrophy',level:'int',days:4,physique:null,theme:'dark',onboarded:true},d.settings||{});
     if(d.prog) prog=d.prog;
     saveAll();
     if(Array.isArray(d.photos)){ try{ await photoClearDB(); for(const p of d.photos){ await photoPut(p); } photoCache=d.photos; }catch(err){} }
-    selRt=null; draftExId=null; toast('読み込みました'); renderMore();
+    selRt=null; draftExId=null; applyTheme(); toast('読み込みました'); renderMore();
   }catch(err){ toast('読み込みに失敗しました'); } };
   reader.readAsText(file); e.target.value='';
 }
