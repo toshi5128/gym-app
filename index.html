@@ -308,6 +308,26 @@
   .cmp-span{color:var(--blue); font-weight:700;}
   .cmp-lbl{display:block; font-size:9px; font-weight:700; letter-spacing:.1em; color:var(--txt-3); text-transform:uppercase; margin:8px 0 3px;}
 
+  /* calendar (history) */
+  .cal-card{padding:14px 14px 16px;}
+  .cal-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;}
+  .cal-title{font-size:15px; font-weight:800; font-family:var(--font-disp); text-align:center; line-height:1.25;}
+  .cal-sub{display:block; font-size:10px; font-weight:700; color:var(--blue); letter-spacing:.04em; margin-top:1px;}
+  .cal-nav{width:38px; height:38px; border-radius:11px; background:var(--surface-2); border:1px solid var(--hair); color:var(--txt); font-size:20px; cursor:pointer; font-family:var(--font-disp); flex-shrink:0; line-height:1;}
+  .cal-nav:active{transform:scale(.94);}
+  .cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:4px;}
+  .cal-wk{margin-bottom:6px;}
+  .cal-w{text-align:center; font-size:10px; font-weight:700; color:var(--txt-3); font-family:var(--font-disp); padding:2px 0;}
+  .cal-cell{aspect-ratio:1/1; min-height:40px; border-radius:9px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; background:var(--surface-2); cursor:pointer; transition:transform .08s, background-color .15s; position:relative;}
+  .cal-cell.empty{background:transparent; cursor:default;}
+  .cal-cell:not(.empty):active{transform:scale(.9);}
+  .cal-d{font-size:13px; font-weight:700; font-variant-numeric:tabular-nums; font-family:var(--font-disp); color:var(--txt-2);}
+  .cal-cell.has{background:var(--blue-dim);}
+  .cal-cell.has .cal-d{color:var(--blue);}
+  .cal-mk{font-size:8px; font-weight:700; color:var(--blue); line-height:1;}
+  .cal-cell.today{outline:2px solid var(--blue); outline-offset:-2px;}
+  .cal-cell.today .cal-d{color:var(--txt);}
+
   /* quick start & guide */
   .qs-card{border-color:rgba(90,169,255,.3);}
   .qs-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;}
@@ -695,7 +715,7 @@ function bigChart(pts){ if(pts.length<2) return `<div class="spark-empty">デー
     <text x="${L}" y="${H-7}" class="ct">${pts[0].d}</text><text x="${W-R}" y="${H-7}" class="ct" text-anchor="end">${pts[pts.length-1].d}</text>
     <path d="${area}" fill="rgba(90,169,255,.12)" stroke="none"/>
     <path d="${line}" fill="none" stroke="#5aa9ff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>${dots}</svg>`; }
-let chartExId=null, measSel='chest', cmpA=0, cmpB=-1, barType='barbell', toolKind=null;
+let chartExId=null, measSel='chest', cmpA=0, cmpB=-1, barType='barbell', toolKind=null, calMonth=null;
 
 /* ===== なりたい体（ゴール）エンジン ===== */
 const PHYS_M=[
@@ -1038,19 +1058,40 @@ function renderTodayList(){
 }
 
 /* ============ 履歴 ============ */
+function shiftMonth(ym,delta){ let [y,m]=ym.split('-').map(Number); m+=delta; while(m<1){m+=12;y--;} while(m>12){m-=12;y++;} return `${y}-${String(m).padStart(2,'0')}`; }
+function buildCalendar(){
+  const ym=calMonth||todayStr().slice(0,7); const [y,m]=ym.split('-').map(Number);
+  const startDow=new Date(y,m-1,1).getDay(); const daysInMonth=new Date(y,m,0).getDate();
+  const byDate={}; logs.forEach(l=>{ if(l.date.startsWith(ym)){ (byDate[l.date]=byDate[l.date]||new Set()); if(l.rtId&&rtObj(l.rtId))byDate[l.date].add(rtObj(l.rtId).name); } });
+  const wk=['日','月','火','水','木','金','土'];
+  let cells=''; for(let i=0;i<startDow;i++)cells+=`<div class="cal-cell empty"></div>`;
+  for(let d=1;d<=daysInMonth;d++){ const ds=`${ym}-${String(d).padStart(2,'0')}`; const parts=byDate[ds]?[...byDate[ds]]:[];
+    const has=parts.length>0, mk=has?parts.map(p=>p[0]).join('').slice(0,3):'';
+    cells+=`<div class="cal-cell ${has?'has':''} ${ds===todayStr()?'today':''}" data-cd="${ds}"><span class="cal-d">${d}</span>${has?`<span class="cal-mk">${mk}</span>`:''}</div>`; }
+  return `<div class="card cal-card">
+    <div class="cal-head"><button class="cal-nav" data-cm="prev">‹</button>
+      <div class="cal-title">${y}年${m}月<span class="cal-sub">${Object.keys(byDate).length}日 トレ</span></div>
+      <button class="cal-nav" data-cm="next">›</button></div>
+    <div class="cal-grid cal-wk">${wk.map(w=>`<div class="cal-w">${w}</div>`).join('')}</div>
+    <div class="cal-grid">${cells}</div></div>`;
+}
 function renderHistory(){
   const v=document.getElementById('view');
+  calMonth=calMonth||todayStr().slice(0,7);
+  const calHtml=buildCalendar();
+  function wireCal(){ v.querySelectorAll('[data-cm]').forEach(b=>b.onclick=()=>{ calMonth=shiftMonth(calMonth,b.dataset.cm==='prev'?-1:1); renderHistory(); });
+    v.querySelectorAll('[data-cd]').forEach(c=>c.onclick=()=>{ workDate=c.dataset.cd; selRt=null; draftExId=null; draftSets=[{w:'',r:''}]; editId=null; setTab('log'); window.scrollTo({top:0,behavior:'smooth'}); }); }
   const addBtn=`<button class="btn ghost" id="histAdd" style="margin-bottom:16px;display:flex;align-items:center;justify-content:center;gap:8px">＋ 日付を選んで記録を追加・編集</button>`;
-  if(!logs.length){ v.innerHTML=`<div class="fade-in">${addBtn}<div class="empty">${IC.history.replace('<svg','<svg width=30 height=30')}まだ記録がありません。<br>上のボタンから過去の日付にも追加できます。</div></div>`;
-    document.getElementById('histAdd').onclick=()=>setTab('log'); return; }
+  if(!logs.length){ v.innerHTML=`<div class="fade-in">${calHtml}${addBtn}<div class="empty">${IC.history.replace('<svg','<svg width=30 height=30')}まだ記録がありません。<br>カレンダーの日付や上のボタンから、いつでも追加できます。</div></div>`;
+    document.getElementById('histAdd').onclick=()=>setTab('log'); wireCal(); return; }
   const byDate={}; logs.forEach(l=>{ (byDate[l.date]=byDate[l.date]||[]).push(l); });
   const dates=Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
-  v.innerHTML=`<div class="fade-in">${addBtn}`+dates.map(d=>{ const rtId=byDate[d].find(l=>l.rtId)?.rtId; const rtName=rtId&&rtObj(rtId)?`${rtObj(rtId).name}の日`:'';
+  v.innerHTML=`<div class="fade-in">${calHtml}${addBtn}`+dates.map(d=>{ const rtId=byDate[d].find(l=>l.rtId)?.rtId; const rtName=rtId&&rtObj(rtId)?`${rtObj(rtId).name}の日`:'';
     const items=byDate[d].map(l=>`<div class="item htap" data-hd="${d}" data-hid="${l.id}"><div class="row" style="justify-content:space-between"><span class="n">${exName(l.exId)} <span class="tag">${exMuscle(l.exId)}</span></span><span class="go">${IC.edit}</span></div><div class="s tnum">${l.sets.map(s=>s.w+'kg×'+s.r).join(' / ')}</div></div>`).join('');
     const vol=byDate[d].reduce((a,l)=>a+l.sets.reduce((x,s)=>x+s.w*s.r,0),0);
     const ph=photosOn(d); const phHtml=ph.length?`<div class="photo-grid" style="grid-template-columns:repeat(4,1fr);margin-top:9px">${ph.map(p=>`<div class="thumb" data-pid="${p.id}"><img src="${p.data}" loading="lazy" alt=""></div>`).join('')}</div>`:'';
     return `<div class="hist-day"><div class="hist-date">${fmtDate(d)}${rtName?`<span class="rt">${rtName}</span>`:''}<span class="vv tnum">${vol.toLocaleString()}kg</span><button class="dayadd" data-add="${d}">＋追加</button></div>${items}${phHtml}</div>`; }).join('')+`</div>`;
-  document.getElementById('histAdd').onclick=()=>setTab('log');
+  document.getElementById('histAdd').onclick=()=>setTab('log'); wireCal();
   v.querySelectorAll('[data-pid]').forEach(t=>t.onclick=ev=>{ ev.stopPropagation(); openPhoto(t.dataset.pid); });
   v.querySelectorAll('.htap').forEach(it=>it.onclick=()=>{ const l=logs.find(x=>x.id===it.dataset.hid);
     workDate=it.dataset.hd; selRt=l?.rtId||null; if(l){ draftExId=l.exId; draftSets=l.sets.map(s=>({w:s.w,r:s.r})); editId=l.id; } setTab('log'); window.scrollTo({top:0,behavior:'smooth'}); });
