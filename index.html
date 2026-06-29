@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover, user-scalable=no">
-<meta name="theme-color" content="#eef1f5">
+<meta name="theme-color" content="#f1f0ec">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="ATLAS">
@@ -19,7 +19,7 @@
     --hair:rgba(255,255,255,.08); --hair-2:rgba(255,255,255,.045);
     --txt:#f6f7f9; --txt-2:#a7adb8; --txt-3:#646a75;
     --acc:#ffffff; --acc-dim:rgba(255,255,255,.10); --on-acc:#0a0b0d; --danger:#ff6a6a;
-    --blue:#5aa9ff; --blue2:#3d7dff; --blue-dim:rgba(90,169,255,.16);
+    --blue:#c9a24b; --blue2:#9a7b2e; --blue-dim:rgba(201,162,75,.18);
     --hl:inset 0 1px 0 rgba(255,255,255,.05);
     --r-lg:24px; --r-md:18px; --r-sm:12px;
     --shadow:0 18px 44px -22px rgba(0,0,0,.85);
@@ -29,19 +29,19 @@
   }
   /* ===== ライトテーマ（屋外でも見やすい） ===== */
   :root[data-theme="light"]{
-    --bg:#eef1f5; --bg-glow:#ffffff;
-    --surface:#ffffff; --surface-2:#f3f5f8; --surface-3:#e6eaf0;
-    --hair:rgba(16,20,28,.14); --hair-2:rgba(16,20,28,.07);
-    --txt:#14171c; --txt-2:#4b5563; --txt-3:#8a93a0;
-    --acc:#14171c; --acc-dim:rgba(20,23,28,.08); --on-acc:#ffffff; --danger:#dc4640;
-    --blue:#2f7bf0; --blue2:#2563eb; --blue-dim:rgba(47,123,240,.12);
+    --bg:#f1f0ec; --bg-glow:#ffffff;
+    --surface:#ffffff; --surface-2:#f6f4ef; --surface-3:#ece8df;
+    --hair:rgba(28,24,16,.13); --hair-2:rgba(28,24,16,.06);
+    --txt:#1c1a17; --txt-2:#5a5347; --txt-3:#988f7e;
+    --acc:#1c1a17; --acc-dim:rgba(28,24,16,.07); --on-acc:#ffffff; --danger:#c0492f;
+    --blue:#a8842f; --blue2:#876a23; --blue-dim:rgba(168,132,47,.13);
     --hl:inset 0 1px 0 rgba(255,255,255,.6);
-    --shadow:0 4px 14px -6px rgba(30,45,80,.10), 0 20px 44px -22px rgba(30,45,80,.16);
-    --card-grad:#f7f9fc;
+    --shadow:0 4px 14px -6px rgba(60,48,20,.10), 0 20px 44px -22px rgba(60,48,20,.15);
+    --card-grad:#faf8f3;
   }
-  :root[data-theme="light"] .hero{ background:linear-gradient(180deg,#ffffff,#eaf1fb); }
-  :root[data-theme="light"] .suggest-card{ background:linear-gradient(180deg,#f1f6ff,#ffffff); }
-  :root[data-theme="light"] .goal-card, :root[data-theme="light"] .goal-cta{ background:linear-gradient(180deg,#edf4ff,#ffffff); }
+  :root[data-theme="light"] .hero{ background:linear-gradient(180deg,#ffffff,#f7efde); }
+  :root[data-theme="light"] .suggest-card{ background:linear-gradient(180deg,#fbf5e8,#ffffff); }
+  :root[data-theme="light"] .goal-card, :root[data-theme="light"] .goal-cta{ background:linear-gradient(180deg,#faf3e3,#ffffff); }
   :root[data-theme="light"] header{ background:linear-gradient(180deg, rgba(238,241,245,.96) 60%, rgba(238,241,245,0)); }
   :root[data-theme="light"] nav{ background:rgba(255,255,255,.86); box-shadow:0 20px 50px -22px rgba(30,45,80,.28); }
   :root[data-theme="light"] .toggle::after{ box-shadow:0 1px 3px rgba(20,30,60,.25); }
@@ -71,7 +71,7 @@
     background:linear-gradient(180deg, rgba(10,11,13,.96) 62%, rgba(10,11,13,0)); backdrop-filter:blur(12px);}
   .brand{display:flex; align-items:center; gap:12px;}
   .mark{width:36px; height:36px; border-radius:11px; flex-shrink:0; background:linear-gradient(150deg,var(--blue),var(--blue2));
-    border:none; display:flex; align-items:center; justify-content:center; color:#fff; box-shadow:0 6px 16px -5px rgba(61,125,255,.55), inset 0 1px 0 rgba(255,255,255,.25);}
+    border:none; display:flex; align-items:center; justify-content:center; color:#fff; box-shadow:0 6px 16px -5px rgba(168,132,47,.55), inset 0 1px 0 rgba(255,255,255,.25);}
   .brand .t{font-size:19px; font-weight:700; letter-spacing:.26em;}
   .brand .sub{font-size:10px; color:var(--txt-3); letter-spacing:.28em; margin-top:1px; font-weight:700;}
   .brand .date{margin-left:auto; text-align:right;}
@@ -108,14 +108,14 @@
   .datebar .dnav:active{transform:scale(.94);}
   .dpick{flex:1; height:48px; background:var(--surface-2); border:1px solid var(--hair); border-radius:13px; color:var(--txt);
     font-weight:700; font-size:15px; padding:0 14px; font-family:var(--font-disp); -webkit-appearance:none; appearance:none; text-align:center;}
-  .dpick.edit{border-color:rgba(90,169,255,.5); background:var(--blue-dim);}
+  .dpick.edit{border-color:rgba(168,132,47,.5); background:var(--blue-dim);}
   .dpick::-webkit-calendar-picker-indicator{filter:invert(1); opacity:.55; cursor:pointer;}
   .datebar .dtoday{height:48px; padding:0 16px; border-radius:13px; background:var(--acc); color:var(--on-acc); border:none;
     font-weight:700; font-size:13px; cursor:pointer; flex-shrink:0; font-family:var(--font-disp);}
 
   .del.edit{padding:4px 7px;}
   .del.edit svg{width:18px; height:18px; stroke:currentColor;}
-  .item.editing{border-color:rgba(90,169,255,.5); background:var(--blue-dim);}
+  .item.editing{border-color:rgba(168,132,47,.5); background:var(--blue-dim);}
   .htap{cursor:pointer;}
   .item .go{color:var(--txt-3); display:flex; align-items:center;}
   .item .go svg{width:17px; height:17px; stroke:currentColor;}
@@ -127,8 +127,8 @@
     border:1px solid var(--hair); border-radius:var(--r-md); padding:18px 0 16px; font-weight:700;
     font-size:15px; color:var(--txt-2); transition:transform .12s, background .15s, color .15s, border-color .15s; overflow:hidden;}
   .day:active{transform:scale(.96);}
-  .day.sel{background:linear-gradient(160deg,var(--blue),var(--blue2)); color:#fff; border-color:transparent; box-shadow:0 10px 24px -12px rgba(61,125,255,.6), inset 0 1px 0 rgba(255,255,255,.2);}
-  .day.suggest:not(.sel){border-color:rgba(90,169,255,.55);}
+  .day.sel{background:linear-gradient(160deg,var(--blue),var(--blue2)); color:#fff; border-color:transparent; box-shadow:0 10px 24px -12px rgba(168,132,47,.6), inset 0 1px 0 rgba(255,255,255,.2);}
+  .day.suggest:not(.sel){border-color:rgba(168,132,47,.55);}
   .day.suggest:not(.sel) .dot{position:absolute; top:9px; right:9px; width:6px; height:6px;
     border-radius:50%; background:var(--blue); box-shadow:0 0 0 4px var(--blue-dim);}
   .day .check{position:absolute; bottom:6px; left:50%; transform:translateX(-50%); font-size:9px; letter-spacing:.1em; color:var(--txt-3); font-weight:700;}
@@ -181,7 +181,7 @@
   .field input{padding-right:34px;}
 
   button.btn{cursor:pointer; font-weight:700; letter-spacing:.02em;}
-  button.primary,button.solid{background:linear-gradient(160deg,var(--blue),var(--blue2)); border-color:transparent; color:#fff; box-shadow:0 12px 26px -12px rgba(61,125,255,.7), inset 0 1px 0 rgba(255,255,255,.22);}
+  button.primary,button.solid{background:linear-gradient(160deg,var(--blue),var(--blue2)); border-color:transparent; color:#fff; box-shadow:0 12px 26px -12px rgba(168,132,47,.7), inset 0 1px 0 rgba(255,255,255,.22);}
   button.primary:active,button.solid:active{transform:translateY(1px);}
   button.solid{font-size:16px; padding:16px;}
   button.ghost{background:var(--surface-2); color:var(--txt-2);}
@@ -241,9 +241,9 @@
 
   /* Tier1: coaching */
   .pin{font-family:var(--font-disp); font-size:10px; font-weight:700; letter-spacing:.1em; color:var(--txt-3); border:1px solid var(--hair); border-radius:6px; padding:2px 7px; flex-shrink:0;}
-  .suggest-card{margin-top:11px; background:linear-gradient(180deg,#172230,#13181f); border:1px solid rgba(90,169,255,.3); border-radius:14px; padding:14px; box-shadow:var(--hl);}
+  .suggest-card{margin-top:11px; background:linear-gradient(180deg,#172230,#13181f); border:1px solid rgba(168,132,47,.3); border-radius:14px; padding:14px; box-shadow:var(--hl);}
   .suggest-card .sc-target{color:var(--blue);}
-  .suggest-card .pin{border-color:rgba(90,169,255,.4); color:var(--blue);}
+  .suggest-card .pin{border-color:rgba(168,132,47,.4); color:var(--blue);}
   .suggest-card .sc-head{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
   .suggest-card .sc-goal{margin-left:auto; font-size:10px; color:var(--txt-3); font-family:var(--font-disp); letter-spacing:.06em;}
   .suggest-card .sc-body{font-size:13px; color:var(--txt-2); line-height:1.65;}
@@ -290,13 +290,13 @@
   /* bar toggle (warmup / plate) */
   .bar-toggle{display:flex; gap:7px; margin:8px 0 10px;}
   .bar-toggle .bt{font-size:11px; font-weight:700; padding:6px 12px; border-radius:18px; background:var(--surface-2); border:1px solid var(--hair); color:var(--txt-3); cursor:pointer; font-family:var(--font-disp);}
-  .bar-toggle .bt.on{background:var(--blue-dim); border-color:rgba(90,169,255,.45); color:var(--blue);}
+  .bar-toggle .bt.on{background:var(--blue-dim); border-color:rgba(168,132,47,.45); color:var(--blue);}
 
   /* weekly plan */
   .wk-sub{font-size:12.5px; color:var(--txt-2); margin-bottom:10px; line-height:1.6;}
   .plan-chips{display:flex; flex-wrap:wrap; gap:7px;}
   .plan-chip{font-size:12px; font-weight:700; padding:7px 13px; border-radius:20px; background:var(--surface-2); border:1px solid var(--hair); color:var(--txt-2); font-family:var(--font-disp);}
-  .plan-chip.done{background:var(--blue-dim); border-color:rgba(90,169,255,.4); color:var(--blue);}
+  .plan-chip.done{background:var(--blue-dim); border-color:rgba(168,132,47,.4); color:var(--blue);}
   .plan-chip.sel{outline:2px solid var(--blue); outline-offset:1px; color:var(--txt);}
 
   /* session plan (warmup / main) */
@@ -360,7 +360,7 @@
   .cal-cell.today .cal-d{color:var(--txt);}
 
   /* quick start & guide */
-  .qs-card{border-color:rgba(90,169,255,.3);}
+  .qs-card{border-color:rgba(168,132,47,.3);}
   .qs-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;}
   .qs-title{font-size:12px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--blue); font-family:var(--font-disp);}
   .qs-x{background:none; border:none; color:var(--txt-3); font-size:20px; cursor:pointer; line-height:1;}
@@ -381,8 +381,8 @@
   .guide-item span{font-size:12.5px; color:var(--txt-2); line-height:1.65;}
 
   /* goal / roadmap */
-  .goal-card{background:linear-gradient(180deg,#16202e,#11161d); border:1px solid rgba(90,169,255,.3); box-shadow:var(--shadow), var(--hl);}
-  .goal-cta{background:linear-gradient(180deg,#16202e,#11161d); border:1px solid rgba(90,169,255,.3);}
+  .goal-card{background:linear-gradient(180deg,#16202e,#11161d); border:1px solid rgba(168,132,47,.3); box-shadow:var(--shadow), var(--hl);}
+  .goal-cta{background:linear-gradient(180deg,#16202e,#11161d); border:1px solid rgba(168,132,47,.3);}
   .goal-cta-t{font-size:17px; font-weight:800;}
   .goal-head{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:9px;}
   .goal-k{font-size:10px; font-weight:700; letter-spacing:.16em; color:var(--blue); text-transform:uppercase; font-family:var(--font-disp);}
@@ -492,7 +492,7 @@
   nav button{background:none; border:none; color:var(--txt-3); cursor:pointer; padding:8px 9px; border-radius:16px;
     display:flex; flex-direction:column; align-items:center; gap:4px; font-size:10px; font-weight:700; letter-spacing:.02em; transition:.15s; min-width:45px;}
   nav button svg{width:20px; height:20px; stroke:currentColor; fill:none; stroke-width:1.7;}
-  nav button.active{color:#fff; background:linear-gradient(160deg,var(--blue),var(--blue2)); box-shadow:0 6px 16px -8px rgba(61,125,255,.7);}
+  nav button.active{color:#fff; background:linear-gradient(160deg,var(--blue),var(--blue2)); box-shadow:0 6px 16px -8px rgba(168,132,47,.7);}
 
   /* rest timer bar */
   .restbar{position:fixed; left:16px; right:16px; bottom:calc(92px + env(safe-area-inset-bottom)); max-width:528px;
@@ -518,9 +518,9 @@
   .prflash{position:fixed; top:0; left:0; right:0; z-index:70; display:flex; justify-content:center; pointer-events:none;
     padding-top:calc(70px + env(safe-area-inset-top));}
   .prflash .box{background:linear-gradient(150deg,var(--blue),var(--blue2)); color:#fff; border-radius:18px; padding:14px 20px; display:flex; align-items:center; gap:13px;
-    box-shadow:0 20px 50px -16px rgba(61,125,255,.55), inset 0 1px 0 rgba(255,255,255,.25); transform:translateY(-160px); transition:transform .4s cubic-bezier(.2,.9,.2,1);}
+    box-shadow:0 20px 50px -16px rgba(168,132,47,.55), inset 0 1px 0 rgba(255,255,255,.25); transform:translateY(-160px); transition:transform .4s cubic-bezier(.2,.9,.2,1);}
   .prflash.show .box{transform:translateY(0); animation:prpulse 1.1s ease-in-out .35s infinite;}
-  @keyframes prpulse{0%,100%{box-shadow:0 16px 40px -14px rgba(61,125,255,.55), inset 0 1px 0 rgba(255,255,255,.25);}50%{box-shadow:0 16px 52px 2px rgba(61,125,255,.95), inset 0 1px 0 rgba(255,255,255,.3);}}
+  @keyframes prpulse{0%,100%{box-shadow:0 16px 40px -14px rgba(168,132,47,.55), inset 0 1px 0 rgba(255,255,255,.25);}50%{box-shadow:0 16px 52px 2px rgba(168,132,47,.95), inset 0 1px 0 rgba(255,255,255,.3);}}
   .prflash.show svg{animation:prico .5s ease .1s both;}
   @keyframes prico{0%{transform:scale(0) rotate(-30deg);}60%{transform:scale(1.25) rotate(8deg);}100%{transform:scale(1) rotate(0);}}
   .prflash svg{width:30px; height:30px; stroke:#fff; fill:none; stroke-width:1.7;}
@@ -616,7 +616,7 @@ let bw=load(KEY_BW,[]);                       // [{date, kg}]
 let meas=load(KEY_MEAS,[]);                   // [{date, key, v}] 採寸(cm)
 let settings=Object.assign({rest:90, autoTimer:true, sound:true, autoRestType:true, bar:20, smithBar:10, units:'kg', sex:'male', goal:'hypertrophy', level:'int', days:4, physique:null, theme:'light', onboarded:false, guideSeen:false, qsDismissed:false, migratedArm:false, fixedSplit5:false}, load(KEY_SET,{}));
 function applyTheme(){ document.documentElement.setAttribute('data-theme','light');
-  const m=document.querySelector('meta[name="theme-color"]'); if(m)m.content='#eef1f5'; }
+  const m=document.querySelector('meta[name="theme-color"]'); if(m)m.content='#f1f0ec'; }
 applyTheme();
 let prog=load(KEY_PROG,{program:'531', week:1, cycle:1, tm:{bench:null,squat:null,dead:null}});  // パワーリフティングプログラム
 
@@ -753,8 +753,8 @@ function bigChart(pts){ if(pts.length<2) return `<div class="spark-empty">デー
     <line x1="${L}" y1="${T}" x2="${L}" y2="${H-B}" stroke="var(--hair)"/><line x1="${L}" y1="${H-B}" x2="${W-R}" y2="${H-B}" stroke="var(--hair)"/>
     <text x="3" y="${T+5}" class="ct">${Math.round(max)}</text><text x="3" y="${H-B}" class="ct">${Math.round(min)}</text>
     <text x="${L}" y="${H-7}" class="ct">${pts[0].d}</text><text x="${W-R}" y="${H-7}" class="ct" text-anchor="end">${pts[pts.length-1].d}</text>
-    <path d="${area}" fill="rgba(90,169,255,.12)" stroke="none"/>
-    <path d="${line}" fill="none" stroke="#5aa9ff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>${dots}</svg>`; }
+    <path d="${area}" fill="rgba(168,132,47,.12)" stroke="none"/>
+    <path d="${line}" fill="none" stroke="#b0892f" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>${dots}</svg>`; }
 let chartExId=null, measSel='chest', cmpA=0, cmpB=-1, barType='barbell', toolKind=null, calMonth=null, pickMuscle=null, animateIn=true;
 function countUp(el,to,dec){ if(!el)return; const dur=750,t0=performance.now(); const run=(t)=>{ let p=Math.min(1,(t-t0)/dur); p=1-Math.pow(1-p,3); el.textContent=(to*p).toFixed(dec); if(p<1)requestAnimationFrame(run); }; requestAnimationFrame(run); }
 
@@ -913,7 +913,7 @@ function loadForEdit(id){ const l=logs.find(x=>x.id===id); if(!l)return; editId=
 function ringSVG(pct){ const R=34,C=2*Math.PI*R,off=C*(1-pct);
   return `<svg width="80" height="80" viewBox="0 0 80 80"><circle cx="40" cy="40" r="${R}" fill="none" stroke="var(--surface-3)" stroke-width="6"/>
     <circle class="ring-prog" cx="40" cy="40" r="${R}" fill="none" stroke="url(#g)" stroke-width="6" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${off}"/>
-    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3d7dff"/><stop offset="1" stop-color="#5aa9ff"/></linearGradient></defs></svg>`; }
+    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#876a23"/><stop offset=".55" stop-color="#bd9740"/><stop offset="1" stop-color="#e3c777"/></linearGradient></defs></svg>`; }
 
 function renderLog(keepScroll){
   const _sy=keepScroll?window.scrollY:0;
@@ -1199,9 +1199,9 @@ function spark(vals){
   const area=`M${X(0).toFixed(1)} ${H} L`+vals.map((val,i)=>`${X(i).toFixed(1)} ${Y(val).toFixed(1)}`).join(' L')+` L${X(vals.length-1).toFixed(1)} ${H} Z`;
   return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
     <path d="${area}" fill="url(#ag)" stroke="none"/>
-    <path d="${d}" fill="none" stroke="#5aa9ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+    <path d="${d}" fill="none" stroke="#b0892f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
     <circle cx="${X(vals.length-1).toFixed(1)}" cy="${Y(vals[vals.length-1]).toFixed(1)}" r="3" fill="#fff"/>
-    <defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="rgba(90,169,255,.28)"/><stop offset="1" stop-color="rgba(90,169,255,0)"/></linearGradient></defs></svg>`;
+    <defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="rgba(168,132,47,.28)"/><stop offset="1" stop-color="rgba(168,132,47,0)"/></linearGradient></defs></svg>`;
 }
 
 /* ============ 記録（グラフ） ============ */

@@ -1,7 +1,7 @@
 /* ATLAS service worker
    HTMLは「ネットワーク優先」（常に最新を取得、オフライン時のみキャッシュ）、
    アイコン等の静的アセットは「キャッシュ優先」。更新したら CACHE のバージョンを上げる。 */
-const CACHE = 'atlas-v14';
+const CACHE = 'atlas-v15';
 const ASSETS = [
   './',
   './index.html',
