@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover, user-scalable=no">
-<meta name="theme-color" content="#0a0b0d">
+<meta name="theme-color" content="#eef1f5">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="ATLAS">
 <link rel="manifest" href="manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -571,12 +571,9 @@ function save(k,v){ localStorage.setItem(k,JSON.stringify(v)); }
 let exercises=load(KEY_EX,DEFAULT_EX), logs=load(KEY_LOG,[]), routines=load(KEY_RT,DEFAULT_ROUTINES);
 let bw=load(KEY_BW,[]);                       // [{date, kg}]
 let meas=load(KEY_MEAS,[]);                   // [{date, key, v}] 採寸(cm)
-let settings=Object.assign({rest:90, autoTimer:true, sound:true, autoRestType:true, bar:20, smithBar:10, units:'kg', sex:'male', goal:'hypertrophy', level:'int', days:4, physique:null, theme:'dark', onboarded:false, guideSeen:false, qsDismissed:false, migratedArm:false, fixedSplit5:false}, load(KEY_SET,{}));
-function applyTheme(){ const mq=window.matchMedia('(prefers-color-scheme: light)');
-  const t = settings.theme==='auto' ? (mq.matches?'light':'dark') : (settings.theme||'dark');
-  document.documentElement.setAttribute('data-theme', t);
-  const m=document.querySelector('meta[name="theme-color"]'); if(m)m.content = (t==='light'?'#eef1f5':'#0a0b0d'); }
-(function(){ const mq=window.matchMedia('(prefers-color-scheme: light)'); if(mq.addEventListener)mq.addEventListener('change',()=>{ if(settings.theme==='auto')applyTheme(); }); })();
+let settings=Object.assign({rest:90, autoTimer:true, sound:true, autoRestType:true, bar:20, smithBar:10, units:'kg', sex:'male', goal:'hypertrophy', level:'int', days:4, physique:null, theme:'light', onboarded:false, guideSeen:false, qsDismissed:false, migratedArm:false, fixedSplit5:false}, load(KEY_SET,{}));
+function applyTheme(){ document.documentElement.setAttribute('data-theme','light');
+  const m=document.querySelector('meta[name="theme-color"]'); if(m)m.content='#eef1f5'; }
 applyTheme();
 let prog=load(KEY_PROG,{program:'531', week:1, cycle:1, tm:{bench:null,squat:null,dead:null}});  // パワーリフティングプログラム
 
@@ -1310,12 +1307,6 @@ function renderMore(){
       <button class="btn ghost" id="openGuide">使い方ガイドを見る</button>
     </div>
 
-    <div class="eyebrow">表示</div>
-    <div class="card">
-      <div class="set-row"><div>テーマ<br><span style="font-size:11px;color:var(--txt-3)">屋外で見にくい時はライト／自動に</span></div>
-        <div class="seg3">${[['dark','ダーク'],['light','ライト'],['auto','自動']].map(([val,lab])=>`<span class="seg3-b ${settings.theme===val?'on':''}" data-theme="${val}">${lab}</span>`).join('')}</div></div>
-    </div>
-
     <div class="eyebrow">インターバル設定</div>
     <div class="card">
       <div class="set-row"><div>記録後に休憩タイマーを自動開始</div><div class="toggle ${settings.autoTimer?'on':''}" id="tgAuto"></div></div>
@@ -1355,7 +1346,6 @@ function renderMore(){
   document.getElementById('redoOb').onclick=()=>showOnboard();
   document.getElementById('pickPhys2').onclick=()=>openPhysiquePicker();
   document.getElementById('openGuide').onclick=()=>showGuide();
-  v.querySelectorAll('[data-theme]').forEach(b=>b.onclick=()=>{ settings.theme=b.dataset.theme; saveAll(); applyTheme(); renderMore(); });
   const tgA=document.getElementById('tgAuto'); tgA.onclick=()=>{ settings.autoTimer=!settings.autoTimer; saveAll(); tgA.classList.toggle('on'); };
   const tgRT=document.getElementById('tgRestType'); tgRT.onclick=()=>{ settings.autoRestType=!settings.autoRestType; saveAll(); tgRT.classList.toggle('on'); };
   const tgS=document.getElementById('tgSound'); tgS.onclick=()=>{ settings.sound=!settings.sound; saveAll(); tgS.classList.toggle('on'); if(settings.sound)beep(); };
@@ -1394,7 +1384,7 @@ function importData(e){
     if(!d.logs||!d.exercises){ toast('対応していないファイルです'); return; }
     if(!confirm('現在のデータをこのバックアップで置き換えます。よろしいですか？'))return;
     exercises=d.exercises||DEFAULT_EX; logs=d.logs||[]; routines=d.routines||DEFAULT_ROUTINES; bw=d.bw||[]; meas=d.meas||[];
-    settings=Object.assign({rest:90,autoTimer:true,sound:true,autoRestType:true,bar:20,smithBar:10,units:'kg',sex:'male',goal:'hypertrophy',level:'int',days:4,physique:null,theme:'dark',onboarded:true},d.settings||{});
+    settings=Object.assign({rest:90,autoTimer:true,sound:true,autoRestType:true,bar:20,smithBar:10,units:'kg',sex:'male',goal:'hypertrophy',level:'int',days:4,physique:null,theme:'light',onboarded:true},d.settings||{});
     if(d.prog) prog=d.prog;
     saveAll();
     if(Array.isArray(d.photos)){ try{ await photoClearDB(); for(const p of d.photos){ await photoPut(p); } photoCache=d.photos; }catch(err){} }
