@@ -253,6 +253,34 @@
   .rir.on{background:var(--acc); color:#0a0b0d; border-color:transparent;}
   .tmpl-days{font-size:12px; color:var(--txt-3); margin-top:6px;}
 
+  /* bar toggle (warmup / plate) */
+  .bar-toggle{display:flex; gap:7px; margin:8px 0 10px;}
+  .bar-toggle .bt{font-size:11px; font-weight:700; padding:6px 12px; border-radius:18px; background:var(--surface-2); border:1px solid var(--hair); color:var(--txt-3); cursor:pointer; font-family:var(--font-disp);}
+  .bar-toggle .bt.on{background:var(--blue-dim); border-color:rgba(90,169,255,.45); color:var(--blue);}
+
+  /* weekly plan */
+  .wk-sub{font-size:12.5px; color:var(--txt-2); margin-bottom:10px; line-height:1.6;}
+  .plan-chips{display:flex; flex-wrap:wrap; gap:7px;}
+  .plan-chip{font-size:12px; font-weight:700; padding:7px 13px; border-radius:20px; background:var(--surface-2); border:1px solid var(--hair); color:var(--txt-2); font-family:var(--font-disp);}
+  .plan-chip.done{background:var(--blue-dim); border-color:rgba(90,169,255,.4); color:var(--blue);}
+  .plan-chip.sel{outline:2px solid var(--blue); outline-offset:1px; color:var(--txt);}
+
+  /* session plan (warmup / main) */
+  .sp-card{padding:6px 16px 14px;}
+  .sp-ex{padding:12px 0; border-bottom:1px solid var(--hair-2);}
+  .sp-ex:last-of-type{border-bottom:none;}
+  .sp-name{font-size:14px; font-weight:700; margin-bottom:7px;}
+  .sp-line{display:flex; align-items:center; gap:10px; font-size:13px; color:var(--txt-2); padding:3px 0; font-variant-numeric:tabular-nums;}
+  .sp-tag{font-size:9.5px; font-weight:800; letter-spacing:.06em; padding:3px 7px; border-radius:6px; flex-shrink:0; font-family:var(--font-disp); width:46px; text-align:center;}
+  .sp-tag.warm{background:var(--surface-3); color:var(--txt-3);}
+  .sp-tag.main{background:var(--blue-dim); color:var(--blue);}
+
+  /* photo period */
+  .cmp-period{font-size:12.5px; color:var(--txt-2); margin-bottom:10px; line-height:1.6;}
+  .cmp-period b{color:var(--txt);}
+  .cmp-span{color:var(--blue); font-weight:700;}
+  .cmp-lbl{display:block; font-size:9px; font-weight:700; letter-spacing:.1em; color:var(--txt-3); text-transform:uppercase; margin:8px 0 3px;}
+
   /* quick start & guide */
   .qs-card{border-color:rgba(90,169,255,.3);}
   .qs-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;}
@@ -496,7 +524,7 @@ function save(k,v){ localStorage.setItem(k,JSON.stringify(v)); }
 let exercises=load(KEY_EX,DEFAULT_EX), logs=load(KEY_LOG,[]), routines=load(KEY_RT,DEFAULT_ROUTINES);
 let bw=load(KEY_BW,[]);                       // [{date, kg}]
 let meas=load(KEY_MEAS,[]);                   // [{date, key, v}] 採寸(cm)
-let settings=Object.assign({rest:90, autoTimer:true, sound:true, autoRestType:true, bar:20, units:'kg', sex:'male', goal:'hypertrophy', level:'int', days:4, physique:null, onboarded:false, guideSeen:false, qsDismissed:false, migratedArm:false, fixedSplit5:false}, load(KEY_SET,{}));
+let settings=Object.assign({rest:90, autoTimer:true, sound:true, autoRestType:true, bar:20, smithBar:10, units:'kg', sex:'male', goal:'hypertrophy', level:'int', days:4, physique:null, onboarded:false, guideSeen:false, qsDismissed:false, migratedArm:false, fixedSplit5:false}, load(KEY_SET,{}));
 let prog=load(KEY_PROG,{program:'531', week:1, cycle:1, tm:{bench:null,squat:null,dead:null}});  // パワーリフティングプログラム
 
 function saveAll(){ save(KEY_EX,exercises); save(KEY_LOG,logs); save(KEY_RT,routines); save(KEY_BW,bw); save(KEY_MEAS,meas); save(KEY_SET,settings); save(KEY_PROG,prog); }
@@ -509,13 +537,16 @@ function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(
 const WK=['日','月','火','水','木','金','土'];
 function fmtDate(s){ const [y,m,d]=s.split('-'); return `${Number(m)}/${Number(d)}（${WK[new Date(s).getDay()]}）`; }
 function est1rm(w,r){ return w*(1+r/30); }                    // Epley
+function weekStartStr(ds){ const dt=new Date(ds+'T00:00:00'); const off=(dt.getDay()+6)%7; dt.setDate(dt.getDate()-off);
+  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`; }
 
 /* ===== Tier1: コーチング補助（プレート計算・ウォームアップ・自動進歩提案・種目別レスト） ===== */
 const PLATES=[25,20,15,10,5,2.5,1.25];
 function platesPerSide(total,bar){ bar=bar||settings.bar||20; let per=(total-bar)/2; const out=[]; if(per<=0)return out;
   for(const p of PLATES){ while(per>=p-1e-9){ out.push(p); per=Math.round((per-p)*100)/100; } } return out; }
-function warmupSets(work){ if(!work||work<=0)return []; const bar=settings.bar||20; const out=[{w:bar,r:8}];
+function warmupSets(work,bar){ if(!work||work<=0)return []; bar=bar||settings.bar||20; const out=[{w:bar,r:8}];
   [[0.5,5],[0.7,3],[0.85,2]].forEach(([f,r])=>{ const w=round25(work*f); if(w>bar&&w<work&&w>out[out.length-1].w) out.push({w,r}); }); return out; }
+function curBar(){ return barType==='smith'?(settings.smithBar||10):(settings.bar||20); }
 const COMPOUND_KEY=/ベンチ|スクワット|デッド|プレス|ロウ|懸垂|チンニング|ディップス|ラットプル|スラスト|クリーン|ローイング/;
 const ISO_KEY=/カール|レイズ|フライ|エクステンション|プッシュダウン|キック|プルオーバー/;
 function isCompound(exId){ const e=exObj(exId); if(!e)return true; if(ISO_KEY.test(e.name))return false; if(COMPOUND_KEY.test(e.name))return true; return e.muscle==='脚'||e.muscle==='背中'||e.muscle==='胸'; }
@@ -631,7 +662,7 @@ function bigChart(pts){ if(pts.length<2) return `<div class="spark-empty">デー
     <text x="${L}" y="${H-7}" class="ct">${pts[0].d}</text><text x="${W-R}" y="${H-7}" class="ct" text-anchor="end">${pts[pts.length-1].d}</text>
     <path d="${area}" fill="rgba(90,169,255,.12)" stroke="none"/>
     <path d="${line}" fill="none" stroke="#5aa9ff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>${dots}</svg>`; }
-let chartExId=null, measSel='chest', cmpA=0, cmpB=-1;
+let chartExId=null, measSel='chest', cmpA=0, cmpB=-1, barType='barbell', toolKind=null;
 
 /* ===== なりたい体（ゴール）エンジン ===== */
 const PHYS_M=[
@@ -811,6 +842,26 @@ function renderLog(){
     </div>`;
   }
 
+  // 今週のプラン & 今日のセッション提案（ウォームアップ→メイン）
+  const wkStart=weekStartStr(todayStr());
+  const wkDoneRt=new Set(logs.filter(l=>l.date>=wkStart).map(l=>l.rtId).filter(Boolean));
+  const planChips=routines.map(r=>`<span class="plan-chip ${wkDoneRt.has(r.id)?'done':''} ${rt&&r.id===rt.id?'sel':''}">${r.name}</span>`).join('');
+  const remainNames=routines.filter(r=>!wkDoneRt.has(r.id)).map(r=>r.name);
+  const weekPlanHtml=`<div class="eyebrow">今週のプラン</div>
+    <div class="card wk-card"><div class="wk-sub">完了 ${wkDoneRt.size}/${routines.length}${remainNames.length?'　残り：'+remainNames.join('・'):'　— 今週は全部達成！'}</div>
+    <div class="plan-chips">${planChips}</div></div>`;
+  let sessionHtml='';
+  if(rt && rt.exIds.length){ const gr=goalRange();
+    const rows=rt.exIds.map(id=>{ const sug=suggestNext(id); const tw=sug.w||0;
+      const wu=tw?warmupSets(tw,settings.bar).map(s=>`${s.w}×${s.r}`).join(' → '):'';
+      const main=tw?`${sug.w}kg × ${sug.r}回 × ${sug.sets}セット`:`まず ${gr.lo}〜${gr.hi}回 で基準づくり`;
+      return `<div class="sp-ex"><div class="sp-name">${exName(id)}</div>
+        ${wu?`<div class="sp-line"><span class="sp-tag warm">W-UP</span><span>${wu} → 本番</span></div>`:''}
+        <div class="sp-line"><span class="sp-tag main">メイン</span><span>${main}</span></div></div>`; }).join('');
+    sessionHtml=`<div class="eyebrow">今日のセッション（ウォームアップ→メイン）</div>
+      <div class="card sp-card">${rows}<div class="hint" style="margin-top:2px">ウォームアップ＝本番前に軽い重さで温めるセット（記録不要）。メイン＝記録する本番。重さは前回までの記録から自動提案。</div></div>`;
+  }
+
   v.innerHTML=`<div class="fade-in">
     ${qsHtml}
     ${dateBar}
@@ -821,6 +872,8 @@ function renderLog(){
         <div class="m">${isToday()?'本日':'この日'}のボリューム <b class="tnum">${todayVol.toLocaleString()}kg</b></div>
         ${(()=>{ const P=physObj(settings.physique); return `<div class="goal-mini" id="heroGoal">${P?'ゴール：'+P.name+'・'+PHASE_LABEL[P.phase].split('（')[0]:'＋ なりたい体を選ぶ'}</div>`; })()}</div>
     </div>
+    ${weekPlanHtml}
+    ${sessionHtml}
     <div class="eyebrow">今日のメニュー</div>
     <div class="days">${dayChips}</div>
     ${sugNote?`<div class="suggest-note">${sugNote}</div>`:''}
@@ -873,13 +926,23 @@ function renderLog(){
   document.getElementById('restNow').onclick=()=>Timer.start(draftExId?restFor(draftExId):settings.rest);
   const _us=document.getElementById('useSug'); if(_us)_us.onclick=()=>{ const s=suggestNext(draftExId); if(s.w){ draftSets=Array.from({length:s.sets},()=>({w:s.w,r:s.r})); renderLog(); } };
   const curWeight=()=>{ const ws=draftSets.map(s=>Number(s.w)).filter(x=>x>0); if(ws.length)return Math.max(...ws); const s=suggestNext(draftExId); return s.w||0; };
-  document.getElementById('warmBtn').onclick=()=>{ const w=curWeight(), out=document.getElementById('toolOut');
-    if(!w){ out.innerHTML=`<div class="tool"><div class="tool-t">重さ（または目標）が入るとウォームアップを計算します</div></div>`; return; }
-    const ws=warmupSets(w); out.innerHTML=`<div class="tool"><div class="tool-t">ウォームアップ（本番 ${w}kg に向けて）</div>`+ws.map((s,i)=>`<div class="wu">${i+1}.　${s.w}kg × ${s.r}回</div>`).join('')+`<div class="hint" style="margin-top:7px">本番前に体を温める用。セット間は短めの休憩でOK。最後に本番（${w}kg）へ。</div></div>`; };
-  document.getElementById('plateBtn').onclick=()=>{ const w=curWeight(), out=document.getElementById('toolOut');
-    if(!w){ out.innerHTML=`<div class="tool"><div class="tool-t">重さ（または目標）が入るとプレートの付け方を計算します</div></div>`; return; }
-    const ps=platesPerSide(w,settings.bar);
-    out.innerHTML=`<div class="tool"><div class="tool-t">${w}kg の付け方（バー ${settings.bar}kg）</div>`+(ps.length?`<div class="plates">${ps.map(p=>`<span class="plate">${p}</span>`).join('')}</div><div class="hint">バーの<b>片側</b>にこの順で。反対側も同じに付けます。</div>`:`<div class="hint">バー（${settings.bar}kg）だけでこの重さになります。</div>`)+`</div>`; };
+  function renderTool(){ const out=document.getElementById('toolOut'); if(!out)return; if(!toolKind){ out.innerHTML=''; return; }
+    const w=curWeight(), bar=curBar();
+    const toggle=`<div class="bar-toggle"><span class="bt ${barType==='barbell'?'on':''}" data-bt="barbell">バーベル ${settings.bar}kg</span><span class="bt ${barType==='smith'?'on':''}" data-bt="smith">スミス ${settings.smithBar}kg</span></div>`;
+    if(toolKind==='warm'){
+      out.innerHTML = w
+        ? `<div class="tool"><div class="tool-t">ウォームアップ（本番 ${w}kg に向けて）</div>${toggle}`+warmupSets(w,bar).map((s,i)=>`<div class="wu">${i+1}.　${s.w}kg × ${s.r}回</div>`).join('')+`<div class="hint" style="margin-top:7px">本番前に体を温める用。セット間は短めの休憩でOK。最後に本番（${w}kg）へ。</div></div>`
+        : `<div class="tool"><div class="tool-t">重さ（または目標）が入るとウォームアップを計算します</div>${toggle}</div>`;
+    } else {
+      const ps=platesPerSide(w,bar);
+      out.innerHTML = w
+        ? `<div class="tool"><div class="tool-t">${w}kg の付け方（バー ${bar}kg）</div>${toggle}`+(ps.length?`<div class="plates">${ps.map(p=>`<span class="plate">${p}</span>`).join('')}</div><div class="hint">バーの<b>片側</b>にこの順で。反対側も同じに付けます。</div>`:`<div class="hint">バー（${bar}kg）だけでこの重さになります。</div>`)+`</div>`
+        : `<div class="tool"><div class="tool-t">重さ（または目標）が入るとプレートの付け方を計算します</div>${toggle}</div>`;
+    }
+    out.querySelectorAll('[data-bt]').forEach(b=>b.onclick=()=>{ barType=b.dataset.bt; renderTool(); });
+  }
+  document.getElementById('warmBtn').onclick=()=>{ toolKind='warm'; renderTool(); };
+  document.getElementById('plateBtn').onclick=()=>{ toolKind='plate'; renderTool(); };
   v.querySelectorAll('input[data-si]').forEach(inp=>inp.oninput=e=>{ draftSets[+e.target.dataset.si][e.target.dataset.f]=e.target.value; });
   v.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ draftSets.splice(+b.dataset.del,1); if(!draftSets.length)draftSets=[{w:'',r:''}]; renderLog(); });
   document.getElementById('saveLog').onclick=saveDraft;
@@ -1041,9 +1104,11 @@ function renderStats(){
   if(parr.length<2){ cmpHtml=`<div class="hint" style="border:none;padding:0">写真が2枚以上たまると、ビフォー／アフターを並べて比較できます（「今日」タブで追加）。</div>`; }
   else { const ai=Math.min(Math.max(0,cmpA),parr.length-1); const bi=cmpB<0?parr.length-1:Math.min(cmpB,parr.length-1);
     const opt=(sel)=>parr.map((p,i)=>`<option value="${i}" ${i===sel?'selected':''}>${fmtDate(p.date)}</option>`).join('');
-    cmpHtml=`<div class="cmp">
-      <div class="cmp-slot"><div class="cmp-tag">ビフォー</div><div class="cmp-img" data-cmp="${parr[ai].id}"><img src="${parr[ai].data}" alt=""></div><select id="cmpAsel">${opt(ai)}</select></div>
-      <div class="cmp-slot"><div class="cmp-tag">アフター</div><div class="cmp-img" data-cmp="${parr[bi].id}"><img src="${parr[bi].data}" alt=""></div><select id="cmpBsel">${opt(bi)}</select></div></div>`; }
+    const days=Math.abs(Math.round((new Date(parr[bi].date)-new Date(parr[ai].date))/86400000));
+    const period=`<div class="cmp-period">期間：<b>${fmtDate(parr[ai].date)}</b> → <b>${fmtDate(parr[bi].date)}</b>　<span class="cmp-span">${days}日間${days>=7?`（約${Math.round(days/7)}週間）`:''}</span></div>`;
+    cmpHtml=`${period}<div class="cmp">
+      <div class="cmp-slot"><div class="cmp-tag">ビフォー</div><div class="cmp-img" data-cmp="${parr[ai].id}"><img src="${parr[ai].data}" alt=""></div><label class="cmp-lbl">いつ</label><select id="cmpAsel">${opt(ai)}</select></div>
+      <div class="cmp-slot"><div class="cmp-tag">アフター</div><div class="cmp-img" data-cmp="${parr[bi].id}"><img src="${parr[bi].data}" alt=""></div><label class="cmp-lbl">いつ</label><select id="cmpBsel">${opt(bi)}</select></div></div>`; }
 
   // ロードマップ（なりたい体 → やること）
   const bwKgEarly=cur?cur.kg:null;
@@ -1175,7 +1240,8 @@ function renderMore(){
       <div class="set-row"><div>種目に応じて休憩を自動調整<br><span style="font-size:11px;color:var(--txt-3)">多関節は長め・単関節は短め</span></div><div class="toggle ${settings.autoRestType?'on':''}" id="tgRestType"></div></div>
       <div class="set-row"><div>終了時に音・振動</div><div class="toggle ${settings.sound?'on':''}" id="tgSound"></div></div>
       <div class="set-row"><div>休憩の長さ<br><span style="font-size:11px;color:var(--txt-3)">自動調整がオフのとき使用</span></div><div class="step"><button id="rMinus">−</button><span class="val" id="rVal">${settings.rest}s</span><button id="rPlus">＋</button></div></div>
-      <div class="set-row"><div>バーの重さ<br><span style="font-size:11px;color:var(--txt-3)">プレート計算に使用</span></div><div class="step"><button id="bMinus">−</button><span class="val" id="bVal">${settings.bar}kg</span><button id="bPlus">＋</button></div></div>
+      <div class="set-row"><div>バーベルの重さ<br><span style="font-size:11px;color:var(--txt-3)">通常のバーベル（プレート計算）</span></div><div class="step"><button id="bMinus">−</button><span class="val" id="bVal">${settings.bar}kg</span><button id="bPlus">＋</button></div></div>
+      <div class="set-row"><div>スミスのバーの重さ<br><span style="font-size:11px;color:var(--txt-3)">スミスマシンのバー（既定 10kg）</span></div><div class="step"><button id="sMinus">−</button><span class="val" id="sVal">${settings.smithBar}kg</span><button id="sPlus">＋</button></div></div>
     </div>
 
     <div class="eyebrow">種目を追加</div>
@@ -1214,6 +1280,8 @@ function renderMore(){
   document.getElementById('rPlus').onclick=()=>{ settings.rest=Math.min(600,settings.rest+15); saveAll(); document.getElementById('rVal').textContent=settings.rest+'s'; };
   document.getElementById('bMinus').onclick=()=>{ settings.bar=Math.max(5,settings.bar-2.5); saveAll(); document.getElementById('bVal').textContent=settings.bar+'kg'; };
   document.getElementById('bPlus').onclick=()=>{ settings.bar=Math.min(30,settings.bar+2.5); saveAll(); document.getElementById('bVal').textContent=settings.bar+'kg'; };
+  document.getElementById('sMinus').onclick=()=>{ settings.smithBar=Math.max(0,Math.round((settings.smithBar-2.5)*10)/10); saveAll(); document.getElementById('sVal').textContent=settings.smithBar+'kg'; };
+  document.getElementById('sPlus').onclick=()=>{ settings.smithBar=Math.min(30,Math.round((settings.smithBar+2.5)*10)/10); saveAll(); document.getElementById('sVal').textContent=settings.smithBar+'kg'; };
 
   document.getElementById('addEx').onclick=()=>{ const name=document.getElementById('newName').value.trim(); const muscle=document.getElementById('newMuscle').value;
     if(!name){ toast('種目名を入力してください'); return; } exercises.push({id:uid(),name,muscle}); saveAll(); toast('追加しました'); renderMore(); };
@@ -1243,7 +1311,7 @@ function importData(e){
     if(!d.logs||!d.exercises){ toast('対応していないファイルです'); return; }
     if(!confirm('現在のデータをこのバックアップで置き換えます。よろしいですか？'))return;
     exercises=d.exercises||DEFAULT_EX; logs=d.logs||[]; routines=d.routines||DEFAULT_ROUTINES; bw=d.bw||[]; meas=d.meas||[];
-    settings=Object.assign({rest:90,autoTimer:true,sound:true,autoRestType:true,bar:20,units:'kg',sex:'male',goal:'hypertrophy',level:'int',days:4,physique:null,onboarded:true},d.settings||{});
+    settings=Object.assign({rest:90,autoTimer:true,sound:true,autoRestType:true,bar:20,smithBar:10,units:'kg',sex:'male',goal:'hypertrophy',level:'int',days:4,physique:null,onboarded:true},d.settings||{});
     if(d.prog) prog=d.prog;
     saveAll();
     if(Array.isArray(d.photos)){ try{ await photoClearDB(); for(const p of d.photos){ await photoPut(p); } photoCache=d.photos; }catch(err){} }
