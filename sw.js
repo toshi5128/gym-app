@@ -1,6 +1,6 @@
 /* ATLAS service worker — アプリ本体をキャッシュしてオフラインでも起動できるようにする
    アプリを更新したら CACHE のバージョン(atlas-vN)を上げること。 */
-const CACHE = 'atlas-v1';
+const CACHE = 'atlas-v2';
 const ASSETS = [
   './',
   './index.html',
