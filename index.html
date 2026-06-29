@@ -155,8 +155,11 @@
   button.solid{font-size:16px; padding:16px;}
   button.ghost{background:var(--surface-2); color:var(--txt-2);}
   button.sm{padding:11px 14px; font-size:13px; width:auto; font-weight:700;}
-  .del{color:var(--txt-3); background:none; border:none; font-size:20px; cursor:pointer; line-height:1; padding:4px;}
-  .del:active{color:var(--danger);}
+  .del{color:var(--txt-3); background:none; border:none; font-size:22px; cursor:pointer; line-height:1; padding:0; min-height:46px; display:flex; align-items:center; justify-content:center;}
+  .del:active{color:var(--danger); transform:scale(.9);}
+  /* tactile feedback on small tappables */
+  .rir:active,.day:active,.plan-chip:active,.mchip:active,.menu-item:active,.bt:active,.emp-chip:active,.qs-step:active{transform:scale(.97);}
+  .rir,.day,.plan-chip,.mchip,.menu-item,.bt{transition:transform .08s ease, background-color .15s, color .15s;}
 
   .item{background:var(--surface); border:1px solid var(--hair); border-radius:var(--r-md); padding:14px 16px; margin-bottom:9px;}
   .item .n{font-weight:700; display:flex; align-items:center; gap:9px;}
@@ -783,7 +786,8 @@ function ringSVG(pct){ const R=34,C=2*Math.PI*R,off=C*(1-pct);
     <circle cx="40" cy="40" r="${R}" fill="none" stroke="url(#g)" stroke-width="6" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${off}"/>
     <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3d7dff"/><stop offset="1" stop-color="#5aa9ff"/></linearGradient></defs></svg>`; }
 
-function renderLog(){
+function renderLog(keepScroll){
+  const _sy=keepScroll?window.scrollY:0;
   const v=document.getElementById('view');
   if(selRt===null){ const tl=todaysLogs().find(l=>l.rtId); selRt=tl?tl.rtId:suggestRt(); }
   const sug=suggestRt(); const rt=rtObj(selRt);
@@ -919,12 +923,12 @@ function renderLog(){
   const _ce=document.getElementById('cancelEdit'); if(_ce)_ce.onclick=()=>{ editId=null; draftSets=[{w:'',r:''}]; renderLog(); };
 
   v.querySelectorAll('[data-rt]').forEach(d=>d.onclick=()=>{ selRt=d.dataset.rt; draftExId=null; draftSets=[{w:'',r:''}]; renderLog(); });
-  v.querySelectorAll('[data-pick]').forEach(m=>m.onclick=()=>{ draftExId=m.dataset.pick; draftSets=[{w:'',r:''}]; renderLog(); });
-  document.getElementById('exSel').onchange=e=>{ draftExId=e.target.value; renderLog(); };
-  document.getElementById('addSet').onclick=()=>{ const l=draftSets[draftSets.length-1]; draftSets.push({w:l?l.w:'',r:l?l.r:''}); renderLog(); };
-  document.getElementById('copyLast').onclick=()=>{ if(last){ draftSets=last.sets.map(s=>({w:s.w,r:s.r})); renderLog(); } };
+  v.querySelectorAll('[data-pick]').forEach(m=>m.onclick=()=>{ draftExId=m.dataset.pick; draftSets=[{w:'',r:''}]; renderLog(true); const c=document.getElementById('exSel'); if(c)c.scrollIntoView({behavior:'smooth',block:'center'}); });
+  document.getElementById('exSel').onchange=e=>{ draftExId=e.target.value; renderLog(true); };
+  document.getElementById('addSet').onclick=()=>{ const l=draftSets[draftSets.length-1]; draftSets.push({w:l?l.w:'',r:l?l.r:''}); renderLog(true); const f=document.querySelector(`input[data-si="${draftSets.length-1}"][data-f="w"]`); if(f)f.focus(); };
+  document.getElementById('copyLast').onclick=()=>{ if(last){ draftSets=last.sets.map(s=>({w:s.w,r:s.r})); renderLog(true); } };
   document.getElementById('restNow').onclick=()=>Timer.start(draftExId?restFor(draftExId):settings.rest);
-  const _us=document.getElementById('useSug'); if(_us)_us.onclick=()=>{ const s=suggestNext(draftExId); if(s.w){ draftSets=Array.from({length:s.sets},()=>({w:s.w,r:s.r})); renderLog(); } };
+  const _us=document.getElementById('useSug'); if(_us)_us.onclick=()=>{ const s=suggestNext(draftExId); if(s.w){ draftSets=Array.from({length:s.sets},()=>({w:s.w,r:s.r})); renderLog(true); } };
   const curWeight=()=>{ const ws=draftSets.map(s=>Number(s.w)).filter(x=>x>0); if(ws.length)return Math.max(...ws); const s=suggestNext(draftExId); return s.w||0; };
   function renderTool(){ const out=document.getElementById('toolOut'); if(!out)return; if(!toolKind){ out.innerHTML=''; return; }
     const w=curWeight(), bar=curBar();
@@ -944,7 +948,7 @@ function renderLog(){
   document.getElementById('warmBtn').onclick=()=>{ toolKind='warm'; renderTool(); };
   document.getElementById('plateBtn').onclick=()=>{ toolKind='plate'; renderTool(); };
   v.querySelectorAll('input[data-si]').forEach(inp=>inp.oninput=e=>{ draftSets[+e.target.dataset.si][e.target.dataset.f]=e.target.value; });
-  v.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ draftSets.splice(+b.dataset.del,1); if(!draftSets.length)draftSets=[{w:'',r:''}]; renderLog(); });
+  v.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ draftSets.splice(+b.dataset.del,1); if(!draftSets.length)draftSets=[{w:'',r:''}]; renderLog(true); });
   document.getElementById('saveLog').onclick=saveDraft;
   const hg=document.getElementById('heroGoal'); if(hg)hg.onclick=()=>openPhysiquePicker();
   const qd=document.getElementById('qsDismiss'); if(qd)qd.onclick=()=>{ settings.qsDismissed=true; saveAll(); renderLog(); };
@@ -954,8 +958,9 @@ function renderLog(){
   document.getElementById('addPhoto').onclick=()=>document.getElementById('photoInput').click();
   document.getElementById('photoInput').onchange=async e=>{ const files=[...e.target.files]; if(!files.length)return; toast('写真を保存中…'); try{ await addPhotos(files,workDate); }catch(err){ toast('保存に失敗しました'); } e.target.value=''; renderLog(); toast('写真を追加しました'); };
   v.querySelectorAll('[data-pid]').forEach(t=>t.onclick=()=>openPhoto(t.dataset.pid));
-  v.querySelectorAll('[data-rir]').forEach(c=>c.onclick=()=>{ draftRir=c.dataset.rir===''?null:Number(c.dataset.rir); renderLog(); });
+  v.querySelectorAll('[data-rir]').forEach(c=>c.onclick=()=>{ draftRir=c.dataset.rir===''?null:Number(c.dataset.rir); renderLog(true); });
   renderTodayList();
+  if(keepScroll) window.scrollTo(0,_sy);
 }
 
 function saveDraft(){
