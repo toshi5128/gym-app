@@ -814,7 +814,7 @@ function bigChart(pts){ if(pts.length<2) return `<div class="spark-empty">デー
     <text x="${L}" y="${H-7}" class="ct">${pts[0].d}</text><text x="${W-R}" y="${H-7}" class="ct" text-anchor="end">${pts[pts.length-1].d}</text>
     <path d="${area}" fill="rgba(168,132,47,.12)" stroke="none"/>
     <path d="${line}" fill="none" stroke="#b0892f" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>${dots}</svg>`; }
-let chartExId=null, measSel='chest', cmpA=0, cmpB=-1, barType='barbell', toolKind=null, calMonth=null, pickMuscle=null, animateIn=true, pickerOpen=false;
+let chartExId=null, measSel='chest', cmpA=0, cmpB=-1, barType='barbell', toolKind=null, calMonth=null, pickMuscle=null, animateIn=true, pickerOpen=false, rtShowAll=new Set();
 function countUp(el,to,dec){ if(!el)return; const dur=750,t0=performance.now(); const run=(t)=>{ let p=Math.min(1,(t-t0)/dur); p=1-Math.pow(1-p,3); el.textContent=(to*p).toFixed(dec); if(p<1)requestAnimationFrame(run); }; requestAnimationFrame(run); }
 
 /* ===== なりたい体（ゴール）エンジン ===== */
@@ -1475,12 +1475,19 @@ function renderRoutine(){
     <div class="eyebrow">いまの分割（種目を割り当て）</div>
     <div style="padding:0 4px 12px; color:var(--txt-3); font-size:13px; line-height:1.7;">各日にどの種目を入れるかをタップで編集。「今日」タブで前回の続きを自動でおすすめします。</div>
     ${routines.map(r=>{ const onIds=new Set(r.exIds);
-      const chips=exercises.map(e=>`<span class="chip ${onIds.has(e.id)?'on':''}" data-rt="${r.id}" data-ex="${e.id}">${e.name}</span>`).join('');
-      return `<div class="card"><div class="row" style="justify-content:space-between"><strong style="font-size:17px">${r.name}の日</strong><span class="tag">${r.exIds.length} 種目</span></div><div class="ex-pick">${chips}</div></div>`; }).join('')}</div>`;
+      const RT_MUS={'胸':'胸','背中':'背中','肩':'肩','足':'脚','脚':'脚','腕':'腕','腹':'腹','腹筋':'腹','お腹':'腹'};
+      const tm=RT_MUS[r.name]||null;                       // この日の対象部位（複合日はnull）
+      const showAll=rtShowAll.has(r.id)||!tm;
+      const list=showAll?exercises:exercises.filter(e=>e.muscle===tm||onIds.has(e.id));
+      const chips=list.map(e=>`<span class="chip ${onIds.has(e.id)?'on':''}" data-rt="${r.id}" data-ex="${e.id}">${e.name}</span>`).join('')
+        || '<div class="hint" style="border:none;padding:6px 2px;margin:0">この部位の種目がありません。「設定 → 種目を追加」で登録できます。</div>';
+      const toggle=tm?`<button class="btn ghost sm" data-rtall="${r.id}" style="margin-top:11px">${showAll?'この部位の種目だけ表示':'＋ 他の部位の種目も表示'}</button>`:'';
+      return `<div class="card"><div class="row" style="justify-content:space-between"><strong style="font-size:17px">${r.name}の日</strong><span class="tag">${r.exIds.length} 種目</span></div><div class="ex-pick">${chips}</div>${toggle}</div>`; }).join('')}</div>`;
   v.querySelectorAll('[data-tmpl]').forEach(b=>b.onclick=()=>{ if(!confirm('いまの分割をこのテンプレートで置き換えます。よろしいですか？\n（記録した内容は消えません）'))return;
     applyTemplate(b.dataset.tmpl); selRt=null; draftExId=null; toast('分割を作りました'); renderRoutine(); });
   v.querySelectorAll('[data-ex]').forEach(c=>c.onclick=()=>{ const r=rtObj(c.dataset.rt),id=c.dataset.ex;
     if(r.exIds.includes(id))r.exIds=r.exIds.filter(x=>x!==id); else r.exIds.push(id); saveAll(); renderRoutine(); });
+  v.querySelectorAll('[data-rtall]').forEach(b=>b.onclick=()=>{ const id=b.dataset.rtall; rtShowAll.has(id)?rtShowAll.delete(id):rtShowAll.add(id); renderRoutine(); });
 }
 
 /* ============ 設定（種目・タイマー・データ） ============ */
