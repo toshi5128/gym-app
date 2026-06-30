@@ -404,6 +404,9 @@
   .sp-tag.main{background:var(--blue-dim); color:var(--blue);}
 
   /* photo period */
+  .cmp-presets{display:flex; flex-wrap:wrap; gap:7px; margin-bottom:11px;}
+  .cmp-chip{font-size:12px; font-weight:700; color:var(--txt-2); background:var(--surface-2); border:1px solid var(--hair); border-radius:20px; padding:7px 13px; cursor:pointer; transition:transform .08s, background-color .15s, color .15s;}
+  .cmp-chip:active{transform:scale(.95); background:var(--blue-dim); color:var(--blue);}
   .cmp-period{font-size:12.5px; color:var(--txt-2); margin-bottom:10px; line-height:1.6;}
   .cmp-period b{color:var(--txt);}
   .cmp-span{color:var(--blue); font-weight:700;}
@@ -1427,15 +1430,20 @@ function renderStats(){
 
   // 進捗写真の比較
   const parr=[...photoCache].sort((a,b)=>(a.date+(a.createdAt||'')).localeCompare(b.date+(b.createdAt||'')));
+  const cmpLatest=parr.length?new Date(parr[parr.length-1].date):null;
+  const cmpFindAgo=days=>{ if(!parr.length)return 0; const target=cmpLatest-days*86400000; let best=0,bd=Infinity; parr.forEach((p,i)=>{ const dd=Math.abs(new Date(p.date)-target); if(dd<bd){bd=dd;best=i;} }); return best; };
   let cmpHtml;
   if(parr.length<2){ cmpHtml=`<div class="hint" style="border:none;padding:0">写真が2枚以上たまると、ビフォー／アフターを並べて比較できます（「今日」タブで追加）。</div>`; }
   else { const ai=Math.min(Math.max(0,cmpA),parr.length-1); const bi=cmpB<0?parr.length-1:Math.min(cmpB,parr.length-1);
     const opt=(sel)=>parr.map((p,i)=>`<option value="${i}" ${i===sel?'selected':''}>${fmtDate(p.date)}</option>`).join('');
     const days=Math.abs(Math.round((new Date(parr[bi].date)-new Date(parr[ai].date))/86400000));
+    const spanDays=Math.round((cmpLatest-new Date(parr[0].date))/86400000);
+    const PRESETS=[['全期間',0],['1ヶ月',30],['3ヶ月',90],['6ヶ月',180],['1年',365]].filter(([l,d])=>d===0||spanDays>=d*0.8);
+    const presetChips=`<div class="cmp-presets">${PRESETS.map(([lab,d])=>`<span class="cmp-chip" data-pdays="${d}">${d===0?'最初↔最新':lab+'前→最新'}</span>`).join('')}</div>`;
     const period=`<div class="cmp-period">期間：<b>${fmtDate(parr[ai].date)}</b> → <b>${fmtDate(parr[bi].date)}</b>　<span class="cmp-span">${days}日間${days>=7?`（約${Math.round(days/7)}週間）`:''}</span></div>`;
-    cmpHtml=`${period}<div class="cmp">
-      <div class="cmp-slot"><div class="cmp-tag">ビフォー</div><div class="cmp-img" data-cmp="${parr[ai].id}"><img src="${parr[ai].data}" alt=""></div><label class="cmp-lbl">いつ</label><select id="cmpAsel">${opt(ai)}</select></div>
-      <div class="cmp-slot"><div class="cmp-tag">アフター</div><div class="cmp-img" data-cmp="${parr[bi].id}"><img src="${parr[bi].data}" alt=""></div><label class="cmp-lbl">いつ</label><select id="cmpBsel">${opt(bi)}</select></div></div>`; }
+    cmpHtml=`${presetChips}${period}<div class="cmp">
+      <div class="cmp-slot"><div class="cmp-tag">ビフォー（過去）</div><div class="cmp-img" data-cmp="${parr[ai].id}"><img src="${parr[ai].data}" alt=""></div><label class="cmp-lbl">いつ</label><select id="cmpAsel">${opt(ai)}</select></div>
+      <div class="cmp-slot"><div class="cmp-tag">アフター（最近）</div><div class="cmp-img" data-cmp="${parr[bi].id}"><img src="${parr[bi].data}" alt=""></div><label class="cmp-lbl">いつ</label><select id="cmpBsel">${opt(bi)}</select></div></div>`; }
 
   v.innerHTML=`<div class="fade-in">
     <div class="eyebrow">サマリー</div>
@@ -1488,6 +1496,7 @@ function renderStats(){
   const cs=document.getElementById('chartSel'); if(cs)cs.onchange=e=>{ chartExId=e.target.value; renderStats(); };
   const ca=document.getElementById('cmpAsel'); if(ca)ca.onchange=e=>{ cmpA=+e.target.value; renderStats(); };
   const cb=document.getElementById('cmpBsel'); if(cb)cb.onchange=e=>{ cmpB=+e.target.value; renderStats(); };
+  v.querySelectorAll('[data-pdays]').forEach(c=>c.onclick=()=>{ const d=+c.dataset.pdays; cmpB=parr.length-1; cmpA=(d===0?0:cmpFindAgo(d)); renderStats(); });
   v.querySelectorAll('[data-cmp]').forEach(t=>t.onclick=()=>openPhoto(t.dataset.cmp));
 }
 
