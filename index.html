@@ -221,6 +221,8 @@
   select{appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23646a75' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
     background-repeat:no-repeat; background-position:right 16px center; padding-right:40px;}
   input[type=number]{text-align:center; font-weight:700; font-variant-numeric:tabular-nums; font-family:var(--font-disp);}
+  .day-sum{font-size:13px; color:var(--txt-2); margin:0 2px 11px; font-weight:600;}
+  .day-sum b{color:var(--blue); font-weight:800;}
   .acc{border:1px solid var(--hair); border-radius:14px; background:var(--card); margin-bottom:11px; overflow:hidden;}
   .acc-h{width:100%; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:16px 16px; background:none; border:none; cursor:pointer; font-family:var(--font-jp); font-size:15px; font-weight:800; color:var(--txt); letter-spacing:.02em; text-align:left;}
   .acc-h:active{background:var(--surface-2);}
@@ -997,21 +999,27 @@ function playSound(key, force){
 }
 function beep(){ playSound(settings.soundType||'beep3'); }
 
+/* ============ 画面スリープ防止（休憩中だけ点灯維持） ============ */
+let wakeLock=null;
+async function acquireWake(){ try{ if('wakeLock' in navigator){ wakeLock=await navigator.wakeLock.request('screen'); wakeLock.addEventListener?.('release',()=>{ wakeLock=null; }); } }catch(e){} }
+function releaseWake(){ try{ wakeLock&&wakeLock.release(); }catch(e){} wakeLock=null; }
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible' && Timer.running && !wakeLock) acquireWake(); });
+
 /* ============ インターバルタイマー ============ */
 const Timer={ id:null, total:0, remain:0, last:0, running:false,
-  start(sec){ this.total=sec; this.remain=sec; this.last=Date.now(); this.running=true;
+  start(sec){ this.total=sec; this.remain=sec; this.last=Date.now(); this.running=true; acquireWake();
     const b=document.getElementById('restbar'); b.classList.add('show'); b.classList.remove('done');
     document.getElementById('restLbl').textContent='REST'; this.paint(); this.run(); },
   run(){ clearInterval(this.id); this.id=setInterval(()=>{ const now=Date.now(); this.remain-=(now-this.last)/1000; this.last=now;
     if(this.remain<=0){ this.remain=0; this.done(); } this.paint(); },200); },
-  done(){ clearInterval(this.id); this.running=false; beep();
+  done(){ clearInterval(this.id); this.running=false; releaseWake(); beep();
     const b=document.getElementById('restbar'); b.classList.add('done');
     document.getElementById('restLbl').textContent='次のセットへ'; document.getElementById('restTime').textContent='00:00';
     document.getElementById('restProg').style.width='100%';
     clearTimeout(this._h); this._h=setTimeout(()=>this.hide(),6000); },
   add(d){ if(!this.running && this.remain<=0){ this.start(Math.max(15,d>0?d:15)); return; }
     this.remain=Math.max(0,this.remain+d); this.total=Math.max(this.total,this.remain); this.paint(); },
-  hide(){ clearInterval(this.id); this.running=false; document.getElementById('restbar').classList.remove('show','done'); },
+  hide(){ clearInterval(this.id); this.running=false; releaseWake(); document.getElementById('restbar').classList.remove('show','done'); },
   paint(){ const m=Math.floor(this.remain/60), s=Math.ceil(this.remain%60);
     document.getElementById('restTime').textContent=`${m}:${String(s).padStart(2,'0')}`;
     document.getElementById('restProg').style.width=(this.total?(1-this.remain/this.total)*100:0)+'%'; },
@@ -1025,6 +1033,9 @@ let selRt=null, draftExId=null, draftSets=[{w:'',r:''}], draftWarm=[], editId=nu
 function clearDraft(){ draftSets=[{w:'',r:''}]; draftWarm=[]; }
 function todaysLogs(){ return logs.filter(l=>l.date===workDate); }     // 対象日の記録
 function isToday(){ return workDate===todayStr(); }
+function sessionMinutes(date){ const ts=logs.filter(l=>l.date===date&&l.at).map(l=>new Date(l.at).getTime()).filter(n=>!isNaN(n)).sort((a,b)=>a-b);
+  if(ts.length<2)return null; const mins=Math.round((ts[ts.length-1]-ts[0])/60000); return (mins>0&&mins<=720)?mins:null; }   // 12時間超は計測不能扱い
+function fmtDur(mins){ if(mins==null)return ''; const h=Math.floor(mins/60), m=mins%60; return h>0?`${h}時間${m}分`:`${m}分`; }
 function shiftDate(ds,delta){ const a=ds.split('-').map(Number); const dt=new Date(a[0],a[1]-1,a[2]+delta);
   return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
 function setWorkDate(d){ if(!d)d=todayStr(); workDate=d; selRt=null; draftExId=null; clearDraft(); editId=null; renderLog(); }
@@ -1244,7 +1255,7 @@ function saveDraft(){
   // 新規追加（対象日 workDate に記録）
   const before=bestBefore(draftExId);
   const tMaxW=Math.max(...sets.map(s=>s.w)); const tMax1=Math.max(...sets.map(s=>est1rm(s.w,s.r)));
-  logs.push({id:uid(), date:workDate, exId:draftExId, sets, rtId:selRt, ...(lastRir!=null?{rir:lastRir}:{}), ...(warm.length?{warm}:{})});
+  logs.push({id:uid(), date:workDate, exId:draftExId, sets, rtId:selRt, at:new Date().toISOString(), ...(lastRir!=null?{rir:lastRir}:{}), ...(warm.length?{warm}:{})});
   saveAll();
   // PR演出・タイマーは「今日」の記録のときだけ（過去日の振り返り入力では出さない）
   if(isToday() && before.maxW>0 && (tMaxW>before.maxW || tMax1>before.max1+0.01)){
@@ -1277,7 +1288,9 @@ function setListHtml(sets, warm, logRir){
 function renderTodayList(){
   const el=document.getElementById('todayList'); const t=todaysLogs();
   if(!t.length){ el.innerHTML=`<div class="empty">${IC.today.replace('<svg','<svg width=30 height=30')}${isToday()?'まだ今日の記録はありません。':'この日の記録はありません。'}<br>上で種目を選んで追加できます。</div>`; return; }
-  el.innerHTML=t.map(l=>{ const vol=l.sets.reduce((a,s)=>a+s.w*s.r,0);
+  const _mins=sessionMinutes(workDate);
+  const _sum=`<div class="day-sum">${t.length}種目${_mins!=null?` ・ トレ時間 <b>${fmtDur(_mins)}</b>`:''}</div>`;
+  el.innerHTML=_sum+t.map(l=>{ const vol=l.sets.reduce((a,s)=>a+s.w*s.r,0);
     return `<div class="item${editId===l.id?' editing':''}"><div class="row" style="justify-content:space-between"><span class="n">${exName(l.exId)} <span class="tag">${exMuscle(l.exId)}</span></span>
       <div class="row" style="gap:2px"><button class="del edit" data-edit="${l.id}">${IC.edit}</button><button class="del" data-rm="${l.id}">×</button></div></div>
       ${setListHtml(l.sets,l.warm,l.rir)}
@@ -1345,7 +1358,8 @@ function renderHistory(){
     const items=byDate[d].map(l=>`<div class="item htap" data-hd="${d}" data-hid="${l.id}"><div class="row" style="justify-content:space-between"><span class="n">${exName(l.exId)} <span class="tag">${exMuscle(l.exId)}</span></span><span class="go">${IC.edit}</span></div>${setListHtml(l.sets,l.warm,l.rir)}</div>`).join('');
     const vol=byDate[d].reduce((a,l)=>a+l.sets.reduce((x,s)=>x+s.w*s.r,0),0);
     const ph=photosOn(d); const phHtml=ph.length?`<div class="photo-grid" style="grid-template-columns:repeat(4,1fr);margin-top:9px">${ph.map(p=>`<div class="thumb" data-pid="${p.id}"><img src="${p.data}" loading="lazy" alt=""></div>`).join('')}</div>`:'';
-    return `<div class="hist-day"><div class="hist-date">${fmtDate(d)}${rtName?`<span class="rt">${rtName}</span>`:''}<span class="vv tnum">${vol.toLocaleString()}kg</span><button class="dayadd" data-add="${d}">＋追加</button></div>${items}${phHtml}</div>`; }).join('')+`</div>`;
+    const _dm=sessionMinutes(d);
+    return `<div class="hist-day"><div class="hist-date">${fmtDate(d)}${rtName?`<span class="rt">${rtName}</span>`:''}${_dm!=null?`<span class="rt" style="background:var(--surface-2);color:var(--txt-2)">${fmtDur(_dm)}</span>`:''}<span class="vv tnum">${vol.toLocaleString()}kg</span><button class="dayadd" data-add="${d}">＋追加</button></div>${items}${phHtml}</div>`; }).join('')+`</div>`;
   document.getElementById('histAdd').onclick=()=>setTab('log'); wireCal();
   v.querySelectorAll('[data-pid]').forEach(t=>t.onclick=ev=>{ ev.stopPropagation(); openPhoto(t.dataset.pid); });
   v.querySelectorAll('.htap').forEach(it=>it.onclick=()=>{ const l=logs.find(x=>x.id===it.dataset.hid);
