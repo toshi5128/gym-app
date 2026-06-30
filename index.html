@@ -702,7 +702,10 @@ function weekStartStr(ds){ const dt=new Date(ds+'T00:00:00'); const off=(dt.getD
   return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`; }
 
 /* ===== Tier1: コーチング補助（プレート計算・ウォームアップ・自動進歩提案・種目別レスト） ===== */
-const PLATES=[25,20,15,10,5,2.5,1.25];
+const PLATES=[20,15,10,5,2.5,1.25];
+// 保存済み設定にジムに無いプレート（旧25kg等）が残っていても、扱えるプレートだけに整える
+settings.plates=(settings.plates||PLATES.slice()).filter(p=>PLATES.includes(p));
+if(!settings.plates.length) settings.plates=PLATES.slice();
 function platesPerSide(total,bar){ bar=bar||settings.bar||20; let per=(total-bar)/2; const out=[]; if(per<=0)return out;
   const avail=((settings.plates&&settings.plates.length)?settings.plates:PLATES).slice().sort((a,b)=>b-a);
   for(const p of avail){ while(per>=p-1e-9){ out.push(p); per=Math.round((per-p)*100)/100; } } return out; }
