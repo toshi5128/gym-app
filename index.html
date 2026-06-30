@@ -221,6 +221,14 @@
   select{appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23646a75' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
     background-repeat:no-repeat; background-position:right 16px center; padding-right:40px;}
   input[type=number]{text-align:center; font-weight:700; font-variant-numeric:tabular-nums; font-family:var(--font-disp);}
+  .snd-row{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 13px; border:1px solid var(--hair); border-radius:13px; background:var(--surface-2); margin-bottom:9px; cursor:pointer; transition:transform .08s, border-color .15s, background-color .15s;}
+  .snd-row:last-child{margin-bottom:0;}
+  .snd-row:active{transform:scale(.985);}
+  .snd-row.on{border-color:var(--acc); background:var(--blue-dim); box-shadow:inset 0 0 0 1px var(--acc);}
+  .snd-name{font-size:15px; font-weight:700; color:var(--txt);}
+  .snd-row.on .snd-name::after{content:'　選択中'; font-size:11px; font-weight:800; color:var(--blue);}
+  .snd-desc{font-size:12px; color:var(--txt-3); margin-top:2px;}
+  .snd-play{flex:0 0 auto; font-size:12px; font-weight:800; color:var(--blue); background:var(--surface); border:1px solid var(--hair); border-radius:20px; padding:7px 14px; letter-spacing:.02em;}
   .set-line{display:grid; grid-template-columns:20px 1fr 1fr auto 22px; gap:6px; align-items:center; margin-bottom:10px;}
   .eff{min-width:46px; height:48px; border:1px solid var(--hair); border-radius:12px; background:var(--surface-2); color:var(--txt-3); font-size:11px; font-weight:700; font-family:var(--font-jp); cursor:pointer; padding:0 5px; line-height:1; transition:transform .08s, background-color .15s, color .15s;}
   .eff:active{transform:scale(.93);}
@@ -698,7 +706,7 @@ function save(k,v){ localStorage.setItem(k,JSON.stringify(v)); }
 let exercises=load(KEY_EX,DEFAULT_EX), logs=load(KEY_LOG,[]), routines=load(KEY_RT,DEFAULT_ROUTINES);
 let bw=load(KEY_BW,[]);                       // [{date, kg}]
 let meas=load(KEY_MEAS,[]);                   // [{date, key, v}] 採寸(cm)
-let settings=Object.assign({rest:90, autoTimer:true, sound:true, autoRestType:true, bar:20, smithBar:10, units:'kg', sex:'male', goal:'hypertrophy', level:'int', days:4, physique:null, theme:'light', onboarded:false, guideSeen:false, qsDismissed:false, migratedArm:false, fixedSplit5:false, plates:[20,15,10,5,2.5,1.25]}, load(KEY_SET,{}));
+let settings=Object.assign({rest:90, autoTimer:true, sound:true, soundType:'beep3', autoRestType:true, bar:20, smithBar:10, units:'kg', sex:'male', goal:'hypertrophy', level:'int', days:4, physique:null, theme:'light', onboarded:false, guideSeen:false, qsDismissed:false, migratedArm:false, fixedSplit5:false, plates:[20,15,10,5,2.5,1.25]}, load(KEY_SET,{}));
 function applyTheme(){ document.documentElement.setAttribute('data-theme','light');
   const m=document.querySelector('meta[name="theme-color"]'); if(m)m.content='#f1f0ec'; }
 applyTheme();
@@ -948,16 +956,35 @@ function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.
 
 /* ============ サウンド / 振動 ============ */
 let actx=null;
-function beep(){
-  if(!settings.sound) return;
-  try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)();
-    [0,0.18,0.36].forEach(t=>{ const o=actx.createOscillator(),g=actx.createGain();
-      o.frequency.value=880; o.connect(g); g.connect(actx.destination);
-      const s=actx.currentTime+t; g.gain.setValueAtTime(0.001,s); g.gain.exponentialRampToValueAtTime(0.3,s+0.02);
-      g.gain.exponentialRampToValueAtTime(0.001,s+0.15); o.start(s); o.stop(s+0.16); });
-  }catch(e){}
-  if(navigator.vibrate) navigator.vibrate([120,60,120]);
+function tone(a,{freq,start=0,dur=0.15,type='sine',vol=0.3}){
+  const o=a.createOscillator(), g=a.createGain();
+  o.type=type; o.frequency.value=freq; o.connect(g); g.connect(a.destination);
+  const s=a.currentTime+start;
+  g.gain.setValueAtTime(0.0001,s);
+  g.gain.exponentialRampToValueAtTime(vol,s+0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001,s+dur);
+  o.start(s); o.stop(s+dur+0.03);
 }
+/* 候補音（すべてその場で合成・音声ファイル不要）。vib=マナーモード用の振動パターン */
+const SOUNDS={
+  beep3:{name:'ピピピ（今の音）', desc:'電子音を3回', vib:[120,60,120],
+    play:a=>[0,0.18,0.36].forEach(t=>tone(a,{freq:880,start:t,dur:0.15,type:'square',vol:0.22}))},
+  bell:{name:'やわらかいベル', desc:'チーンと余韻のある2音', vib:[200],
+    play:a=>{ tone(a,{freq:1318.5,start:0,dur:0.7,type:'sine',vol:0.32}); tone(a,{freq:1760,start:0.13,dur:0.8,type:'sine',vol:0.24}); }},
+  alarm:{name:'はっきりアラーム', desc:'高音を素早く5連打・気づきやすい', vib:[90,50,90,50,90,50,90],
+    play:a=>[0,0.13,0.26,0.39,0.52].forEach(t=>tone(a,{freq:1046,start:t,dur:0.085,type:'square',vol:0.26}))},
+  rise:{name:'上昇チャイム', desc:'ド→ミ→ソと上がる・達成感', vib:[150,80,220],
+    play:a=>[523,659,784].forEach((f,i)=>tone(a,{freq:f,start:i*0.13,dur:0.2,type:'triangle',vol:0.3}))},
+  pop:{name:'単発ポッ', desc:'ポンッと1回だけ・控えめ', vib:[140],
+    play:a=>tone(a,{freq:660,start:0,dur:0.2,type:'sine',vol:0.32})},
+};
+function playSound(key, force){
+  if(!force && !settings.sound) return;
+  const s=SOUNDS[key]||SOUNDS.beep3;
+  try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)(); if(actx.state==='suspended')actx.resume(); s.play(actx); }catch(e){}
+  if(navigator.vibrate) navigator.vibrate(s.vib||[120]);
+}
+function beep(){ playSound(settings.soundType||'beep3'); }
 
 /* ============ インターバルタイマー ============ */
 const Timer={ id:null, total:0, remain:0, last:0, running:false,
@@ -1510,6 +1537,12 @@ function renderMore(){
       <div class="set-row"><div>スミスのバーの重さ<br><span style="font-size:11px;color:var(--txt-3)">スミスマシンのバー（既定 10kg）</span></div><div class="step"><button id="sMinus">−</button><span class="val" id="sVal">${settings.smithBar}kg</span><button id="sPlus">＋</button></div></div>
     </div>
 
+    <div class="eyebrow">休憩おわりの音</div>
+    <div class="card">
+      <div style="font-size:13px;color:var(--txt-2);line-height:1.7;margin:0 2px 11px">タップすると<b>その場で試聴＋選択</b>できます。上の「終了時に音・振動」がオンのとき、休憩おわりにこの音が鳴ります（オフでも振動）。</div>
+      ${Object.entries(SOUNDS).map(([k,s])=>`<div class="snd-row${settings.soundType===k?' on':''}" data-snd="${k}"><div class="snd-info"><div class="snd-name">${s.name}</div><div class="snd-desc">${s.desc}</div></div><span class="snd-play">▶ 試聴</span></div>`).join('')}
+    </div>
+
     <div class="eyebrow">ジムにあるプレート</div>
     <div class="card">
       <div style="font-size:13px;color:var(--txt-2);line-height:1.7;margin:0 2px 11px">プレート計算で使う重さです。<b>ジムに無いものはオフ</b>に。片側1枚あたりの重さ。</div>
@@ -1547,6 +1580,7 @@ function renderMore(){
   const tgA=document.getElementById('tgAuto'); tgA.onclick=()=>{ settings.autoTimer=!settings.autoTimer; saveAll(); tgA.classList.toggle('on'); };
   const tgRT=document.getElementById('tgRestType'); tgRT.onclick=()=>{ settings.autoRestType=!settings.autoRestType; saveAll(); tgRT.classList.toggle('on'); };
   const tgS=document.getElementById('tgSound'); tgS.onclick=()=>{ settings.sound=!settings.sound; saveAll(); tgS.classList.toggle('on'); if(settings.sound)beep(); };
+  v.querySelectorAll('[data-snd]').forEach(r=>r.onclick=()=>{ const k=r.dataset.snd; settings.soundType=k; saveAll(); v.querySelectorAll('[data-snd]').forEach(x=>x.classList.toggle('on',x.dataset.snd===k)); playSound(k,true); });
   document.getElementById('rMinus').onclick=()=>{ settings.rest=Math.max(15,settings.rest-15); saveAll(); document.getElementById('rVal').textContent=settings.rest+'s'; };
   document.getElementById('rPlus').onclick=()=>{ settings.rest=Math.min(600,settings.rest+15); saveAll(); document.getElementById('rVal').textContent=settings.rest+'s'; };
   document.getElementById('bMinus').onclick=()=>{ settings.bar=Math.max(5,settings.bar-2.5); saveAll(); document.getElementById('bVal').textContent=settings.bar+'kg'; };
