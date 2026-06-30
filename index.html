@@ -314,7 +314,10 @@
   .wu{font-family:var(--font-disp); font-weight:700; padding:6px 0; border-bottom:1px solid var(--hair-2); font-size:14px;}
   .wu:last-child{border-bottom:none;}
   .plates{display:flex; flex-wrap:wrap; gap:7px; margin:2px 0 8px;}
-  .plate{min-width:36px; height:42px; padding:0 10px; display:flex; align-items:center; justify-content:center; background:var(--acc); color:var(--on-acc); border-radius:8px; font-family:var(--font-disp); font-weight:700; font-size:15px;}
+  .plate{min-width:46px; height:46px; padding:0 12px; display:flex; align-items:baseline; justify-content:center; background:var(--acc); color:var(--on-acc); border-radius:9px; font-family:var(--font-disp); font-weight:800; font-size:18px;}
+  .plate small{font-size:9px; font-weight:700; opacity:.6; margin-left:1px;}
+  .plate b{font-size:12px; font-weight:800; margin-left:3px; opacity:.85;}
+  .plate-side{font-size:11px; font-weight:700; color:var(--txt-2); margin:4px 0 8px; letter-spacing:.04em;}
   /* onboarding */
   .onboard{position:fixed; inset:0; z-index:80; background:rgba(10,11,13,.97); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; padding:24px; overflow-y:auto;}
   .ob-card{max-width:430px; width:100%; padding:8px 0;}
@@ -679,7 +682,7 @@ function save(k,v){ localStorage.setItem(k,JSON.stringify(v)); }
 let exercises=load(KEY_EX,DEFAULT_EX), logs=load(KEY_LOG,[]), routines=load(KEY_RT,DEFAULT_ROUTINES);
 let bw=load(KEY_BW,[]);                       // [{date, kg}]
 let meas=load(KEY_MEAS,[]);                   // [{date, key, v}] 採寸(cm)
-let settings=Object.assign({rest:90, autoTimer:true, sound:true, autoRestType:true, bar:20, smithBar:10, units:'kg', sex:'male', goal:'hypertrophy', level:'int', days:4, physique:null, theme:'light', onboarded:false, guideSeen:false, qsDismissed:false, migratedArm:false, fixedSplit5:false}, load(KEY_SET,{}));
+let settings=Object.assign({rest:90, autoTimer:true, sound:true, autoRestType:true, bar:20, smithBar:10, units:'kg', sex:'male', goal:'hypertrophy', level:'int', days:4, physique:null, theme:'light', onboarded:false, guideSeen:false, qsDismissed:false, migratedArm:false, fixedSplit5:false, plates:[20,15,10,5,2.5,1.25]}, load(KEY_SET,{}));
 function applyTheme(){ document.documentElement.setAttribute('data-theme','light');
   const m=document.querySelector('meta[name="theme-color"]'); if(m)m.content='#f1f0ec'; }
 applyTheme();
@@ -701,7 +704,8 @@ function weekStartStr(ds){ const dt=new Date(ds+'T00:00:00'); const off=(dt.getD
 /* ===== Tier1: コーチング補助（プレート計算・ウォームアップ・自動進歩提案・種目別レスト） ===== */
 const PLATES=[25,20,15,10,5,2.5,1.25];
 function platesPerSide(total,bar){ bar=bar||settings.bar||20; let per=(total-bar)/2; const out=[]; if(per<=0)return out;
-  for(const p of PLATES){ while(per>=p-1e-9){ out.push(p); per=Math.round((per-p)*100)/100; } } return out; }
+  const avail=((settings.plates&&settings.plates.length)?settings.plates:PLATES).slice().sort((a,b)=>b-a);
+  for(const p of avail){ while(per>=p-1e-9){ out.push(p); per=Math.round((per-p)*100)/100; } } return out; }
 function warmupSets(work,bar){ if(!work||work<=0)return []; bar=bar||settings.bar||20; const out=[{w:bar,r:8}];
   [[0.5,5],[0.7,3],[0.85,2]].forEach(([f,r])=>{ const w=round25(work*f); if(w>bar&&w<work&&w>out[out.length-1].w) out.push({w,r}); }); return out; }
 function curBar(){ return barType==='smith'?(settings.smithBar||10):(settings.bar||20); }
@@ -1162,8 +1166,14 @@ function renderLog(keepScroll){
         : `<div class="tool"><div class="tool-t">重さ（または目標）が入るとウォームアップを計算します</div>${toggle}</div>`;
     } else {
       const ps=platesPerSide(w,bar);
+      const perSide=Math.round((w-bar)/2*100)/100;
+      const sum=ps.reduce((a,b)=>a+b,0); const rem=Math.round((perSide-sum)*100)/100;
+      const grp=[]; ps.forEach(p=>{ const L=grp[grp.length-1]; if(L&&L.w===p)L.n++; else grp.push({w:p,n:1}); });
+      const chips=grp.map(g=>`<span class="plate">${g.w}<small>kg</small>${g.n>1?`<b>×${g.n}</b>`:''}</span>`).join('');
       out.innerHTML = w
-        ? `<div class="tool"><div class="tool-t">${w}kg の付け方（バー ${bar}kg）</div>${toggle}`+(ps.length?`<div class="plates">${ps.map(p=>`<span class="plate">${p}</span>`).join('')}</div><div class="hint">バーの<b>片側</b>にこの順で。反対側も同じに付けます。</div>`:`<div class="hint">バー（${bar}kg）だけでこの重さになります。</div>`)+`</div>`
+        ? `<div class="tool"><div class="tool-t">${w}kg の付け方</div>${toggle}`+(ps.length
+            ? `<div class="plate-side">片側に付ける（バー ${bar}kg）</div><div class="plates">${chips}</div><div class="hint">反対側も同じに付けます。<br>バー ${bar} ＋ 片側 ${perSide}kg ×2 ＝ <b>${w}kg</b>${rem>0?`<br><b style="color:var(--danger)">※端数 ${rem}kg は今のプレートでは作れません（設定→ジムにあるプレート）</b>`:''}</div>`
+            : `<div class="hint">バー（${bar}kg）だけでこの重さになります。</div>`)+`</div>`
         : `<div class="tool"><div class="tool-t">重さ（または目標）が入るとプレートの付け方を計算します</div>${toggle}</div>`;
     }
     out.querySelectorAll('[data-bt]').forEach(b=>b.onclick=()=>{ barType=b.dataset.bt; renderTool(); });
@@ -1532,6 +1542,12 @@ function renderMore(){
       <div class="set-row"><div>スミスのバーの重さ<br><span style="font-size:11px;color:var(--txt-3)">スミスマシンのバー（既定 10kg）</span></div><div class="step"><button id="sMinus">−</button><span class="val" id="sVal">${settings.smithBar}kg</span><button id="sPlus">＋</button></div></div>
     </div>
 
+    <div class="eyebrow">ジムにあるプレート</div>
+    <div class="card">
+      <div style="font-size:13px;color:var(--txt-2);line-height:1.7;margin:0 2px 11px">プレート計算で使う重さです。<b>ジムに無いものはオフ</b>に（例：25kgが無ければオフ）。片側1枚あたりの重さ。</div>
+      <div class="ex-pick">${PLATES.map(p=>`<span class="chip ${(settings.plates||PLATES).includes(p)?'on':''}" data-plate="${p}">${p}kg</span>`).join('')}</div>
+    </div>
+
     <div class="eyebrow">種目を追加</div>
     <div class="card">
       <input id="newName" placeholder="種目名（例：ディップス）">
@@ -1570,6 +1586,7 @@ function renderMore(){
   document.getElementById('bPlus').onclick=()=>{ settings.bar=Math.min(30,settings.bar+2.5); saveAll(); document.getElementById('bVal').textContent=settings.bar+'kg'; };
   document.getElementById('sMinus').onclick=()=>{ settings.smithBar=Math.max(0,Math.round((settings.smithBar-2.5)*10)/10); saveAll(); document.getElementById('sVal').textContent=settings.smithBar+'kg'; };
   document.getElementById('sPlus').onclick=()=>{ settings.smithBar=Math.min(30,Math.round((settings.smithBar+2.5)*10)/10); saveAll(); document.getElementById('sVal').textContent=settings.smithBar+'kg'; };
+  v.querySelectorAll('[data-plate]').forEach(c=>c.onclick=()=>{ const p=+c.dataset.plate; if(!settings.plates)settings.plates=PLATES.slice(); settings.plates=settings.plates.includes(p)?settings.plates.filter(x=>x!==p):[...settings.plates,p]; settings.plates.sort((a,b)=>b-a); saveAll(); c.classList.toggle('on'); });
 
   document.getElementById('addEx').onclick=()=>{ const name=document.getElementById('newName').value.trim(); const muscle=document.getElementById('newMuscle').value;
     if(!name){ toast('種目名を入力してください'); return; } exercises.push({id:uid(),name,muscle}); saveAll(); toast('追加しました'); renderMore(); };
