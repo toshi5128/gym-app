@@ -133,6 +133,26 @@
   .exo-i{flex:0 0 auto; width:21px; height:21px; border-radius:50%; border:1px solid var(--hair); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; font-style:italic; color:var(--txt-3); font-family:var(--font-disp);}
   .exo-sub{font-size:11.5px; color:var(--txt-3); margin-top:8px; line-height:1.35;}
   .exo-done{color:var(--blue); font-weight:800;}
+  .dash-total{text-align:center; padding:20px 18px;}
+  :root[data-theme="light"] .dash-total{ background:linear-gradient(180deg,#ffffff,#f7efde); }
+  .dt-l{font-size:12px; font-weight:700; color:var(--txt-2); letter-spacing:.06em;}
+  .dt-v{font-size:40px; font-weight:800; letter-spacing:-.02em; line-height:1.05; margin:4px 0 8px;}
+  .dt-v small{font-size:18px; font-weight:700; color:var(--txt-2);}
+  .dt-eq{display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:800; color:var(--blue); background:var(--blue-dim); padding:5px 14px; border-radius:20px;}
+  .dt-eq svg{width:19px; height:19px;}
+  .dash-row{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px;}
+  .dash-row .card{margin-bottom:0;}
+  .dash-mini{padding:15px 14px; text-align:center;}
+  .dm-l{font-size:10.5px; font-weight:700; color:var(--txt-3); letter-spacing:.02em;}
+  .dm-v{font-size:24px; font-weight:800; margin:4px 0 6px; letter-spacing:-.01em;}
+  .dm-v small{font-size:12px; color:var(--txt-2);}
+  .dm-eq{display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:800; color:var(--txt-2);}
+  .dm-eq svg{width:15px; height:15px; color:var(--blue);}
+  .dash-cnt{display:flex; align-items:center; justify-content:space-around; padding:16px;}
+  .dc{text-align:center;}
+  .dc b{display:block; font-size:27px; font-weight:800; font-family:var(--font-disp); color:var(--blue); line-height:1;}
+  .dc s{font-size:11px; color:var(--txt-3); text-decoration:none; font-weight:600; margin-top:4px; display:block;}
+  .dc-div{width:1px; height:34px; background:var(--hair);}
   .rec-ex{display:flex; align-items:center; gap:11px; margin-bottom:11px;}
   .rec-ex b{font-size:19px; font-weight:800; color:var(--txt); letter-spacing:-.01em;}
   .rec-ex .rec-mus{flex:0 0 auto; font-size:11px; font-weight:800; color:var(--blue); background:var(--blue-dim); padding:3px 10px; border-radius:20px; letter-spacing:.04em;}
@@ -1005,8 +1025,34 @@ function renderLog(keepScroll){
         <div class="exo-sub">${ok?'<span class="exo-done">完了</span> ・ ':''}${sub}</div></div>`; }).join('')
     : '<div class="empty" style="padding:22px">この日に種目が未登録です。<br>「分割」タブで追加できます。</div>') : '';
 
+  // ホーム：負荷量ダッシュボード（総合計/7日/28日＋車・バス・飛行機換算、トレ日数）
+  const _volOf=(arr)=>arr.reduce((a,l)=>a+l.sets.reduce((x,s)=>x+s.w*s.r,0),0);
+  const _c7=shiftDate(todayStr(),-6), _c28=shiftDate(todayStr(),-27), _td=todayStr();
+  const v7=_volOf(logs.filter(l=>l.date>=_c7&&l.date<=_td));
+  const v28=_volOf(logs.filter(l=>l.date>=_c28&&l.date<=_td));
+  const vAll=_volOf(logs);
+  const _ymNow=_td.slice(0,7);
+  const monthDays=new Set(logs.filter(l=>l.date.startsWith(_ymNow)).map(l=>l.date)).size;
+  const totalDays=new Set(logs.map(l=>l.date)).size;
+  const IC_CAR='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11l1.5-4A2 2 0 0 1 8.4 5.7h7.2a2 2 0 0 1 1.9 1.3L19 11"/><rect x="3" y="11" width="18" height="6" rx="1.5"/><circle cx="7.5" cy="17.5" r="1.3"/><circle cx="16.5" cy="17.5" r="1.3"/></svg>';
+  const IC_BUS='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="13" rx="2"/><path d="M4 11h16"/><circle cx="8" cy="17.5" r="1.2"/><circle cx="16" cy="17.5" r="1.2"/></svg>';
+  const IC_PLANE='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 15.5v-1.7l-7.5-4.7V3.4a1.5 1.5 0 0 0-3 0v5.7L3 13.8v1.7l7.5-2.3v4.9l-2 1.4V21l3.5-1 3.5 1v-1.5l-2-1.4v-4.9z"/></svg>';
+  const dashHtml=`
+    <div class="dash-total card">
+      <div class="dt-l">総合計負荷量</div>
+      <div class="dt-v tnum">${(vAll/1000).toFixed(2)}<small> t</small></div>
+      <div class="dt-eq">${IC_PLANE}<span>飛行機 × ${(vAll/1000/350).toFixed(1)}</span></div>
+    </div>
+    <div class="dash-row">
+      <div class="card dash-mini"><div class="dm-l">合計負荷量 / 7日間</div><div class="dm-v tnum">${(v7/1000).toFixed(2)}<small> t</small></div><div class="dm-eq">${IC_CAR}車 × ${(v7/1000/1.5).toFixed(1)}</div></div>
+      <div class="card dash-mini"><div class="dm-l">合計負荷量 / 28日間</div><div class="dm-v tnum">${(v28/1000).toFixed(2)}<small> t</small></div><div class="dm-eq">${IC_BUS}バス × ${(v28/1000/10).toFixed(1)}</div></div>
+    </div>
+    <div class="dash-cnt card"><div class="dc"><b>${monthDays}</b><s>今月のトレ日数</s></div><div class="dc-div"></div><div class="dc"><b>${totalDays}</b><s>通算トレ日数</s></div></div>
+    ${buildCalendar()}`;
+
   v.innerHTML=`<div class="fade-in">
     ${qsHtml}
+    ${dashHtml}
     ${dateBar}
     <div class="hero">
       <div class="ring">${ringSVG(pct)}<div class="pct"><b>${doneEx}/${totalEx||'–'}</b><s>DONE</s></div></div>
@@ -1059,6 +1105,8 @@ function renderLog(keepScroll){
   const _dt=document.getElementById('dToday'); if(_dt)_dt.onclick=()=>setWorkDate(todayStr());
   const _ce=document.getElementById('cancelEdit'); if(_ce)_ce.onclick=()=>{ editId=null; draftSets=[{w:'',r:''}]; renderLog(); };
 
+  v.querySelectorAll('[data-cm]').forEach(b=>b.onclick=()=>{ calMonth=shiftMonth(calMonth||todayStr().slice(0,7), b.dataset.cm==='prev'?-1:1); renderLog(true); });
+  v.querySelectorAll('[data-cd]').forEach(c=>c.onclick=()=>{ workDate=c.dataset.cd; selRt=null; draftExId=null; draftSets=[{w:'',r:''}]; editId=null; renderLog(); window.scrollTo({top:document.querySelector('.days')?.offsetTop-70||0,behavior:'smooth'}); });
   v.querySelectorAll('[data-rt]').forEach(d=>d.onclick=()=>{ selRt=d.dataset.rt; draftExId=null; draftSets=[{w:'',r:''}]; renderLog(true); });
   v.querySelectorAll('[data-pick]').forEach(m=>m.onclick=()=>{ draftExId=m.dataset.pick; draftSets=[{w:'',r:''}]; renderLog(true); });
   const _eg=document.getElementById('exGuideBtn'); if(_eg)_eg.onclick=()=>openExGuide(draftExId);
