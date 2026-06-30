@@ -229,6 +229,16 @@
   .pr-v{font-family:var(--font-disp); font-size:21px; font-weight:800; color:var(--txt); letter-spacing:-.01em; line-height:1;}
   .pr-v small{font-size:11px; font-weight:700; color:var(--txt-3); margin-left:1px;}
   .pr-k{font-size:10.5px; color:var(--txt-3); margin-top:5px; line-height:1.3;}
+  .acc-sub{display:block; font-size:11px; font-weight:600; color:var(--txt-3); margin-top:3px; letter-spacing:0;}
+  .memo-lbl{font-size:9px; font-weight:700; letter-spacing:.1em; color:var(--txt-3); text-transform:uppercase; margin-bottom:7px;}
+  .cond-row{display:flex; flex-wrap:wrap; gap:7px;}
+  .cond-chip{flex:1 1 auto; text-align:center; min-width:54px; font-size:12.5px; font-weight:700; color:var(--txt-2); background:var(--surface-2); border:1px solid var(--hair); border-radius:10px; padding:9px 6px; cursor:pointer; transition:transform .08s, background-color .15s, color .15s, border-color .15s;}
+  .cond-chip:active{transform:scale(.96);}
+  .cond-chip.on{background:var(--acc); color:var(--on-acc); border-color:transparent;}
+  #memoIn{width:100%; box-sizing:border-box; resize:vertical; font-family:var(--font-jp); font-size:15px; line-height:1.6; padding:11px 13px; border:1px solid var(--hair); border-radius:11px; background:var(--surface); color:var(--txt);}
+  .day-info{margin:2px 2px 11px;}
+  .di-meta{font-size:12px; font-weight:700; color:var(--blue); margin-bottom:4px;}
+  .di-memo{font-size:13px; color:var(--txt-2); line-height:1.6; background:var(--surface-2); border-radius:10px; padding:9px 12px; white-space:pre-wrap;}
   .day-sum{font-size:13px; color:var(--txt-2); margin:0 2px 11px; font-weight:600;}
   .day-sum b{color:var(--blue); font-weight:800;}
   .acc{border:1px solid var(--hair); border-radius:14px; background:var(--card); margin-bottom:11px; overflow:hidden;}
@@ -719,7 +729,7 @@ const DEFAULT_ROUTINES=[
   {id:'r_arm',  name:'腕', exIds:['curl','tri','hcurl']},
 ];
 const MUSCLES=['胸','背中','脚','肩','腕','腹','その他'];
-const KEY_EX='gym_exercises_v2',KEY_LOG='gym_logs_v2',KEY_RT='gym_routines_v3',KEY_BW='gym_bw_v1',KEY_SET='gym_settings_v1',KEY_PROG='gym_program_v1',KEY_MEAS='gym_meas_v1';
+const KEY_EX='gym_exercises_v2',KEY_LOG='gym_logs_v2',KEY_RT='gym_routines_v3',KEY_BW='gym_bw_v1',KEY_SET='gym_settings_v1',KEY_PROG='gym_program_v1',KEY_MEAS='gym_meas_v1',KEY_DAY='gym_dayinfo_v1';
 function load(k,def){ try{return JSON.parse(localStorage.getItem(k)) ?? def;}catch(e){return def;} }
 function save(k,v){ localStorage.setItem(k,JSON.stringify(v)); }
 
@@ -731,8 +741,9 @@ function applyTheme(){ document.documentElement.setAttribute('data-theme','light
   const m=document.querySelector('meta[name="theme-color"]'); if(m)m.content='#f1f0ec'; }
 applyTheme();
 let prog=load(KEY_PROG,{program:'531', week:1, cycle:1, tm:{bench:null,squat:null,dead:null}});  // パワーリフティングプログラム
+let dayInfo=load(KEY_DAY,{});   // {date:{cond:1-5, sleep:number|null, memo:string}} その日の体調・メモ
 
-function saveAll(){ save(KEY_EX,exercises); save(KEY_LOG,logs); save(KEY_RT,routines); save(KEY_BW,bw); save(KEY_MEAS,meas); save(KEY_SET,settings); save(KEY_PROG,prog); }
+function saveAll(){ save(KEY_EX,exercises); save(KEY_LOG,logs); save(KEY_RT,routines); save(KEY_BW,bw); save(KEY_MEAS,meas); save(KEY_SET,settings); save(KEY_PROG,prog); save(KEY_DAY,dayInfo); }
 function exObj(id){ return exercises.find(x=>x.id===id); }
 function exName(id){ const e=exObj(id); return e?e.name:'(削除済)'; }
 function exMuscle(id){ const e=exObj(id); return e?e.muscle:''; }
@@ -1044,6 +1055,11 @@ function isToday(){ return workDate===todayStr(); }
 function sessionMinutes(date){ const ts=logs.filter(l=>l.date===date&&l.at).map(l=>new Date(l.at).getTime()).filter(n=>!isNaN(n)).sort((a,b)=>a-b);
   if(ts.length<2)return null; const mins=Math.round((ts[ts.length-1]-ts[0])/60000); return (mins>0&&mins<=720)?mins:null; }   // 12時間超は計測不能扱い
 function fmtDur(mins){ if(mins==null)return ''; const h=Math.floor(mins/60), m=mins%60; return h>0?`${h}時間${m}分`:`${m}分`; }
+const COND_LAB={1:'だるい',2:'いまいち',3:'ふつう',4:'好調',5:'絶好調'};
+function setDay(k,val){ const d=dayInfo[workDate]||(dayInfo[workDate]={}); if(val===''||val==null||(typeof val==='number'&&isNaN(val)))delete d[k]; else d[k]=val; if(!Object.keys(d).length)delete dayInfo[workDate]; saveAll(); }
+function dayInfoHtml(date){ const di=dayInfo[date]; if(!di||(!di.cond&&di.sleep==null&&!di.memo))return '';
+  const bits=[di.cond?`調子: ${COND_LAB[di.cond]}`:'', di.sleep!=null?`睡眠 ${di.sleep}h`:''].filter(Boolean).join(' ・ ');
+  return `<div class="day-info">${bits?`<div class="di-meta">${bits}</div>`:''}${di.memo?`<div class="di-memo">${di.memo.replace(/</g,'&lt;')}</div>`:''}</div>`; }
 function shiftDate(ds,delta){ const a=ds.split('-').map(Number); const dt=new Date(a[0],a[1]-1,a[2]+delta);
   return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
 function setWorkDate(d){ if(!d)d=todayStr(); workDate=d; selRt=null; draftExId=null; clearDraft(); editId=null; renderLog(); }
@@ -1184,6 +1200,18 @@ function renderLog(keepScroll){
       <button class="btn ghost" id="addPhoto">＋ 写真を追加</button>
       <input type="file" id="photoInput" accept="image/*" multiple style="display:none">
     </div>
+
+    ${(()=>{ const di=dayInfo[workDate]||{}; const has=di.cond||di.sleep!=null||di.memo;
+      const condLab={1:'だるい',2:'いまいち',3:'ふつう',4:'好調',5:'絶好調'};
+      const head=has?`<span class="acc-sub">${[di.cond?'調子: '+condLab[di.cond]:'',di.sleep!=null?'睡眠 '+di.sleep+'h':'',di.memo?'メモあり':''].filter(Boolean).join(' ・ ')}</span>`:'';
+      return `<div class="acc${(accOpen.has('daymemo')||has)?' open':''}"><button class="acc-h" data-acc="daymemo"><span>体調・メモ${head}</span><svg class="acc-x" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg></button><div class="acc-body">
+        <div class="memo-lbl">調子</div>
+        <div class="cond-row">${[1,2,3,4,5].map(n=>`<span class="cond-chip${di.cond===n?' on':''}" data-cond="${n}">${condLab[n]}</span>`).join('')}</div>
+        <div class="memo-lbl" style="margin-top:14px">睡眠（時間・任意）</div>
+        <input type="number" inputmode="decimal" step="0.5" id="sleepIn" placeholder="例：7" value="${di.sleep!=null?di.sleep:''}">
+        <div class="memo-lbl" style="margin-top:14px">ひとことメモ（任意）</div>
+        <textarea id="memoIn" rows="2" placeholder="パンプ感・気づき・体調など">${(di.memo||'').replace(/</g,'&lt;')}</textarea>
+      </div></div>`; })()}
   </div>`;
 
   document.getElementById('dPrev').onclick=()=>setWorkDate(shiftDate(workDate,-1));
@@ -1244,6 +1272,10 @@ function renderLog(keepScroll){
   document.getElementById('photoInput').onchange=async e=>{ const files=[...e.target.files]; if(!files.length)return; toast('写真を保存中…'); try{ await addPhotos(files,workDate); }catch(err){ toast('保存に失敗しました'); } e.target.value=''; renderLog(); toast('写真を追加しました'); };
   v.querySelectorAll('[data-pid]').forEach(t=>t.onclick=()=>openPhoto(t.dataset.pid));
   v.querySelectorAll('[data-eff]').forEach(b=>b.onclick=()=>{ const i=+b.dataset.eff, order=[null,0,1,2,3], cur=draftSets[i].rir; const idx=order.indexOf(cur==null?null:cur); draftSets[i].rir=order[(idx+1)%order.length]; renderLog(true); });
+  v.querySelectorAll('[data-acc]').forEach(h=>h.onclick=()=>{ const k=h.dataset.acc, box=h.closest('.acc'); const open=box.classList.toggle('open'); if(open)accOpen.add(k); else accOpen.delete(k); });
+  v.querySelectorAll('[data-cond]').forEach(c=>c.onclick=()=>{ const n=+c.dataset.cond, cur=(dayInfo[workDate]||{}).cond; setDay('cond',cur===n?'':n); v.querySelectorAll('[data-cond]').forEach(x=>x.classList.toggle('on',+x.dataset.cond===n&&cur!==n)); });
+  const _sl=document.getElementById('sleepIn'); if(_sl)_sl.onchange=e=>{ const val=parseFloat(e.target.value); setDay('sleep',isNaN(val)?'':val); };
+  const _mm=document.getElementById('memoIn'); if(_mm)_mm.onchange=e=>setDay('memo',e.target.value.trim());
   renderTodayList();
   if(!keepScroll){ const hv=document.getElementById('heroVol'); if(hv)countUp(hv, todayVol/1000, volDec); }
   if(keepScroll) window.scrollTo(0,_sy);
@@ -1367,7 +1399,7 @@ function renderHistory(){
     const vol=byDate[d].reduce((a,l)=>a+l.sets.reduce((x,s)=>x+s.w*s.r,0),0);
     const ph=photosOn(d); const phHtml=ph.length?`<div class="photo-grid" style="grid-template-columns:repeat(4,1fr);margin-top:9px">${ph.map(p=>`<div class="thumb" data-pid="${p.id}"><img src="${p.data}" loading="lazy" alt=""></div>`).join('')}</div>`:'';
     const _dm=sessionMinutes(d);
-    return `<div class="hist-day"><div class="hist-date">${fmtDate(d)}${rtName?`<span class="rt">${rtName}</span>`:''}${_dm!=null?`<span class="rt" style="background:var(--surface-2);color:var(--txt-2)">${fmtDur(_dm)}</span>`:''}<span class="vv tnum">${vol.toLocaleString()}kg</span><button class="dayadd" data-add="${d}">＋追加</button></div>${items}${phHtml}</div>`; }).join('')+`</div>`;
+    return `<div class="hist-day"><div class="hist-date">${fmtDate(d)}${rtName?`<span class="rt">${rtName}</span>`:''}${_dm!=null?`<span class="rt" style="background:var(--surface-2);color:var(--txt-2)">${fmtDur(_dm)}</span>`:''}<span class="vv tnum">${vol.toLocaleString()}kg</span><button class="dayadd" data-add="${d}">＋追加</button></div>${dayInfoHtml(d)}${items}${phHtml}</div>`; }).join('')+`</div>`;
   document.getElementById('histAdd').onclick=()=>setTab('log'); wireCal();
   v.querySelectorAll('[data-pid]').forEach(t=>t.onclick=ev=>{ ev.stopPropagation(); openPhoto(t.dataset.pid); });
   v.querySelectorAll('.htap').forEach(it=>it.onclick=()=>{ const l=logs.find(x=>x.id===it.dataset.hid);
@@ -1646,7 +1678,7 @@ function renderMore(){
 
 /* ============ バックアップ ============ */
 function exportData(){
-  const data={app:'ATLAS', ver:4, exportedAt:new Date().toISOString(), exercises, logs, routines, bw, meas, settings, prog, photos:photoCache};
+  const data={app:'ATLAS', ver:4, exportedAt:new Date().toISOString(), exercises, logs, routines, bw, meas, settings, prog, dayInfo, photos:photoCache};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const a=document.createElement('a'); const d=new Date();
   const stamp=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
@@ -1662,6 +1694,7 @@ function importData(e){
     exercises=d.exercises||DEFAULT_EX; logs=d.logs||[]; routines=d.routines||DEFAULT_ROUTINES; bw=d.bw||[]; meas=d.meas||[];
     settings=Object.assign({rest:90,autoTimer:true,sound:true,autoRestType:true,bar:20,smithBar:10,units:'kg',sex:'male',goal:'hypertrophy',level:'int',days:4,physique:null,theme:'light',onboarded:true},d.settings||{});
     if(d.prog) prog=d.prog;
+    if(d.dayInfo && typeof d.dayInfo==='object') dayInfo=d.dayInfo;
     saveAll();
     if(Array.isArray(d.photos)){ try{ await photoClearDB(); for(const p of d.photos){ await photoPut(p); } photoCache=d.photos; }catch(err){} }
     selRt=null; draftExId=null; applyTheme(); toast('読み込みました'); renderMore();
