@@ -1052,7 +1052,6 @@ function renderLog(keepScroll){
 
   v.innerHTML=`<div class="fade-in">
     ${qsHtml}
-    ${dashHtml}
     ${dateBar}
     <div class="hero">
       <div class="ring">${ringSVG(pct)}<div class="pct"><b>${doneEx}/${totalEx||'–'}</b><s>DONE</s></div></div>
@@ -1097,6 +1096,8 @@ function renderLog(keepScroll){
       <button class="btn ghost" id="addPhoto">＋ 写真を追加</button>
       <input type="file" id="photoInput" accept="image/*" multiple style="display:none">
     </div>
+    <div class="eyebrow">今月のまとめ</div>
+    ${dashHtml}
   </div>`;
 
   document.getElementById('dPrev').onclick=()=>setWorkDate(shiftDate(workDate,-1));
