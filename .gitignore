@@ -1,5 +1,6 @@
 # ローカルのみ：手元バックアップ・OS生成物
 backups/
+.claude/settings.local.json
 *.bak
 *.bak_*
 .DS_Store
