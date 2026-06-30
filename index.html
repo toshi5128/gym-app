@@ -221,6 +221,13 @@
   select{appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23646a75' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
     background-repeat:no-repeat; background-position:right 16px center; padding-right:40px;}
   input[type=number]{text-align:center; font-weight:700; font-variant-numeric:tabular-nums; font-family:var(--font-disp);}
+  .acc{border:1px solid var(--hair); border-radius:14px; background:var(--card); margin-bottom:11px; overflow:hidden;}
+  .acc-h{width:100%; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:16px 16px; background:none; border:none; cursor:pointer; font-family:var(--font-jp); font-size:15px; font-weight:800; color:var(--txt); letter-spacing:.02em; text-align:left;}
+  .acc-h:active{background:var(--surface-2);}
+  .acc-h .acc-x{flex:0 0 auto; color:var(--txt-3); transition:transform .22s ease;}
+  .acc.open .acc-h .acc-x{transform:rotate(180deg);}
+  .acc-body{display:none; padding:2px 16px 17px;}
+  .acc.open .acc-body{display:block;}
   .snd-row{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 13px; border:1px solid var(--hair); border-radius:13px; background:var(--surface-2); margin-bottom:9px; cursor:pointer; transition:transform .08s, border-color .15s, background-color .15s;}
   .snd-row:last-child{margin-bottom:0;}
   .snd-row:active{transform:scale(.985);}
@@ -819,6 +826,7 @@ const EXLIB={
   'レッグプレス':{m:'太もも・お尻',cue:['足幅で効く場所が変わる','膝を伸ばし切らない','腰がシートから浮かない範囲で深く'],sub:['スクワット']},
 };
 let libOpen=new Set();
+let accOpen=new Set();  // 設定タブ：開いているセクション（初期は全て折りたたみ）
 
 /* ===== Tier3: 採寸・筋力スタンダード・連続記録・本格チャート ===== */
 const MEAS_LIST=[['chest','胸囲'],['waist','ウエスト'],['arm','上腕'],['thigh','太もも'],['shoulder','肩幅'],['calf','ふくらはぎ']];
@@ -1516,65 +1524,58 @@ function renderMore(){
   const v=document.getElementById('view');
   const goalLabel={strength:'筋力アップ',hypertrophy:'筋肥大・体づくり',fatloss:'減量・引き締め'}[settings.goal]||'筋肥大';
   const levelLabel={beg:'初級',int:'中級',adv:'上級'}[settings.level]||'中級';
+  const CHEV='<svg class="acc-x" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+  const acc=(key,title,body)=>`<div class="acc${accOpen.has(key)?' open':''}"><button class="acc-h" data-acc="${key}"><span>${title}</span>${CHEV}</button><div class="acc-body">${body}</div></div>`;
   v.innerHTML=`<div class="fade-in">
-    <div class="eyebrow">あなたの設定（コーチング）</div>
-    <div class="card">
+    <div class="hint" style="margin:2px 4px 13px">各項目を<b>タップすると開きます</b>。使うときだけ開いてください。</div>
+    ${acc('prof','あなたの設定（コーチング）',`
       <div class="set-row"><div>目的</div><div style="color:var(--txt);font-weight:700">${goalLabel}</div></div>
       <div class="set-row"><div>レベル</div><div style="color:var(--txt);font-weight:700">${levelLabel}</div></div>
       <div class="set-row"><div>週の頻度</div><div style="color:var(--txt);font-weight:700">週${settings.days}回</div></div>
       <div class="set-row"><div>性別（筋力ランク用）</div><div style="color:var(--txt);font-weight:700">${settings.sex==='female'?'女性':'男性'}</div></div>
       <button class="btn ghost" id="redoOb" style="margin-bottom:9px">目的・レベル・頻度・性別を設定し直す</button>
-      <button class="btn ghost" id="openGuide">使い方ガイドを見る</button>
-    </div>
+      <button class="btn ghost" id="openGuide">使い方ガイドを見る</button>`)}
 
-    <div class="eyebrow">インターバル設定</div>
-    <div class="card">
+    ${acc('rest','インターバル設定',`
       <div class="set-row"><div>記録後に休憩タイマーを自動開始</div><div class="toggle ${settings.autoTimer?'on':''}" id="tgAuto"></div></div>
       <div class="set-row"><div>種目に応じて休憩を自動調整<br><span style="font-size:11px;color:var(--txt-3)">多関節は長め・単関節は短め</span></div><div class="toggle ${settings.autoRestType?'on':''}" id="tgRestType"></div></div>
       <div class="set-row"><div>終了時に音・振動</div><div class="toggle ${settings.sound?'on':''}" id="tgSound"></div></div>
       <div class="set-row"><div>休憩の長さ<br><span style="font-size:11px;color:var(--txt-3)">自動調整がオフのとき使用</span></div><div class="step"><button id="rMinus">−</button><span class="val" id="rVal">${settings.rest}s</span><button id="rPlus">＋</button></div></div>
       <div class="set-row"><div>バーベルの重さ<br><span style="font-size:11px;color:var(--txt-3)">通常のバーベル（プレート計算）</span></div><div class="step"><button id="bMinus">−</button><span class="val" id="bVal">${settings.bar}kg</span><button id="bPlus">＋</button></div></div>
-      <div class="set-row"><div>スミスのバーの重さ<br><span style="font-size:11px;color:var(--txt-3)">スミスマシンのバー（既定 10kg）</span></div><div class="step"><button id="sMinus">−</button><span class="val" id="sVal">${settings.smithBar}kg</span><button id="sPlus">＋</button></div></div>
-    </div>
+      <div class="set-row"><div>スミスのバーの重さ<br><span style="font-size:11px;color:var(--txt-3)">スミスマシンのバー（既定 10kg）</span></div><div class="step"><button id="sMinus">−</button><span class="val" id="sVal">${settings.smithBar}kg</span><button id="sPlus">＋</button></div></div>`)}
 
-    <div class="eyebrow">休憩おわりの音</div>
-    <div class="card">
+    ${acc('sound','休憩おわりの音',`
       <div style="font-size:13px;color:var(--txt-2);line-height:1.7;margin:0 2px 11px">タップすると<b>その場で試聴＋選択</b>できます。上の「終了時に音・振動」がオンのとき、休憩おわりにこの音が鳴ります（オフでも振動）。</div>
-      ${Object.entries(SOUNDS).map(([k,s])=>`<div class="snd-row${settings.soundType===k?' on':''}" data-snd="${k}"><div class="snd-info"><div class="snd-name">${s.name}</div><div class="snd-desc">${s.desc}</div></div><span class="snd-play">▶ 試聴</span></div>`).join('')}
-    </div>
+      ${Object.entries(SOUNDS).map(([k,s])=>`<div class="snd-row${settings.soundType===k?' on':''}" data-snd="${k}"><div class="snd-info"><div class="snd-name">${s.name}</div><div class="snd-desc">${s.desc}</div></div><span class="snd-play">▶ 試聴</span></div>`).join('')}`)}
 
-    <div class="eyebrow">ジムにあるプレート</div>
-    <div class="card">
+    ${acc('plate','ジムにあるプレート',`
       <div style="font-size:13px;color:var(--txt-2);line-height:1.7;margin:0 2px 11px">プレート計算で使う重さです。<b>ジムに無いものはオフ</b>に。片側1枚あたりの重さ。</div>
-      <div class="ex-pick">${PLATES.map(p=>`<span class="chip ${(settings.plates||PLATES).includes(p)?'on':''}" data-plate="${p}">${p}kg</span>`).join('')}</div>
-    </div>
+      <div class="ex-pick">${PLATES.map(p=>`<span class="chip ${(settings.plates||PLATES).includes(p)?'on':''}" data-plate="${p}">${p}kg</span>`).join('')}</div>`)}
 
-    <div class="eyebrow">種目を追加</div>
-    <div class="card">
+    ${acc('addex','種目を追加',`
       <input id="newName" placeholder="種目名（例：ディップス）">
       <div style="height:10px"></div>
       <select id="newMuscle">${MUSCLES.map(m=>`<option>${m}</option>`).join('')}</select>
       <div style="height:12px"></div>
-      <button class="btn primary" id="addEx">追加する</button>
-    </div>
-    <div class="eyebrow">登録済みの種目（${exercises.length}）</div>
-    <div class="hint" style="margin:0 4px 11px">「ガイド」付きの種目はタップで<b>効く部位・フォームのコツ・代わりの種目</b>が見られます。</div>
-    ${exercises.map(e=>{ const lib=EXLIB[e.name]; const open=libOpen.has(e.id);
-      return `<div class="item"><div class="row" style="justify-content:space-between">
-        <span class="n" ${lib?`data-lib="${e.id}" style="cursor:pointer"`:''}>${e.name} <span class="tag">${e.muscle}</span>${lib?` <span class="tag" style="color:var(--txt);border:1px solid var(--hair)">ガイド ${open?'▲':'▼'}</span>`:''}</span>
-        <button class="del" data-rmex="${e.id}">×</button></div>
-        ${open&&lib?`<div class="zfix" style="margin-top:11px"><div class="fx">効く部位</div>${lib.m}<div class="fx" style="margin-top:8px">フォームのコツ</div>${lib.cue.map(c=>'・ '+c).join('<br>')}${lib.sub?`<div class="fx" style="margin-top:8px">代わりになる種目</div>${lib.sub.join(' ／ ')}`:''}</div>`:''}
-      </div>`; }).join('')}
+      <button class="btn primary" id="addEx">追加する</button>`)}
 
-    <div class="eyebrow">データ（バックアップ）</div>
-    <div class="card">
+    ${acc('exlist',`登録済みの種目（${exercises.length}）`,`
+      <div class="hint" style="margin:0 0 11px">「ガイド」付きの種目はタップで<b>効く部位・フォームのコツ・代わりの種目</b>が見られます。</div>
+      ${exercises.map(e=>{ const lib=EXLIB[e.name]; const open=libOpen.has(e.id);
+        return `<div class="item"><div class="row" style="justify-content:space-between">
+          <span class="n" ${lib?`data-lib="${e.id}" style="cursor:pointer"`:''}>${e.name} <span class="tag">${e.muscle}</span>${lib?` <span class="tag" style="color:var(--txt);border:1px solid var(--hair)">ガイド ${open?'▲':'▼'}</span>`:''}</span>
+          <button class="del" data-rmex="${e.id}">×</button></div>
+          ${open&&lib?`<div class="zfix" style="margin-top:11px"><div class="fx">効く部位</div>${lib.m}<div class="fx" style="margin-top:8px">フォームのコツ</div>${lib.cue.map(c=>'・ '+c).join('<br>')}${lib.sub?`<div class="fx" style="margin-top:8px">代わりになる種目</div>${lib.sub.join(' ／ ')}`:''}</div>`:''}
+        </div>`; }).join('')}`)}
+
+    ${acc('data','データ（バックアップ）',`
       <div style="font-size:13px;color:var(--txt-2);line-height:1.7;margin-bottom:13px">全記録（写真も含む）はこの端末内に保存されます。機種変や万一の消失に備え、ときどき書き出しておくと安心です。<br><span style="color:var(--txt-3);font-size:12px">※写真が多いとファイルが大きくなります。</span></div>
       <button class="btn primary" id="expBtn" style="margin-bottom:9px">バックアップを書き出す</button>
       <button class="btn ghost" id="impBtn">バックアップを読み込む</button>
-      <input type="file" id="impFile" accept="application/json" style="display:none">
-    </div>
+      <input type="file" id="impFile" accept="application/json" style="display:none">`)}
   </div>`;
 
+  v.querySelectorAll('[data-acc]').forEach(h=>h.onclick=()=>{ const k=h.dataset.acc, box=h.closest('.acc'); const open=box.classList.toggle('open'); if(open)accOpen.add(k); else accOpen.delete(k); });
   document.getElementById('redoOb').onclick=()=>showOnboard();
   document.getElementById('openGuide').onclick=()=>showGuide();
   const tgA=document.getElementById('tgAuto'); tgA.onclick=()=>{ settings.autoTimer=!settings.autoTimer; saveAll(); tgA.classList.toggle('on'); };
