@@ -885,7 +885,7 @@ function openExGuide(exId){ const e=exObj(exId); if(!e)return; const g=EX_GUIDE[
 })();
 
 /* ============ ナビ ============ */
-const TABS=[['log','今日',IC.today],['history','履歴',IC.history],['stats','記録',IC.stats],['pl','PL',IC.pl],['routine','分割',IC.routine],['more','設定',IC.more]];
+const TABS=[['log','今日',IC.today],['history','履歴',IC.history],['stats','分析',IC.stats],['pl','PL',IC.pl],['routine','分割',IC.routine],['more','設定',IC.more]];
 let tab='log';
 document.getElementById('nav').innerHTML=TABS.map(([id,label,ic])=>`<button data-tab="${id}" class="${id==='log'?'active':''}">${ic}${label}</button>`).join('');
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
@@ -1222,11 +1222,11 @@ function renderHistory(){
   function wireCal(){ v.querySelectorAll('[data-cm]').forEach(b=>b.onclick=()=>{ calMonth=shiftMonth(calMonth,b.dataset.cm==='prev'?-1:1); renderHistory(); });
     v.querySelectorAll('[data-cd]').forEach(c=>c.onclick=()=>{ workDate=c.dataset.cd; selRt=null; draftExId=null; draftSets=[{w:'',r:''}]; editId=null; setTab('log'); window.scrollTo({top:0,behavior:'smooth'}); }); }
   const addBtn=`<button class="btn ghost" id="histAdd" style="margin-bottom:16px;display:flex;align-items:center;justify-content:center;gap:8px">＋ 日付を選んで記録を追加・編集</button>`;
-  if(!logs.length){ v.innerHTML=`<div class="fade-in">${calHtml}${addBtn}<div class="empty">${IC.history.replace('<svg','<svg width=30 height=30')}まだ記録がありません。<br>カレンダーの日付や上のボタンから、いつでも追加できます。</div></div>`;
+  if(!logs.length){ v.innerHTML=`<div class="fade-in">${addBtn}<div class="empty">${IC.history.replace('<svg','<svg width=30 height=30')}まだ記録がありません。<br>カレンダーの日付や上のボタンから、いつでも追加できます。</div></div>`;
     document.getElementById('histAdd').onclick=()=>setTab('log'); wireCal(); return; }
   const byDate={}; logs.forEach(l=>{ (byDate[l.date]=byDate[l.date]||[]).push(l); });
   const dates=Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
-  v.innerHTML=`<div class="fade-in">${calHtml}${addBtn}`+dates.map(d=>{ const rtId=byDate[d].find(l=>l.rtId)?.rtId; const rtName=rtId&&rtObj(rtId)?`${rtObj(rtId).name}の日`:'';
+  v.innerHTML=`<div class="fade-in">${addBtn}`+dates.map(d=>{ const rtId=byDate[d].find(l=>l.rtId)?.rtId; const rtName=rtId&&rtObj(rtId)?`${rtObj(rtId).name}の日`:'';
     const items=byDate[d].map(l=>`<div class="item htap" data-hd="${d}" data-hid="${l.id}"><div class="row" style="justify-content:space-between"><span class="n">${exName(l.exId)} <span class="tag">${exMuscle(l.exId)}</span></span><span class="go">${IC.edit}</span></div><div class="s tnum">${l.sets.map(s=>s.w+'kg×'+s.r).join(' / ')}</div></div>`).join('');
     const vol=byDate[d].reduce((a,l)=>a+l.sets.reduce((x,s)=>x+s.w*s.r,0),0);
     const ph=photosOn(d); const phHtml=ph.length?`<div class="photo-grid" style="grid-template-columns:repeat(4,1fr);margin-top:9px">${ph.map(p=>`<div class="thumb" data-pid="${p.id}"><img src="${p.data}" loading="lazy" alt=""></div>`).join('')}</div>`:'';
