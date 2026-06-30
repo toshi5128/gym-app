@@ -255,6 +255,14 @@
   .item{background:var(--surface); border:1px solid var(--hair); border-radius:var(--r-md); padding:14px 16px; margin-bottom:9px;}
   .item .n{font-weight:700; display:flex; align-items:center; gap:9px;}
   .item .s{font-size:13px; color:var(--txt-2); line-height:1.6; margin-top:5px;}
+  .setlist{margin-top:9px; display:flex; flex-direction:column;}
+  .setlist .sl{display:flex; align-items:center; gap:12px; padding:6px 0; border-bottom:1px solid var(--hair-2);}
+  .setlist .sl:last-child{border-bottom:none;}
+  .setlist .sl-n{flex:0 0 auto; min-width:26px; height:24px; padding:0 7px; border-radius:7px; background:var(--surface-3); color:var(--txt-2); font-family:var(--font-disp); font-weight:800; font-size:12px; display:inline-flex; align-items:center; justify-content:center; letter-spacing:.02em;}
+  .setlist .sl.warm .sl-n{background:var(--blue-dim); color:var(--blue);}
+  .setlist .sl-v{font-size:16px; font-weight:700; font-variant-numeric:tabular-nums; font-family:var(--font-disp); color:var(--txt); letter-spacing:-.01em;}
+  .setlist .sl-v small{font-size:11px; font-weight:700; color:var(--txt-3); margin:0 1px;}
+  .setlist .sl.warm .sl-v{color:var(--txt-2);}
   .tag{font-size:10px; font-weight:700; letter-spacing:.08em; color:var(--txt-3); background:var(--surface-3); padding:3px 9px; border-radius:20px;}
   .vol{color:var(--txt); font-weight:700;}
   .top-mini{font-size:12px; color:var(--txt-3); margin-top:8px;}
@@ -1207,14 +1215,22 @@ function celebratePR(sub){
   clearTimeout(celebratePR._t); celebratePR._t=setTimeout(()=>f.classList.remove('show'),3000);
 }
 
+/* セットを「1・2・3…」の番号付き縦リストで表示（履歴・当日リスト共通） */
+function setListHtml(sets, warm){
+  const row=(n,s,cls)=>`<div class="sl${cls?' '+cls:''}"><span class="sl-n">${n}</span><span class="sl-v">${s.w}<small>kg</small> × ${s.r}<small>回</small></span></div>`;
+  let h='';
+  if(warm&&warm.length) h+=warm.map((s,i)=>row('W'+(i+1),s,'warm')).join('');
+  h+=sets.map((s,i)=>row(i+1,s)).join('');
+  return `<div class="setlist">${h}</div>`;
+}
 function renderTodayList(){
   const el=document.getElementById('todayList'); const t=todaysLogs();
   if(!t.length){ el.innerHTML=`<div class="empty">${IC.today.replace('<svg','<svg width=30 height=30')}${isToday()?'まだ今日の記録はありません。':'この日の記録はありません。'}<br>上で種目を選んで追加できます。</div>`; return; }
   el.innerHTML=t.map(l=>{ const vol=l.sets.reduce((a,s)=>a+s.w*s.r,0);
     return `<div class="item${editId===l.id?' editing':''}"><div class="row" style="justify-content:space-between"><span class="n">${exName(l.exId)} <span class="tag">${exMuscle(l.exId)}</span></span>
       <div class="row" style="gap:2px"><button class="del edit" data-edit="${l.id}">${IC.edit}</button><button class="del" data-rm="${l.id}">×</button></div></div>
-      ${l.warm&&l.warm.length?`<div class="s tnum" style="color:var(--txt-3);font-size:12px;margin-bottom:2px">W ${l.warm.map(s=>s.w+'×'+s.r).join(' / ')}</div>`:''}
-      <div class="s tnum">${l.sets.map(s=>s.w+'kg×'+s.r).join(' / ')}　<span class="vol">計 ${vol}kg</span>${l.rir!=null?`<span style="color:var(--txt-3)"> ・ あと${l.rir}回</span>`:''}</div></div>`; }).join('');
+      ${setListHtml(l.sets,l.warm)}
+      <div class="s tnum" style="margin-top:7px;color:var(--txt-3)"><span class="vol">計 ${vol}kg</span>${l.rir!=null?` ・ あと${l.rir}回`:''}</div></div>`; }).join('');
   el.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>loadForEdit(b.dataset.edit));
   el.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{ if(!confirm('この記録を削除しますか？'))return; logs=logs.filter(x=>x.id!==b.dataset.rm); if(editId===b.dataset.rm)editId=null; saveAll(); renderLog(); toast('削除しました'); });
 }
@@ -1275,7 +1291,7 @@ function renderHistory(){
   const byDate={}; logs.forEach(l=>{ (byDate[l.date]=byDate[l.date]||[]).push(l); });
   const dates=Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
   v.innerHTML=`<div class="fade-in"><div class="eyebrow" style="margin-top:6px">今月のまとめ</div>${monthSummaryHtml()}<div class="eyebrow">記録の履歴</div>${addBtn}`+dates.map(d=>{ const rtId=byDate[d].find(l=>l.rtId)?.rtId; const rtName=rtId&&rtObj(rtId)?`${rtObj(rtId).name}の日`:'';
-    const items=byDate[d].map(l=>`<div class="item htap" data-hd="${d}" data-hid="${l.id}"><div class="row" style="justify-content:space-between"><span class="n">${exName(l.exId)} <span class="tag">${exMuscle(l.exId)}</span></span><span class="go">${IC.edit}</span></div>${l.warm&&l.warm.length?`<div class="s tnum" style="color:var(--txt-3);font-size:12px;margin-bottom:2px">W ${l.warm.map(s=>s.w+'×'+s.r).join(' / ')}</div>`:''}<div class="s tnum">${l.sets.map(s=>s.w+'kg×'+s.r).join(' / ')}</div></div>`).join('');
+    const items=byDate[d].map(l=>`<div class="item htap" data-hd="${d}" data-hid="${l.id}"><div class="row" style="justify-content:space-between"><span class="n">${exName(l.exId)} <span class="tag">${exMuscle(l.exId)}</span></span><span class="go">${IC.edit}</span></div>${setListHtml(l.sets,l.warm)}</div>`).join('');
     const vol=byDate[d].reduce((a,l)=>a+l.sets.reduce((x,s)=>x+s.w*s.r,0),0);
     const ph=photosOn(d); const phHtml=ph.length?`<div class="photo-grid" style="grid-template-columns:repeat(4,1fr);margin-top:9px">${ph.map(p=>`<div class="thumb" data-pid="${p.id}"><img src="${p.data}" loading="lazy" alt=""></div>`).join('')}</div>`:'';
     return `<div class="hist-day"><div class="hist-date">${fmtDate(d)}${rtName?`<span class="rt">${rtName}</span>`:''}<span class="vv tnum">${vol.toLocaleString()}kg</span><button class="dayadd" data-add="${d}">＋追加</button></div>${items}${phHtml}</div>`; }).join('')+`</div>`;
