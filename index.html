@@ -830,39 +830,11 @@ function bigChart(pts){ if(pts.length<2) return `<div class="spark-empty">デー
 let chartExId=null, measSel='chest', cmpA=0, cmpB=-1, barType='barbell', toolKind=null, calMonth=null, pickMuscle=null, animateIn=true, pickerOpen=false, rtShowAll=new Set();
 function countUp(el,to,dec){ if(!el)return; const dur=750,t0=performance.now(); const run=(t)=>{ let p=Math.min(1,(t-t0)/dur); p=1-Math.pow(1-p,3); el.textContent=(to*p).toFixed(dec); if(p<1)requestAnimationFrame(run); }; requestAnimationFrame(run); }
 
-/* ===== なりたい体（ゴール）エンジン ===== */
-const PHYS_M=[
-  {key:'m_lean',name:'細マッチョ',emphasis:['胸','肩','腕','腹'],phase:'recomp',template:'ul',desc:'適度に筋肉がつき、脂肪は少なく引き締まった体。',look:'服を着て映える、絞れたシルエット。'},
-  {key:'m_physique',name:'フィジーク（逆三角形）',emphasis:['肩','背中','胸','腹'],phase:'bulk',template:'ppl',desc:'肩と背中で上半身を広く、ウエストを締めたV字。',look:'肩幅が広く腰が細い“逆三角”。'},
-  {key:'m_bb',name:'ボディビル（フルに大きく）',emphasis:['脚','背中','胸','肩','腕'],phase:'bulk',template:'split4',desc:'全身をバランス良く、とにかく大きく。',look:'各部位が分厚く発達した重量級。'},
-  {key:'m_power',name:'パワー系（とにかく強く）',emphasis:['脚','背中','胸'],phase:'maintain',template:'split4',desc:'見た目より“挙げる力”を最優先。',look:'BIG3が強い、たくましい体。'},
-  {key:'health',name:'健康・体型維持',emphasis:['脚','背中','腹'],phase:'maintain',template:'ul',desc:'無理なく、健康と現状維持が目的。',look:'引き締まった健康的な体。'},
-];
-const PHYS_F=[
-  {key:'f_tone',name:'引き締め・くびれ',emphasis:['腹','背中','肩'],phase:'cut',template:'ul',desc:'ウエストを引き締め、相対的にくびれを作る。',look:'お腹まわりがスッキリ、メリハリのある体。'},
-  {key:'f_glute',name:'美尻・美脚',emphasis:['脚'],phase:'recomp',template:'ul',desc:'お尻と脚を中心に、丸みとラインを作る。',look:'ヒップアップした後ろ姿、引き締まった脚。'},
-  {key:'f_slim',name:'しなやか・全体トーンアップ',emphasis:['脚','背中','腹'],phase:'maintain',template:'ul',desc:'全身をやさしく引き締めて、しなやかに。',look:'細すぎず健康的に整った体。'},
-  {key:'health',name:'健康・体型維持',emphasis:['脚','背中','腹'],phase:'maintain',template:'ul',desc:'無理なく、健康と現状維持が目的。',look:'引き締まった健康的な体。'},
-];
-function physList(){ return settings.sex==='female'?PHYS_F:PHYS_M; }
-function physObj(k){ return [...PHYS_M,...PHYS_F].find(x=>x.key===k); }
-const PHASE_LABEL={bulk:'増量（筋肉を増やす）',cut:'減量（脂肪を絞る）',recomp:'リコンプ（増やしつつ絞る）',maintain:'維持'};
-function nutritionFor(phase,bwKg){ const b={bulk:{kcal:'+250〜500 kcal/日',pace:'体重 +0.25〜0.5%/週',prot:[1.6,2.2]},cut:{kcal:'−300〜500 kcal/日',pace:'体重 −0.5〜1%/週',prot:[1.8,2.2]},recomp:{kcal:'維持カロリー前後',pace:'体重ほぼキープ',prot:[1.8,2.2]},maintain:{kcal:'維持カロリー',pace:'体重キープ',prot:[1.6,2.0]}}[phase];
-  const protTxt= bwKg?`${Math.round(b.prot[0]*bwKg)}〜${Math.round(b.prot[1]*bwKg)} g/日`:`体重×${b.prot[0]}〜${b.prot[1]} g`; return {...b,protTxt}; }
-function openPhysiquePicker(){ const el=document.getElementById('onboard'); el.style.display='flex';
-  el.innerHTML=`<div class="ob-card"><div class="ob-title">なりたい体を選ぶ</div>
-    <div class="ob-sub">1つ選ぶと、優先する部位・栄養・分割まで「やること」が自動で出ます（あとで変更できます）。</div>
-    <div class="ob-opts" style="margin-top:12px">${physList().map(p=>`<div class="ob-opt ${settings.physique===p.key?'on':''}" data-phys="${p.key}">${p.name}<small>${p.desc}</small></div>`).join('')}</div>
-    <div style="height:18px"></div><button class="btn ghost" id="physClose" style="width:100%">閉じる</button></div>`;
-  el.querySelectorAll('[data-phys]').forEach(o=>o.onclick=()=>{ settings.physique=o.dataset.phys; saveAll(); el.style.display='none'; toast('ゴールを設定しました'); render(); });
-  document.getElementById('physClose').onclick=()=>{ el.style.display='none'; };
-}
-
 /* ===== 使い方ガイド ===== */
 const GUIDE=[
-  {t:'① 目的と「なりたい体」を決める',d:'最初に選んだ目的（筋力／筋肥大／減量）と、記録タブ上部で選ぶ「なりたい体」が、すべての提案の土台になります。設定からいつでも変更できます。'},
+  {t:'① 目的を決める',d:'設定で選んだ目的（筋力／筋肥大／減量）が、休憩時間や「次の目標」提案の土台になります。設定からいつでも変更できます。'},
   {t:'② 「今日」タブで記録する',d:'今日やる分割を選び、種目ごとに「重さ × 回数」を入力して記録。記録すると休憩タイマーが自動で動き、前回超え・自己ベストを教えてくれます。「次の目標」も自動表示。'},
-  {t:'③ 「記録」タブで道筋を確認',d:'一番上の“ロードマップ”が、なりたい体に対して今やるべきこと（フェーズ・栄養・優先部位・次の一歩）を表示。体重・採寸・進捗写真・筋力ランクもここ。'},
+  {t:'③ 「分析」タブで振り返る',d:'今週のボリューム（部位別セット数）・筋力ランク・推定1RMの推移・体重・採寸・進捗写真の比較がまとまっています。'},
   {t:'④ 「PL」タブで本格的に伸ばす',d:'ベンチ・スクワット・デッドを伸ばす定番プログラム（5/3/1）と、停滞したときの打開策・フォームのコツが入っています。'},
   {t:'⑤ 「分割」タブでメニュー管理',d:'自分の分割に種目を割り当て。PPLや上下分割などのテンプレからワンタップで作ることもできます。'},
   {t:'⑥ 困ったら',d:'設定タブからこのガイドを再表示。データは端末内に保存され、設定→データでバックアップ（書き出し／読み込み）できます。'},
@@ -1069,10 +1041,10 @@ function renderLog(keepScroll){
   </div>`;
 
   // クイックスタート（初回ガイド）
-  const qsDone = settings.physique && bw.length>0 && logs.length>0;
+  const qsDone = bw.length>0 && logs.length>0;
   let qsHtml='';
   if(!settings.qsDismissed && !qsDone){
-    const steps=[{ok:!!settings.physique,t:'なりたい体を選ぶ',act:'phys'},{ok:bw.length>0,t:'体重を登録する',act:'weight'},{ok:logs.length>0,t:'種目を1つ記録する',act:'log'}];
+    const steps=[{ok:bw.length>0,t:'体重を登録する',act:'weight'},{ok:logs.length>0,t:'種目を1つ記録する',act:'log'}];
     qsHtml=`<div class="card qs-card">
       <div class="qs-head"><span class="qs-title">クイックスタート</span><button class="qs-x" id="qsDismiss">×</button></div>
       ${steps.map(s=>`<div class="qs-step ${s.ok?'ok':''}" data-qs="${s.act}"><div class="qs-chk">${s.ok?IC.check:''}</div><span>${s.t}</span>${s.ok?'':`<span class="qs-go">${IC.chevron}</span>`}</div>`).join('')}
@@ -1095,8 +1067,7 @@ function renderLog(keepScroll){
       <div class="ring">${ringSVG(pct)}<div class="pct"><b>${doneEx}/${totalEx||'–'}</b><s>DONE</s></div></div>
       <div class="info"><div class="k">${rt?rt.name+' DAY':(isToday()?'TODAY':'LOG')}</div>
         <div class="v tnum"><span id="heroVol">${volStr}</span><small> t</small></div>
-        <div class="m">${isToday()?'本日':'この日'}のボリューム <b class="tnum">${todayVol.toLocaleString()}kg</b></div>
-        ${(()=>{ const P=physObj(settings.physique); return `<div class="goal-mini" id="heroGoal">${P?'ゴール：'+P.name+'・'+PHASE_LABEL[P.phase].split('（')[0]:'＋ なりたい体を選ぶ'}</div>`; })()}</div>
+        <div class="m">${isToday()?'本日':'この日'}のボリューム <b class="tnum">${todayVol.toLocaleString()}kg</b></div></div>
     </div>
     <div class="eyebrow">今日のメニュー（部位を選ぶ）</div>
     <div class="days">${dayChips}</div>
@@ -1189,11 +1160,10 @@ function renderLog(keepScroll){
     arr[i][f]=String(val); const inp=v.querySelector(`input[data-grp="${g}"][data-si="${i}"][data-f="${f}"]`); if(inp)inp.value=val; });
   v.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ const g=b.dataset.grp; draftArr(g).splice(+b.dataset.del,1); if(g==='main'&&!draftSets.length)draftSets=[{w:'',r:''}]; renderLog(true); });
   document.getElementById('saveLog').onclick=saveDraft;
-  const hg=document.getElementById('heroGoal'); if(hg)hg.onclick=()=>openPhysiquePicker();
   const qd=document.getElementById('qsDismiss'); if(qd)qd.onclick=()=>{ settings.qsDismissed=true; saveAll(); renderLog(); };
   const qg=document.getElementById('qsGuide'); if(qg)qg.onclick=()=>showGuide();
   v.querySelectorAll('[data-qs]').forEach(s=>s.onclick=()=>{ const a=s.dataset.qs;
-    if(a==='phys')openPhysiquePicker(); else if(a==='weight')setTab('stats'); else { const el=v.querySelector('.mus-row'); if(el)el.scrollIntoView({behavior:'smooth',block:'center'}); } });
+    if(a==='weight')setTab('stats'); else { const el=v.querySelector('.exrow,.card'); if(el)el.scrollIntoView({behavior:'smooth',block:'center'}); } });
   document.getElementById('addPhoto').onclick=()=>document.getElementById('photoInput').click();
   document.getElementById('photoInput').onchange=async e=>{ const files=[...e.target.files]; if(!files.length)return; toast('写真を保存中…'); try{ await addPhotos(files,workDate); }catch(err){ toast('保存に失敗しました'); } e.target.value=''; renderLog(); toast('写真を追加しました'); };
   v.querySelectorAll('[data-pid]').forEach(t=>t.onclick=()=>openPhoto(t.dataset.pid));
@@ -1355,9 +1325,8 @@ function renderStats(){
   }).filter(Boolean).sort((a,b)=>b.max1-a.max1);
 
   const wv=weeklyVolume(); const dh=deloadHint();
-  const Pemph=physObj(settings.physique)?.emphasis||[];
   const volRows=Object.keys(VOL).map(m=>{ const sets=wv[m]||0; const z=volZone(m,sets); const t=VOL[m]; const scale=t.max+4;
-    return `<div class="vol-row"><div class="vol-top"><span class="vol-m">${m}${Pemph.includes(m)?' <span style="font-size:9px;color:var(--blue);font-weight:700;letter-spacing:.05em">優先</span>':''}</span><span class="vol-s ${z.cls}">${sets} <small>セット</small> ・ ${z.label}</span></div>
+    return `<div class="vol-row"><div class="vol-top"><span class="vol-m">${m}</span><span class="vol-s ${z.cls}">${sets} <small>セット</small> ・ ${z.label}</span></div>
       <div class="vol-bar"><div class="vol-band" style="left:${t.min/scale*100}%;width:${(t.max-t.min)/scale*100}%"></div><div class="vol-fill ${z.cls}" style="width:${Math.min(100,sets/scale*100)}%"></div></div></div>`; }).join('');
 
   // 連続記録・カレンダー
@@ -1404,34 +1373,7 @@ function renderStats(){
       <div class="cmp-slot"><div class="cmp-tag">ビフォー</div><div class="cmp-img" data-cmp="${parr[ai].id}"><img src="${parr[ai].data}" alt=""></div><label class="cmp-lbl">いつ</label><select id="cmpAsel">${opt(ai)}</select></div>
       <div class="cmp-slot"><div class="cmp-tag">アフター</div><div class="cmp-img" data-cmp="${parr[bi].id}"><img src="${parr[bi].data}" alt=""></div><label class="cmp-lbl">いつ</label><select id="cmpBsel">${opt(bi)}</select></div></div>`; }
 
-  // ロードマップ（なりたい体 → やること）
-  const bwKgEarly=cur?cur.kg:null;
-  const P=physObj(settings.physique); let roadmapHtml;
-  if(!P){ roadmapHtml=`<div class="card goal-cta">
-    <div class="goal-cta-t">なりたい体を決めよう</div>
-    <div class="hint" style="border:none;padding:0;margin:7px 0 13px">理想像を1つ選ぶと、<b>優先する部位・栄養・分割・次の一手</b>まで自動で出ます。初心者でも迷いません。</div>
-    <button class="btn solid" id="pickPhys">理想の体を選ぶ</button></div>`; }
-  else { const n=nutritionFor(P.phase,bwKgEarly); const wv2=weeklyVolume();
-    const emp=P.emphasis.map(m=>{ const sets=wv2[m]||0; const t=VOL[m]||{min:10}; return {m,sets,min:t.min,ok:sets>=t.min}; });
-    const low=emp.find(e=>!e.ok); let next;
-    if(!bwKgEarly) next='まず「体重」を登録して、フェーズ（増量／減量）の管理を始めましょう。';
-    else if(low) next=`優先部位の「${low.m}」が今週 ${low.sets} セット。目安(${low.min}+)まで増やすのが次の一手。`;
-    else next='優先部位は足りています。各種目で「前回超え（重さ or 回数+1）」を狙いましょう。';
-    const tmpl=HYP_TEMPLATES.find(t=>t.key===P.template);
-    roadmapHtml=`<div class="card goal-card">
-      <div class="goal-head"><div><div class="goal-k">なりたい体</div><div class="goal-name">${P.name}</div></div><button class="goal-edit" id="pickPhys">変更</button></div>
-      <div class="goal-desc">${P.desc}<br><span style="color:var(--txt-3)">めざす見た目：${P.look}</span></div>
-      <div class="goal-sec"><span class="goal-label">いまのフェーズ</span><div style="margin-top:4px"><b>${PHASE_LABEL[P.phase]}</b></div>
-        <div class="goal-nut">カロリー：${n.kcal}　／　ペース：${n.pace}<br>タンパク質：${n.protTxt}</div></div>
-      <div class="goal-sec"><span class="goal-label">優先して鍛える部位（今週のセット数）</span>
-        <div class="goal-emp">${emp.map(e=>`<span class="emp-chip ${e.ok?'ok':'low'}">${e.m} ${e.sets}/${e.min}+</span>`).join('')}</div></div>
-      <div class="goal-next"><span class="goal-label">次の一歩</span><br>${next}</div>
-      <button class="btn solid" id="goApplyTmpl" style="margin-top:13px">この体に合う分割を作る（${tmpl?tmpl.name:'おすすめ'}）</button>
-    </div>`; }
-
   v.innerHTML=`<div class="fade-in">
-    <div class="eyebrow">ゴール（なりたい体への道）</div>
-    ${roadmapHtml}
     <div class="eyebrow">サマリー</div>
     <div class="stat-grid">
       <div class="stat"><div class="v tnum">${days}<small> 日</small></div><div class="k">トレ日数</div></div>
@@ -1483,10 +1425,6 @@ function renderStats(){
   const ca=document.getElementById('cmpAsel'); if(ca)ca.onchange=e=>{ cmpA=+e.target.value; renderStats(); };
   const cb=document.getElementById('cmpBsel'); if(cb)cb.onchange=e=>{ cmpB=+e.target.value; renderStats(); };
   v.querySelectorAll('[data-cmp]').forEach(t=>t.onclick=()=>openPhoto(t.dataset.cmp));
-  const pp=document.getElementById('pickPhys'); if(pp)pp.onclick=()=>openPhysiquePicker();
-  const ga=document.getElementById('goApplyTmpl'); if(ga)ga.onclick=()=>{ const Pp=physObj(settings.physique); if(!Pp)return;
-    if(!confirm('この体に合わせた分割を作成します（今の分割は置き換え／記録は消えません）。よろしいですか？'))return;
-    applyTemplate(Pp.template); selRt=null; draftExId=null; toast('分割を作りました'); setTab('routine'); };
 }
 
 /* ============ 分割 ============ */
@@ -1529,8 +1467,6 @@ function renderMore(){
       <div class="set-row"><div>レベル</div><div style="color:var(--txt);font-weight:700">${levelLabel}</div></div>
       <div class="set-row"><div>週の頻度</div><div style="color:var(--txt);font-weight:700">週${settings.days}回</div></div>
       <div class="set-row"><div>性別（筋力ランク用）</div><div style="color:var(--txt);font-weight:700">${settings.sex==='female'?'女性':'男性'}</div></div>
-      <div class="set-row"><div>なりたい体</div><div style="color:var(--txt);font-weight:700">${physObj(settings.physique)?physObj(settings.physique).name:'未設定'}</div></div>
-      <button class="btn ghost" id="pickPhys2" style="margin-top:11px;margin-bottom:9px">なりたい体を選ぶ／変更する</button>
       <button class="btn ghost" id="redoOb" style="margin-bottom:9px">目的・レベル・頻度・性別を設定し直す</button>
       <button class="btn ghost" id="openGuide">使い方ガイドを見る</button>
     </div>
@@ -1547,7 +1483,7 @@ function renderMore(){
 
     <div class="eyebrow">ジムにあるプレート</div>
     <div class="card">
-      <div style="font-size:13px;color:var(--txt-2);line-height:1.7;margin:0 2px 11px">プレート計算で使う重さです。<b>ジムに無いものはオフ</b>に（例：25kgが無ければオフ）。片側1枚あたりの重さ。</div>
+      <div style="font-size:13px;color:var(--txt-2);line-height:1.7;margin:0 2px 11px">プレート計算で使う重さです。<b>ジムに無いものはオフ</b>に。片側1枚あたりの重さ。</div>
       <div class="ex-pick">${PLATES.map(p=>`<span class="chip ${(settings.plates||PLATES).includes(p)?'on':''}" data-plate="${p}">${p}kg</span>`).join('')}</div>
     </div>
 
@@ -1578,7 +1514,6 @@ function renderMore(){
   </div>`;
 
   document.getElementById('redoOb').onclick=()=>showOnboard();
-  document.getElementById('pickPhys2').onclick=()=>openPhysiquePicker();
   document.getElementById('openGuide').onclick=()=>showGuide();
   const tgA=document.getElementById('tgAuto'); tgA.onclick=()=>{ settings.autoTimer=!settings.autoTimer; saveAll(); tgA.classList.toggle('on'); };
   const tgRT=document.getElementById('tgRestType'); tgRT.onclick=()=>{ settings.autoRestType=!settings.autoRestType; saveAll(); tgRT.classList.toggle('on'); };
