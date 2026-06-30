@@ -221,7 +221,13 @@
   select{appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23646a75' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
     background-repeat:no-repeat; background-position:right 16px center; padding-right:40px;}
   input[type=number]{text-align:center; font-weight:700; font-variant-numeric:tabular-nums; font-family:var(--font-disp);}
-  .set-line{display:grid; grid-template-columns:18px 1fr 1fr 24px; gap:7px; align-items:center; margin-bottom:10px;}
+  .set-line{display:grid; grid-template-columns:22px 1fr 1fr 24px; gap:7px; align-items:center; margin-bottom:10px;}
+  .seclbl{display:flex; align-items:center; gap:8px; margin:0 2px 9px; font-size:11px; font-weight:700; letter-spacing:.14em; color:var(--txt-3); text-transform:uppercase;}
+  .seclbl-x{font-size:10px; letter-spacing:.03em; color:var(--txt-3); text-transform:none; font-weight:600; opacity:.75;}
+  .seclbl .wlite{margin-left:auto; width:auto; padding:6px 12px; font-size:12px;}
+  .warm-empty{font-size:12px; color:var(--txt-3); line-height:1.6; padding:0 2px 8px;}
+  .set-line.warm .no{color:var(--blue); opacity:.7; font-size:11px;}
+  .set-line.warm .stp{background:var(--surface-3); border-style:dashed;}
   .stp{display:flex; align-items:center; background:var(--surface-2); border:1px solid var(--hair); border-radius:14px; overflow:hidden; transition:border-color .15s, box-shadow .15s;}
   .stp:focus-within{border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-dim);}
   .stp input{flex:1; min-width:0; width:auto; border:none; background:transparent; text-align:center; padding:13px 0; font-size:16px;}
@@ -925,7 +931,7 @@ function openExPicker(){
     <button class="btn ghost" id="expAdd" style="width:100%;margin-top:16px">設定で種目を追加・編集</button>
     <button class="btn ghost" id="expClose" style="width:100%;margin-top:9px">閉じる</button>
   </div>`;
-  el.querySelectorAll('[data-exp]').forEach(r=>r.onclick=()=>{ draftExId=r.dataset.exp; draftSets=[{w:'',r:''}]; el.style.display='none'; renderLog(); });
+  el.querySelectorAll('[data-exp]').forEach(r=>r.onclick=()=>{ draftExId=r.dataset.exp; clearDraft(); el.style.display='none'; renderLog(); });
   el.querySelectorAll('[data-expg]').forEach(b=>b.onclick=ev=>{ ev.stopPropagation(); openExGuide(b.dataset.expg, openExPicker); });
   el.querySelectorAll('[data-expand]').forEach(b=>b.onclick=()=>{ const m=b.dataset.expand; exPickExpanded.has(m)?exPickExpanded.delete(m):exPickExpanded.add(m); openExPicker(); });
   document.getElementById('expClose').onclick=()=>{ el.style.display='none'; };
@@ -982,12 +988,13 @@ document.getElementById('restbar').addEventListener('click',e=>{ const a=e.targe
 
 /* ============ 今日 / 任意の日 ============ */
 let workDate=todayStr();              // 編集・追加の対象日（既定=今日。過去/未来も可）
-let selRt=null, draftExId=null, draftSets=[{w:'',r:''}], editId=null, draftRir=null;
+let selRt=null, draftExId=null, draftSets=[{w:'',r:''}], draftWarm=[], editId=null, draftRir=null;
+function clearDraft(){ clearDraft(); draftWarm=[]; }
 function todaysLogs(){ return logs.filter(l=>l.date===workDate); }     // 対象日の記録
 function isToday(){ return workDate===todayStr(); }
 function shiftDate(ds,delta){ const a=ds.split('-').map(Number); const dt=new Date(a[0],a[1]-1,a[2]+delta);
   return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
-function setWorkDate(d){ if(!d)d=todayStr(); workDate=d; selRt=null; draftExId=null; draftSets=[{w:'',r:''}]; editId=null; renderLog(); }
+function setWorkDate(d){ if(!d)d=todayStr(); workDate=d; selRt=null; draftExId=null; clearDraft(); editId=null; renderLog(); }
 function lastRecord(exId){ const p=logs.filter(l=>l.exId===exId&&l.date<workDate).sort((a,b)=>b.date.localeCompare(a.date)); return p[0]||null; }
 function doneTodayEx(exId){ return todaysLogs().some(l=>l.exId===exId); }
 function bestBefore(exId){ // 対象日より前のベスト
@@ -999,7 +1006,7 @@ function suggestRt(){ const past=logs.filter(l=>l.date<workDate&&l.rtId).sort((a
   if(!past.length) return routines[0]?.id||null; const i=routines.findIndex(r=>r.id===past[0].rtId);
   return i<0?(routines[0]?.id||null):routines[(i+1)%routines.length].id; }
 function loadForEdit(id){ const l=logs.find(x=>x.id===id); if(!l)return; editId=id; draftExId=l.exId;
-  draftSets=l.sets.map(s=>({w:s.w,r:s.r})); draftRir=(l.rir!==undefined?l.rir:null); if(l.rtId)selRt=l.rtId; renderLog();
+  draftSets=l.sets.map(s=>({w:s.w,r:s.r})); draftWarm=(l.warm||[]).map(s=>({w:s.w,r:s.r})); draftRir=(l.rir!==undefined?l.rir:null); if(l.rtId)selRt=l.rtId; renderLog();
   const sel=document.getElementById('exSel'); if(sel)sel.scrollIntoView({behavior:'smooth',block:'center'}); }
 function ringSVG(pct){ const R=34,C=2*Math.PI*R,off=C*(1-pct);
   return `<svg width="80" height="80" viewBox="0 0 80 80"><circle cx="40" cy="40" r="${R}" fill="none" stroke="var(--surface-3)" stroke-width="6"/>
@@ -1042,10 +1049,10 @@ function renderLog(keepScroll){
     </div>`;
   }
   const lastHtml=last?`<div class="top-mini">前回 ${fmtDate(last.date)}：${last.sets.map(s=>s.w+'kg×'+s.r).join(' / ')}</div>`:'';
-  const setLines=draftSets.map((s,i)=>`<div class="set-line"><span class="no">${i+1}</span>
-    <div class="stp"><button class="stp-b" data-si="${i}" data-f="w" data-d="-1">−</button><input type="number" inputmode="decimal" placeholder="0" value="${s.w}" data-si="${i}" data-f="w"><span class="stp-u">kg</span><button class="stp-b" data-si="${i}" data-f="w" data-d="1">+</button></div>
-    <div class="stp"><button class="stp-b" data-si="${i}" data-f="r" data-d="-1">−</button><input type="number" inputmode="numeric" placeholder="0" value="${s.r}" data-si="${i}" data-f="r"><span class="stp-u">回</span><button class="stp-b" data-si="${i}" data-f="r" data-d="1">+</button></div>
-    <button class="del" data-del="${i}">×</button></div>`).join('');
+  const setRows=(arr,grp)=>arr.map((s,i)=>`<div class="set-line${grp==='warm'?' warm':''}"><span class="no">${grp==='warm'?'W'+(i+1):(i+1)}</span>
+    <div class="stp"><button class="stp-b" data-grp="${grp}" data-si="${i}" data-f="w" data-d="-1">−</button><input type="number" inputmode="decimal" placeholder="0" value="${s.w}" data-grp="${grp}" data-si="${i}" data-f="w"><span class="stp-u">kg</span><button class="stp-b" data-grp="${grp}" data-si="${i}" data-f="w" data-d="1">+</button></div>
+    <div class="stp"><button class="stp-b" data-grp="${grp}" data-si="${i}" data-f="r" data-d="-1">−</button><input type="number" inputmode="numeric" placeholder="0" value="${s.r}" data-grp="${grp}" data-si="${i}" data-f="r"><span class="stp-u">回</span><button class="stp-b" data-grp="${grp}" data-si="${i}" data-f="r" data-d="1">+</button></div>
+    <button class="del" data-grp="${grp}" data-del="${i}">×</button></div>`).join('');
 
   const dateBar=`<div class="datebar">
     <button class="dnav" id="dPrev">‹</button>
@@ -1094,15 +1101,18 @@ function renderLog(keepScroll){
       <button class="exg-link" id="exGuideBtn"><span class="exg-ic">i</span>この種目の動き・コツを見る</button>`:'<button class="btn ghost" id="exPickBtn2" style="width:100%">＋ 種目を選ぶ</button>'}
       ${targetHtml}${lastHtml}
       <div style="height:16px"></div>
-      <label class="lbl">セット（重量 × 回数）</label>
-      ${setLines}
-      <div style="margin-top:14px"></div>
+      <div class="seclbl"><span>ウォームアップ</span><span class="seclbl-x">任意</span><button class="btn ghost sm wlite" id="warmAuto">自動で組む</button></div>
+      ${draftWarm.length?setRows(draftWarm,'warm'):'<div class="warm-empty">軽い重さで体を温めるセット。「自動で組む」か下のボタンで追加できます。</div>'}
+      <button class="btn ghost sm" id="addWarm" style="width:100%;margin-top:4px">＋ ウォームアップを追加</button>
+      <div style="height:18px"></div>
+      <label class="lbl">メインセット（重量 × 回数）</label>
+      ${setRows(draftSets,'main')}
+      <button class="btn ghost sm" id="addSet" style="width:100%;margin-top:4px">＋ メインセットを追加</button>
+      <div style="margin-top:16px"></div>
       <label class="lbl">キツさ（最後のセットで“あと何回”できた？・任意）</label>
       <div class="rir-row">${[['0','限界'],['1','あと1'],['2','あと2'],['3','あと3+'],['','—']].map(([val,lab])=>`<span class="rir ${(draftRir===null?'':String(draftRir))===val?'on':''}" data-rir="${val}">${lab}</span>`).join('')}</div>
       <div class="row" style="margin-top:12px; gap:8px; flex-wrap:wrap;">
-        <button class="btn ghost sm" id="addSet">＋ セット追加</button>
         <button class="btn ghost sm" id="copyLast" ${last?'':'disabled style=opacity:.35'}>前回をコピー</button>
-        <button class="btn ghost sm" id="warmBtn">ウォームアップ</button>
         <button class="btn ghost sm" id="plateBtn">プレート計算</button>
         <button class="btn ghost sm" id="restNow">休憩 ${draftExId?restFor(draftExId):settings.rest}s</button>
       </div>
@@ -1126,18 +1136,20 @@ function renderLog(keepScroll){
   document.getElementById('dNext').onclick=()=>setWorkDate(shiftDate(workDate,1));
   document.getElementById('dPick').onchange=e=>setWorkDate(e.target.value);
   const _dt=document.getElementById('dToday'); if(_dt)_dt.onclick=()=>setWorkDate(todayStr());
-  const _ce=document.getElementById('cancelEdit'); if(_ce)_ce.onclick=()=>{ editId=null; draftSets=[{w:'',r:''}]; renderLog(); };
+  const _ce=document.getElementById('cancelEdit'); if(_ce)_ce.onclick=()=>{ editId=null; clearDraft(); renderLog(); };
 
   v.querySelectorAll('[data-cm]').forEach(b=>b.onclick=()=>{ calMonth=shiftMonth(calMonth||todayStr().slice(0,7), b.dataset.cm==='prev'?-1:1); renderLog(true); });
-  v.querySelectorAll('[data-cd]').forEach(c=>c.onclick=()=>{ workDate=c.dataset.cd; selRt=null; draftExId=null; draftSets=[{w:'',r:''}]; editId=null; renderLog(); window.scrollTo({top:document.querySelector('.days')?.offsetTop-70||0,behavior:'smooth'}); });
-  v.querySelectorAll('[data-rt]').forEach(d=>d.onclick=()=>{ selRt=d.dataset.rt; draftExId=null; draftSets=[{w:'',r:''}]; renderLog(true); });
-  v.querySelectorAll('[data-pick]').forEach(m=>m.onclick=()=>{ draftExId=m.dataset.pick; draftSets=[{w:'',r:''}]; renderLog(true); });
+  v.querySelectorAll('[data-cd]').forEach(c=>c.onclick=()=>{ workDate=c.dataset.cd; selRt=null; draftExId=null; clearDraft(); editId=null; renderLog(); window.scrollTo({top:document.querySelector('.days')?.offsetTop-70||0,behavior:'smooth'}); });
+  v.querySelectorAll('[data-rt]').forEach(d=>d.onclick=()=>{ selRt=d.dataset.rt; draftExId=null; clearDraft(); renderLog(true); });
+  v.querySelectorAll('[data-pick]').forEach(m=>m.onclick=()=>{ draftExId=m.dataset.pick; clearDraft(); renderLog(true); });
   const _eg=document.getElementById('exGuideBtn'); if(_eg)_eg.onclick=()=>openExGuide(draftExId);
   const _ep=document.getElementById('exPickBtn'); if(_ep)_ep.onclick=()=>openExPicker();
   const _ep2=document.getElementById('exPickBtn2'); if(_ep2)_ep2.onclick=()=>openExPicker();
   v.querySelectorAll('[data-guide]').forEach(b=>b.onclick=ev=>{ ev.stopPropagation(); openExGuide(b.dataset.guide); });
-  document.getElementById('addSet').onclick=()=>{ const l=draftSets[draftSets.length-1]; draftSets.push({w:l?l.w:'',r:l?l.r:''}); renderLog(true); const f=document.querySelector(`input[data-si="${draftSets.length-1}"][data-f="w"]`); if(f)f.focus(); };
-  document.getElementById('copyLast').onclick=()=>{ if(last){ draftSets=last.sets.map(s=>({w:s.w,r:s.r})); renderLog(true); } };
+  document.getElementById('addSet').onclick=()=>{ const l=draftSets[draftSets.length-1]; draftSets.push({w:l?l.w:'',r:l?l.r:''}); renderLog(true); const f=document.querySelector(`input[data-grp="main"][data-si="${draftSets.length-1}"][data-f="w"]`); if(f)f.focus(); };
+  document.getElementById('addWarm').onclick=()=>{ const l=draftWarm[draftWarm.length-1]; draftWarm.push({w:l?l.w:'',r:l?l.r:''}); renderLog(true); const f=document.querySelector(`input[data-grp="warm"][data-si="${draftWarm.length-1}"][data-f="w"]`); if(f)f.focus(); };
+  document.getElementById('warmAuto').onclick=()=>{ const w=curWeight(); if(!w){ toast('先にメインの重さか目標を入れてください'); return; } draftWarm=warmupSets(w,curBar()).map(s=>({w:s.w,r:s.r})); renderLog(true); };
+  document.getElementById('copyLast').onclick=()=>{ if(last){ draftSets=last.sets.map(s=>({w:s.w,r:s.r})); draftWarm=(last.warm||[]).map(s=>({w:s.w,r:s.r})); renderLog(true); } };
   document.getElementById('restNow').onclick=()=>Timer.start(draftExId?restFor(draftExId):settings.rest);
   const _us=document.getElementById('useSug'); if(_us)_us.onclick=()=>{ const s=suggestNext(draftExId); if(s.w){ draftSets=Array.from({length:s.sets},()=>({w:s.w,r:s.r})); renderLog(true); } };
   const curWeight=()=>{ const ws=draftSets.map(s=>Number(s.w)).filter(x=>x>0); if(ws.length)return Math.max(...ws); const s=suggestNext(draftExId); return s.w||0; };
@@ -1156,13 +1168,13 @@ function renderLog(keepScroll){
     }
     out.querySelectorAll('[data-bt]').forEach(b=>b.onclick=()=>{ barType=b.dataset.bt; renderTool(); });
   }
-  document.getElementById('warmBtn').onclick=()=>{ toolKind='warm'; renderTool(); };
   document.getElementById('plateBtn').onclick=()=>{ toolKind='plate'; renderTool(); };
-  v.querySelectorAll('input[data-si]').forEach(inp=>inp.oninput=e=>{ draftSets[+e.target.dataset.si][e.target.dataset.f]=e.target.value; });
-  v.querySelectorAll('.stp-b').forEach(b=>b.onclick=()=>{ const i=+b.dataset.si,f=b.dataset.f,d=+b.dataset.d;
-    const step=f==='w'?incFor(draftExId):1; let val=Number(draftSets[i][f]||0)+d*step; if(val<0)val=0; val=Math.round(val*100)/100;
-    draftSets[i][f]=String(val); const inp=v.querySelector(`input[data-si="${i}"][data-f="${f}"]`); if(inp)inp.value=val; });
-  v.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ draftSets.splice(+b.dataset.del,1); if(!draftSets.length)draftSets=[{w:'',r:''}]; renderLog(true); });
+  const draftArr=g=>g==='warm'?draftWarm:draftSets;
+  v.querySelectorAll('input[data-si]').forEach(inp=>inp.oninput=e=>{ draftArr(e.target.dataset.grp)[+e.target.dataset.si][e.target.dataset.f]=e.target.value; });
+  v.querySelectorAll('.stp-b').forEach(b=>b.onclick=()=>{ const g=b.dataset.grp,i=+b.dataset.si,f=b.dataset.f,d=+b.dataset.d; const arr=draftArr(g);
+    const step=f==='w'?incFor(draftExId):1; let val=Number(arr[i][f]||0)+d*step; if(val<0)val=0; val=Math.round(val*100)/100;
+    arr[i][f]=String(val); const inp=v.querySelector(`input[data-grp="${g}"][data-si="${i}"][data-f="${f}"]`); if(inp)inp.value=val; });
+  v.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ const g=b.dataset.grp; draftArr(g).splice(+b.dataset.del,1); if(g==='main'&&!draftSets.length)draftSets=[{w:'',r:''}]; renderLog(true); });
   document.getElementById('saveLog').onclick=saveDraft;
   const hg=document.getElementById('heroGoal'); if(hg)hg.onclick=()=>openPhysiquePicker();
   const qd=document.getElementById('qsDismiss'); if(qd)qd.onclick=()=>{ settings.qsDismissed=true; saveAll(); renderLog(); };
@@ -1180,17 +1192,18 @@ function renderLog(keepScroll){
 
 function saveDraft(){
   const sets=draftSets.filter(s=>s.w!==''&&s.r!=='').map(s=>({w:Number(s.w),r:Number(s.r)}));
-  if(!sets.length){ toast('重量と回数を入力してください'); return; }
+  if(!sets.length){ toast('メインセットの重量と回数を入力してください'); return; }
+  const warm=draftWarm.filter(s=>s.w!==''&&s.r!=='').map(s=>({w:Number(s.w),r:Number(s.r)}));
   // 既存記録の編集
   if(editId){
     const l=logs.find(x=>x.id===editId);
-    if(l){ l.exId=draftExId; l.sets=sets; l.rtId=selRt; l.rir=draftRir; }
-    editId=null; draftRir=null; saveAll(); toast('更新しました'); draftSets=[{w:'',r:''}]; renderLog(); return;
+    if(l){ l.exId=draftExId; l.sets=sets; l.rtId=selRt; l.rir=draftRir; if(warm.length)l.warm=warm; else delete l.warm; }
+    editId=null; draftRir=null; saveAll(); toast('更新しました'); clearDraft(); renderLog(); return;
   }
   // 新規追加（対象日 workDate に記録）
   const before=bestBefore(draftExId);
   const tMaxW=Math.max(...sets.map(s=>s.w)); const tMax1=Math.max(...sets.map(s=>est1rm(s.w,s.r)));
-  logs.push({id:uid(), date:workDate, exId:draftExId, sets, rtId:selRt, rir:draftRir});
+  logs.push({id:uid(), date:workDate, exId:draftExId, sets, rtId:selRt, rir:draftRir, ...(warm.length?{warm}:{})});
   saveAll();
   // PR演出・タイマーは「今日」の記録のときだけ（過去日の振り返り入力では出さない）
   if(isToday() && before.maxW>0 && (tMaxW>before.maxW || tMax1>before.max1+0.01)){
@@ -1198,7 +1211,7 @@ function saveDraft(){
     celebratePR(`${exName(draftExId)} ・ ${what}`);
   } else { toast('記録しました'); }
   if(isToday() && settings.autoTimer) Timer.start(restFor(draftExId));
-  draftSets=[{w:'',r:''}]; draftRir=null;
+  clearDraft(); draftRir=null;
   const rt=rtObj(selRt); if(rt){ const nx=rt.exIds.find(id=>!doneTodayEx(id)); if(nx) draftExId=nx; }
   renderLog();
 }
@@ -1217,6 +1230,7 @@ function renderTodayList(){
   el.innerHTML=t.map(l=>{ const vol=l.sets.reduce((a,s)=>a+s.w*s.r,0);
     return `<div class="item${editId===l.id?' editing':''}"><div class="row" style="justify-content:space-between"><span class="n">${exName(l.exId)} <span class="tag">${exMuscle(l.exId)}</span></span>
       <div class="row" style="gap:2px"><button class="del edit" data-edit="${l.id}">${IC.edit}</button><button class="del" data-rm="${l.id}">×</button></div></div>
+      ${l.warm&&l.warm.length?`<div class="s tnum" style="color:var(--txt-3);font-size:12px;margin-bottom:2px">W ${l.warm.map(s=>s.w+'×'+s.r).join(' / ')}</div>`:''}
       <div class="s tnum">${l.sets.map(s=>s.w+'kg×'+s.r).join(' / ')}　<span class="vol">計 ${vol}kg</span>${l.rir!=null?`<span style="color:var(--txt-3)"> ・ あと${l.rir}回</span>`:''}</div></div>`; }).join('');
   el.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>loadForEdit(b.dataset.edit));
   el.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{ if(!confirm('この記録を削除しますか？'))return; logs=logs.filter(x=>x.id!==b.dataset.rm); if(editId===b.dataset.rm)editId=null; saveAll(); renderLog(); toast('削除しました'); });
@@ -1271,14 +1285,14 @@ function renderHistory(){
   const v=document.getElementById('view');
   calMonth=calMonth||todayStr().slice(0,7);
   function wireCal(){ v.querySelectorAll('[data-cm]').forEach(b=>b.onclick=()=>{ calMonth=shiftMonth(calMonth,b.dataset.cm==='prev'?-1:1); renderHistory(); });
-    v.querySelectorAll('[data-cd]').forEach(c=>c.onclick=()=>{ workDate=c.dataset.cd; selRt=null; draftExId=null; draftSets=[{w:'',r:''}]; editId=null; setTab('log'); window.scrollTo({top:0,behavior:'smooth'}); }); }
+    v.querySelectorAll('[data-cd]').forEach(c=>c.onclick=()=>{ workDate=c.dataset.cd; selRt=null; draftExId=null; clearDraft(); editId=null; setTab('log'); window.scrollTo({top:0,behavior:'smooth'}); }); }
   const addBtn=`<button class="btn ghost" id="histAdd" style="margin-bottom:16px;display:flex;align-items:center;justify-content:center;gap:8px">＋ 日付を選んで記録を追加・編集</button>`;
   if(!logs.length){ v.innerHTML=`<div class="fade-in"><div class="eyebrow" style="margin-top:6px">今月のまとめ</div>${monthSummaryHtml()}<div class="eyebrow">記録の履歴</div>${addBtn}<div class="empty">${IC.history.replace('<svg','<svg width=30 height=30')}まだ記録がありません。<br>カレンダーの日付や上のボタンから、いつでも追加できます。</div></div>`;
     document.getElementById('histAdd').onclick=()=>setTab('log'); wireCal(); return; }
   const byDate={}; logs.forEach(l=>{ (byDate[l.date]=byDate[l.date]||[]).push(l); });
   const dates=Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
   v.innerHTML=`<div class="fade-in"><div class="eyebrow" style="margin-top:6px">今月のまとめ</div>${monthSummaryHtml()}<div class="eyebrow">記録の履歴</div>${addBtn}`+dates.map(d=>{ const rtId=byDate[d].find(l=>l.rtId)?.rtId; const rtName=rtId&&rtObj(rtId)?`${rtObj(rtId).name}の日`:'';
-    const items=byDate[d].map(l=>`<div class="item htap" data-hd="${d}" data-hid="${l.id}"><div class="row" style="justify-content:space-between"><span class="n">${exName(l.exId)} <span class="tag">${exMuscle(l.exId)}</span></span><span class="go">${IC.edit}</span></div><div class="s tnum">${l.sets.map(s=>s.w+'kg×'+s.r).join(' / ')}</div></div>`).join('');
+    const items=byDate[d].map(l=>`<div class="item htap" data-hd="${d}" data-hid="${l.id}"><div class="row" style="justify-content:space-between"><span class="n">${exName(l.exId)} <span class="tag">${exMuscle(l.exId)}</span></span><span class="go">${IC.edit}</span></div>${l.warm&&l.warm.length?`<div class="s tnum" style="color:var(--txt-3);font-size:12px;margin-bottom:2px">W ${l.warm.map(s=>s.w+'×'+s.r).join(' / ')}</div>`:''}<div class="s tnum">${l.sets.map(s=>s.w+'kg×'+s.r).join(' / ')}</div></div>`).join('');
     const vol=byDate[d].reduce((a,l)=>a+l.sets.reduce((x,s)=>x+s.w*s.r,0),0);
     const ph=photosOn(d); const phHtml=ph.length?`<div class="photo-grid" style="grid-template-columns:repeat(4,1fr);margin-top:9px">${ph.map(p=>`<div class="thumb" data-pid="${p.id}"><img src="${p.data}" loading="lazy" alt=""></div>`).join('')}</div>`:'';
     return `<div class="hist-day"><div class="hist-date">${fmtDate(d)}${rtName?`<span class="rt">${rtName}</span>`:''}<span class="vv tnum">${vol.toLocaleString()}kg</span><button class="dayadd" data-add="${d}">＋追加</button></div>${items}${phHtml}</div>`; }).join('')+`</div>`;
@@ -1286,7 +1300,7 @@ function renderHistory(){
   v.querySelectorAll('[data-pid]').forEach(t=>t.onclick=ev=>{ ev.stopPropagation(); openPhoto(t.dataset.pid); });
   v.querySelectorAll('.htap').forEach(it=>it.onclick=()=>{ const l=logs.find(x=>x.id===it.dataset.hid);
     workDate=it.dataset.hd; selRt=l?.rtId||null; if(l){ draftExId=l.exId; draftSets=l.sets.map(s=>({w:s.w,r:s.r})); editId=l.id; } setTab('log'); window.scrollTo({top:0,behavior:'smooth'}); });
-  v.querySelectorAll('[data-add]').forEach(b=>b.onclick=e=>{ e.stopPropagation(); workDate=b.dataset.add; selRt=null; draftExId=null; draftSets=[{w:'',r:''}]; editId=null; setTab('log'); window.scrollTo({top:0,behavior:'smooth'}); });
+  v.querySelectorAll('[data-add]').forEach(b=>b.onclick=e=>{ e.stopPropagation(); workDate=b.dataset.add; selRt=null; draftExId=null; clearDraft(); editId=null; setTab('log'); window.scrollTo({top:0,behavior:'smooth'}); });
 }
 
 /* ============ スパークライン ============ */
