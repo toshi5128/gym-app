@@ -156,6 +156,25 @@
   .rec-ex{display:flex; align-items:center; gap:11px; margin-bottom:11px;}
   .rec-ex b{font-size:19px; font-weight:800; color:var(--txt); letter-spacing:-.01em;}
   .rec-ex .rec-mus{flex:0 0 auto; font-size:11px; font-weight:800; color:var(--blue); background:var(--blue-dim); padding:3px 10px; border-radius:20px; letter-spacing:.04em;}
+  .rec-change{margin-left:auto; flex:0 0 auto; background:var(--surface-3); border:1px solid var(--hair); color:var(--txt-2); border-radius:18px; padding:6px 14px; font-size:12px; font-weight:700; cursor:pointer; font-family:var(--font-jp); transition:transform .08s;}
+  .rec-change:active{transform:scale(.95);}
+  /* 種目を選ぶ 専用オーバーレイ（部位セクション式） */
+  .exp-sec{margin-top:18px;}
+  .exp-sec:first-of-type{margin-top:8px;}
+  .exp-head{display:flex; align-items:center; gap:9px; padding:9px 13px; border-radius:12px; background:var(--blue-dim); margin-bottom:9px;}
+  .exp-head b{font-size:14px; font-weight:800; color:var(--blue); letter-spacing:.06em;}
+  .exp-head s{margin-left:auto; font-size:11px; color:var(--blue); text-decoration:none; font-weight:700; font-family:var(--font-disp); opacity:.85;}
+  .exp-row{display:flex; align-items:center; gap:11px; width:100%; padding:13px 13px; border-radius:var(--r-md); background:var(--surface-2); border:1px solid var(--hair); cursor:pointer; margin-bottom:7px; transition:transform .08s, border-color .15s, background-color .15s; font-family:inherit;}
+  .exp-row:active{transform:scale(.985);}
+  .exp-row.on{border-color:var(--blue); background:var(--blue-dim);}
+  .exp-row .epn{flex:1; min-width:0; text-align:left;}
+  .exp-row .epn b{font-size:15.5px; font-weight:700; color:var(--txt); display:block; line-height:1.3;}
+  .exp-row .epn s{font-size:11.5px; color:var(--txt-3); text-decoration:none;}
+  .exp-row.on .epn b{color:var(--blue);}
+  .exp-row .epi{flex:0 0 auto; width:30px; height:30px; border-radius:50%; border:1px solid var(--hair); background:var(--surface); color:var(--txt-3); font-family:var(--font-disp); font-weight:800; font-style:italic; font-size:13px; cursor:pointer; line-height:1; transition:transform .08s;}
+  .exp-row .epi:active{transform:scale(.88);}
+  .exp-more{width:100%; text-align:center; padding:10px; font-size:12.5px; font-weight:700; color:var(--blue); background:none; border:none; cursor:pointer; font-family:var(--font-jp);}
+  .exp-more:active{opacity:.6;}
   .day{position:relative; text-align:center; cursor:pointer; background:var(--surface-2);
     border:1px solid var(--hair); border-radius:var(--r-md); padding:18px 0 16px; font-weight:700;
     font-size:15px; color:var(--txt-2); transition:transform .12s, background .15s, color .15s, border-color .15s; overflow:hidden;}
@@ -864,7 +883,7 @@ const EX_GUIDE={
   'トライセプスプッシュダウン':{t:'二の腕（上腕三頭筋）',how:['ケーブルのバーを上から握る','ひじを脇に固定し下へ押し下げる','ゆっくり戻す'],cue:['ひじを動かさない','下で腕を伸ばしきる']},
   'ハンマーカール':{t:'腕（二頭筋・前腕）',how:['ダンベルを縦（親指が上）に持つ','ひじを固定して曲げ上げる','ゆっくり下ろす'],cue:['手首を返さない','ひじを固定']},
 };
-function openExGuide(exId){ const e=exObj(exId); if(!e)return; const g=EX_GUIDE[e.name];
+function openExGuide(exId,onClose){ const e=exObj(exId); if(!e)return; const g=EX_GUIDE[e.name];
   const yt=`https://www.youtube.com/results?search_query=${encodeURIComponent(e.name+' やり方 フォーム')}`;
   const el=document.getElementById('onboard'); el.style.display='flex';
   el.innerHTML=`<div class="ob-card">
@@ -876,7 +895,39 @@ function openExGuide(exId){ const e=exObj(exId); if(!e)return; const g=EX_GUIDE[
     <a class="btn solid exg-yt" href="${yt}" target="_blank" rel="noopener">動画で動きを見る（YouTube）</a>
     <button class="btn ghost" id="exgClose" style="width:100%;margin-top:9px">閉じる</button>
   </div>`;
-  document.getElementById('exgClose').onclick=()=>{ el.style.display='none'; };
+  document.getElementById('exgClose').onclick=()=>{ el.style.display='none'; if(onClose)onClose(); };
+}
+
+/* ===== 種目を選ぶ（部位セクション式・専用オーバーレイ） ===== */
+let exPickExpanded=new Set();
+function openExPicker(){
+  const el=document.getElementById('onboard'); el.style.display='flex'; el.scrollTop=0;
+  const LIMIT=5;
+  const secs=MUSCLES.map(m=>{
+    const list=exercises.filter(e=>e.muscle===m);
+    if(!list.length) return '';
+    const expanded=exPickExpanded.has(m);
+    const shown=expanded?list:list.slice(0,LIMIT);
+    const rows=shown.map(e=>{ const lr=lastRecord(e.id);
+      const sub=lr?`前回 ${lr.sets.map(s=>s.w+'×'+s.r).join(' / ')}`:'記録なし';
+      return `<div class="exp-row ${e.id===draftExId?'on':''}" data-exp="${e.id}">
+        <div class="epn"><b>${e.name}</b><s>${sub}</s></div>
+        <button class="epi" data-expg="${e.id}">i</button></div>`; }).join('');
+    const more=list.length>LIMIT?`<button class="exp-more" data-expand="${m}">${expanded?'閉じる':'すべて表示（残り'+(list.length-LIMIT)+'件）'}</button>`:'';
+    return `<div class="exp-sec"><div class="exp-head"><b>${m}</b><s>${list.length}種目</s></div>${rows}${more}</div>`;
+  }).join('');
+  el.innerHTML=`<div class="ob-card">
+    <div class="ob-title">種目を選ぶ</div>
+    <div class="ob-sub">部位ごとに整理。タップで選択、ⓘで動き・コツを確認できます。</div>
+    ${secs||'<div class="hint" style="border:none;padding:14px 0">種目がありません。「設定 → 種目を追加」で登録できます。</div>'}
+    <button class="btn ghost" id="expAdd" style="width:100%;margin-top:16px">設定で種目を追加・編集</button>
+    <button class="btn ghost" id="expClose" style="width:100%;margin-top:9px">閉じる</button>
+  </div>`;
+  el.querySelectorAll('[data-exp]').forEach(r=>r.onclick=()=>{ draftExId=r.dataset.exp; draftSets=[{w:'',r:''}]; el.style.display='none'; renderLog(); });
+  el.querySelectorAll('[data-expg]').forEach(b=>b.onclick=ev=>{ ev.stopPropagation(); openExGuide(b.dataset.expg, openExPicker); });
+  el.querySelectorAll('[data-expand]').forEach(b=>b.onclick=()=>{ const m=b.dataset.expand; exPickExpanded.has(m)?exPickExpanded.delete(m):exPickExpanded.add(m); openExPicker(); });
+  document.getElementById('expClose').onclick=()=>{ el.style.display='none'; };
+  document.getElementById('expAdd').onclick=()=>{ el.style.display='none'; setTab('more'); };
 }
 
 (function(){ const d=new Date();
@@ -976,10 +1027,6 @@ function renderLog(keepScroll){
       <div class="mn"><b>${exName(id)}</b><s>${sub}</s></div><button class="exg-i" data-guide="${id}">i</button><div class="go">${cur?IC.dot:IC.chevron}</div></div>`; }).join(''); }
   if(draftExId===null&&rt){ draftExId=rt.exIds.find(id=>!doneTodayEx(id))||rt.exIds[0]; }
 
-  const curMus = pickMuscle || (draftExId?exMuscle(draftExId):'') || MUSCLES[0];
-  const musChips = MUSCLES.map(m=>`<span class="mus-chip ${m===curMus?'on':''}" data-mus="${m}">${m}</span>`).join('');
-  const exInMus = exercises.filter(e=>e.muscle===curMus);
-  const exPickBtns = exInMus.length? exInMus.map(e=>`<button class="ex-pick ${e.id===draftExId?'on':''}" data-expick="${e.id}">${e.name}</button>`).join('') : '<div class="hint" style="border:none;padding:8px 2px;margin:0">この部位の種目はまだありません。「設定 → 種目を追加」で追加できます。</div>';
   const last=draftExId?lastRecord(draftExId):null;
   const best=draftExId?bestBefore(draftExId):{maxW:0,max1:0};
   let targetHtml='';
@@ -1066,8 +1113,8 @@ function renderLog(keepScroll){
     ${rt?`<div class="exrow">${exRowHtml}</div>`:''}
     <div class="eyebrow">記録する</div>
     <div class="card">
-      ${draftExId?`<div class="rec-ex"><span class="rec-mus">${exMuscle(draftExId)||''}</span><b>${exName(draftExId)}</b></div>
-      <button class="exg-link" id="exGuideBtn"><span class="exg-ic">i</span>この種目の動き・コツを見る</button>`:'<div class="hint" style="border:none;margin:0 0 6px">上の「今日のメニュー」から種目を選んでください。</div>'}
+      ${draftExId?`<div class="rec-ex"><span class="rec-mus">${exMuscle(draftExId)||''}</span><b>${exName(draftExId)}</b><button class="rec-change" id="exPickBtn">種目を変更</button></div>
+      <button class="exg-link" id="exGuideBtn"><span class="exg-ic">i</span>この種目の動き・コツを見る</button>`:'<button class="btn ghost" id="exPickBtn2" style="width:100%">＋ 種目を選ぶ</button>'}
       ${targetHtml}${lastHtml}
       <div style="height:16px"></div>
       <label class="lbl">セット（重量 × 回数）</label>
@@ -1111,6 +1158,8 @@ function renderLog(keepScroll){
   v.querySelectorAll('[data-rt]').forEach(d=>d.onclick=()=>{ selRt=d.dataset.rt; draftExId=null; draftSets=[{w:'',r:''}]; renderLog(true); });
   v.querySelectorAll('[data-pick]').forEach(m=>m.onclick=()=>{ draftExId=m.dataset.pick; draftSets=[{w:'',r:''}]; renderLog(true); });
   const _eg=document.getElementById('exGuideBtn'); if(_eg)_eg.onclick=()=>openExGuide(draftExId);
+  const _ep=document.getElementById('exPickBtn'); if(_ep)_ep.onclick=()=>openExPicker();
+  const _ep2=document.getElementById('exPickBtn2'); if(_ep2)_ep2.onclick=()=>openExPicker();
   v.querySelectorAll('[data-guide]').forEach(b=>b.onclick=ev=>{ ev.stopPropagation(); openExGuide(b.dataset.guide); });
   document.getElementById('addSet').onclick=()=>{ const l=draftSets[draftSets.length-1]; draftSets.push({w:l?l.w:'',r:l?l.r:''}); renderLog(true); const f=document.querySelector(`input[data-si="${draftSets.length-1}"][data-f="w"]`); if(f)f.focus(); };
   document.getElementById('copyLast').onclick=()=>{ if(last){ draftSets=last.sets.map(s=>({w:s.w,r:s.r})); renderLog(true); } };
