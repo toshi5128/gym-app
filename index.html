@@ -989,7 +989,7 @@ document.getElementById('restbar').addEventListener('click',e=>{ const a=e.targe
 /* ============ 今日 / 任意の日 ============ */
 let workDate=todayStr();              // 編集・追加の対象日（既定=今日。過去/未来も可）
 let selRt=null, draftExId=null, draftSets=[{w:'',r:''}], draftWarm=[], editId=null, draftRir=null;
-function clearDraft(){ clearDraft(); draftWarm=[]; }
+function clearDraft(){ draftSets=[{w:'',r:''}]; draftWarm=[]; }
 function todaysLogs(){ return logs.filter(l=>l.date===workDate); }     // 対象日の記録
 function isToday(){ return workDate===todayStr(); }
 function shiftDate(ds,delta){ const a=ds.split('-').map(Number); const dt=new Date(a[0],a[1]-1,a[2]+delta);
