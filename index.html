@@ -239,6 +239,14 @@
   .day-info{margin:2px 2px 11px;}
   .di-meta{font-size:12px; font-weight:700; color:var(--blue); margin-bottom:4px;}
   .di-memo{font-size:13px; color:var(--txt-2); line-height:1.6; background:var(--surface-2); border-radius:10px; padding:9px 12px; white-space:pre-wrap;}
+  .bk-nudge{border:1px solid var(--acc); background:var(--blue-dim); margin-bottom:13px;}
+  .bk-txt{font-size:13px; color:var(--txt-2); line-height:1.7; margin-bottom:12px;}
+  .bk-txt b{color:var(--txt);}
+  .bk-btns{display:flex; gap:9px;}
+  .bk-btns .btn{flex:1;}
+  .bk-status{font-size:13px; color:var(--txt-2); margin-bottom:12px;}
+  .bk-status b{color:var(--txt);}
+  .mini-btn{display:inline-block; margin-left:6px; font-size:11px; font-weight:700; color:var(--blue); background:var(--blue-dim); border:none; border-radius:12px; padding:3px 10px; cursor:pointer;}
   .day-sum{font-size:13px; color:var(--txt-2); margin:0 2px 11px; font-weight:600;}
   .day-sum b{color:var(--blue); font-weight:800;}
   .acc{border:1px solid var(--hair); border-radius:14px; background:var(--card); margin-bottom:11px; overflow:hidden;}
@@ -1070,6 +1078,8 @@ function shiftDate(ds,delta){ const a=ds.split('-').map(Number); const dt=new Da
   return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
 function setWorkDate(d){ if(!d)d=todayStr(); workDate=d; selRt=null; draftExId=null; clearDraft(); editId=null; renderLog(); }
 function lastRecord(exId){ const p=logs.filter(l=>l.exId===exId&&l.date<workDate).sort((a,b)=>b.date.localeCompare(a.date)); return p[0]||null; }
+function daysSince(iso){ if(!iso)return Infinity; const d=(Date.now()-new Date(iso).getTime())/86400000; return isNaN(d)?Infinity:d; }
+function backupOverdue(){ if(!logs.length)return false; if(settings.backupSnooze && new Date(settings.backupSnooze).getTime()>Date.now())return false; return daysSince(settings.lastBackupAt)>=14; }
 function doneTodayEx(exId){ return todaysLogs().some(l=>l.exId===exId); }
 function bestBefore(exId){ // 対象日より前のベスト
   let maxW=0,max1=0;
@@ -1124,7 +1134,7 @@ function renderLog(keepScroll){
         <button class="btn ghost sm" id="useSug" style="width:100%">この目標をセットに入れる</button>`:''}
     </div>`;
   }
-  const lastHtml=last?`<div class="top-mini">前回 ${fmtDate(last.date)}：${last.sets.map(s=>s.w+'kg×'+s.r).join(' / ')}</div>`:'';
+  const lastHtml=last?`<div class="top-mini">前回 ${fmtDate(last.date)}：${last.sets.map(s=>s.w+'kg×'+s.r).join(' / ')} <button class="mini-btn" id="useLast">前回と同じで入力</button></div>`:'';
   const EFF={'':'—','0':'限界','1':'あと1','2':'あと2','3':'あと3+'};
   const setRows=(arr,grp)=>arr.map((s,i)=>{ const ev=(s.rir==null?'':String(s.rir));
     return `<div class="set-line${grp==='warm'?' warm':''}"><span class="no">${grp==='warm'?'W'+(i+1):(i+1)}</span>
@@ -1160,7 +1170,11 @@ function renderLog(keepScroll){
         <div class="exo-sub">${ok?'<span class="exo-done">完了</span> ・ ':''}${sub}</div></div>`; }).join('')
     : '<div class="empty" style="padding:22px">この日に種目が未登録です。<br>「分割」タブで追加できます。</div>') : '';
 
+  const backupBanner = backupOverdue()? `<div class="card bk-nudge">
+    <div class="bk-txt"><b>データのバックアップ</b><br>${settings.lastBackupAt?`前回から<b>${Math.floor(daysSince(settings.lastBackupAt))}日</b>経っています。`:'まだ一度も取っていません。'}記録は<b>この端末だけ</b>に保存されています。機種変や故障で消えないよう、書き出しておきましょう。</div>
+    <div class="bk-btns"><button class="btn solid sm" id="bkNow">今すぐ書き出す</button><button class="btn ghost sm" id="bkLater">あとで</button></div></div>` : '';
   v.innerHTML=`<div class="fade-in">
+    ${backupBanner}
     ${qsHtml}
     ${dateBar}
     <div class="hero">
@@ -1240,6 +1254,9 @@ function renderLog(keepScroll){
   document.getElementById('copyLast').onclick=()=>{ if(last){ draftSets=last.sets.map(s=>({w:s.w,r:s.r})); draftWarm=(last.warm||[]).map(s=>({w:s.w,r:s.r})); renderLog(true); } };
   document.getElementById('restNow').onclick=()=>Timer.start(draftExId?restFor(draftExId):settings.rest);
   const _us=document.getElementById('useSug'); if(_us)_us.onclick=()=>{ const s=suggestNext(draftExId); if(s.w){ draftSets=Array.from({length:s.sets},()=>({w:s.w,r:s.r})); renderLog(true); } };
+  const _ul=document.getElementById('useLast'); if(_ul)_ul.onclick=()=>{ const lr=lastRecord(draftExId); if(lr&&lr.sets.length){ draftSets=lr.sets.map(s=>({w:String(s.w),r:String(s.r)})); renderLog(true); toast('前回のセットを入れました'); } };
+  const _bn=document.getElementById('bkNow'); if(_bn)_bn.onclick=()=>{ exportData(); renderLog(); };
+  const _bl=document.getElementById('bkLater'); if(_bl)_bl.onclick=()=>{ settings.backupSnooze=new Date(Date.now()+3*86400000).toISOString(); saveAll(); renderLog(); };
   const curWeight=()=>{ const ws=draftSets.map(s=>Number(s.w)).filter(x=>x>0); if(ws.length)return Math.max(...ws); const s=suggestNext(draftExId); return s.w||0; };
   function renderTool(){ const out=document.getElementById('toolOut'); if(!out)return; if(!toolKind){ out.innerHTML=''; return; }
     const w=curWeight(), bar=curBar();
@@ -1652,9 +1669,11 @@ function renderMore(){
 
     ${acc('data','データ（バックアップ）',`
       <div style="font-size:13px;color:var(--txt-2);line-height:1.7;margin-bottom:13px">全記録（写真も含む）はこの端末内に保存されます。機種変や万一の消失に備え、ときどき書き出しておくと安心です。<br><span style="color:var(--txt-3);font-size:12px">※写真が多いとファイルが大きくなります。</span></div>
+      <div class="bk-status">最終バックアップ：<b>${settings.lastBackupAt?fmtDate(settings.lastBackupAt.slice(0,10))+`（${Math.floor(daysSince(settings.lastBackupAt))}日前）`:'まだありません'}</b></div>
       <button class="btn primary" id="expBtn" style="margin-bottom:9px">バックアップを書き出す</button>
       <button class="btn ghost" id="impBtn">バックアップを読み込む</button>
-      <input type="file" id="impFile" accept="application/json" style="display:none">`)}
+      <input type="file" id="impFile" accept="application/json" style="display:none">
+      ${!(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)&&!navigator.standalone?`<div class="hint" style="margin:12px 0 0"><b>ホーム画面に追加</b>してアプリとして使うと、データが消えにくく起動も速くなります。<br><span style="color:var(--txt-3)">iPhone(Safari)：共有ボタン→「ホーム画面に追加」／Android(Chrome)：メニュー→「アプリをインストール」</span></div>`:''}`)}
   </div>`;
 
   v.querySelectorAll('[data-acc]').forEach(h=>h.onclick=()=>{ const k=h.dataset.acc, box=h.closest('.acc'); const open=box.classList.toggle('open'); if(open)accOpen.add(k); else accOpen.delete(k); });
@@ -1693,6 +1712,7 @@ function exportData(){
   const a=document.createElement('a'); const d=new Date();
   const stamp=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
   a.href=URL.createObjectURL(blob); a.download=`atlas-backup-${stamp}.json`; a.click(); URL.revokeObjectURL(a.href);
+  settings.lastBackupAt=new Date().toISOString(); delete settings.backupSnooze; saveAll();
   toast('書き出しました');
 }
 function importData(e){
