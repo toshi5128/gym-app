@@ -239,6 +239,15 @@
   .day-info{margin:2px 2px 11px;}
   .di-meta{font-size:12px; font-weight:700; color:var(--blue); margin-bottom:4px;}
   .di-memo{font-size:13px; color:var(--txt-2); line-height:1.6; background:var(--surface-2); border-radius:10px; padding:9px 12px; white-space:pre-wrap;}
+  .wk-card{padding:6px 15px;}
+  .wk-row{display:flex; align-items:center; gap:10px; padding:12px 0; border-bottom:1px solid var(--hair-2);}
+  .wk-row:last-child{border-bottom:none;}
+  .wk-k{flex:1; font-size:14px; color:var(--txt-2); font-weight:600;}
+  .wk-v{font-family:var(--font-disp); font-size:20px; font-weight:800; color:var(--txt); letter-spacing:-.01em;}
+  .wk-v small{font-size:11px; font-weight:700; color:var(--txt-3); margin-left:1px;}
+  .wk-sub{flex:0 0 auto; min-width:82px; text-align:right; font-size:12px; font-weight:700; color:var(--txt-3);}
+  .wk-sub.up{color:var(--blue);}
+  .wk-sub.down{color:var(--danger);}
   .bk-nudge{border:1px solid var(--acc); background:var(--blue-dim); margin-bottom:13px;}
   .bk-txt{font-size:13px; color:var(--txt-2); line-height:1.7; margin-bottom:12px;}
   .bk-txt b{color:var(--txt);}
@@ -819,6 +828,13 @@ const VOL={'胸':{min:10,max:20},'背中':{min:10,max:20},'脚':{min:10,max:20},
 function ymd(dt){ return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
 function weekRange(){ const d=new Date(); const day=(d.getDay()+6)%7; const mon=new Date(d.getFullYear(),d.getMonth(),d.getDate()-day); const sun=new Date(mon); sun.setDate(mon.getDate()+6); return {start:ymd(mon),end:ymd(sun)}; }
 function weeklyVolume(){ const {start,end}=weekRange(); const vol={}; logs.filter(l=>l.date>=start&&l.date<=end).forEach(l=>{ const m=exMuscle(l.exId)||'その他'; vol[m]=(vol[m]||0)+l.sets.length; }); return vol; }
+function weekStats(monStr){ const ls=logs.filter(l=>weekStartOf(l.date)===monStr);
+  return { days:new Set(ls.map(l=>l.date)).size, vol:ls.reduce((a,l)=>a+l.sets.reduce((x,s)=>x+s.w*s.r,0),0), sets:ls.reduce((a,l)=>a+l.sets.length,0) }; }
+function prsThisWeek(){ const {start,end}=weekRange(); let c=0;
+  exercises.forEach(e=>{ const ls=logs.filter(l=>l.exId===e.id); if(ls.length<2)return;
+    let bw2=0,bwd='',b1=0,b1d=''; ls.forEach(l=>l.sets.forEach(s=>{ if(s.w>bw2){bw2=s.w;bwd=l.date;} const es=est1rm(s.w,s.r); if(es>b1){b1=es;b1d=l.date;} }));
+    if((bwd>=start&&bwd<=end)||(b1d>=start&&b1d<=end))c++; });
+  return c; }
 function volZone(m,sets){ const t=VOL[m]; if(!t)return {label:'—',cls:''}; if(sets<t.min)return {label:'足りない',cls:'z-low'}; if(sets<=t.max)return {label:'最適',cls:'z-ok'}; return {label:'多め',cls:'z-high'}; }
 function deloadHint(){ const stalls=['bench','squat','dead'].filter(id=>{ const e=exObj(id); return e&&stallStatus(id).state==='stall'; }).length; if(stalls>=2)return '伸びが2種目以上で止まっています。<b>1週間のデロード（軽め週）</b>で疲労を抜くと、また伸びやすくなります。'; return ''; }
 
@@ -1542,6 +1558,17 @@ function renderStats(){
       <div class="stat"><div class="v tnum">${st.cur}<small> 週</small></div><div class="k">連続トレ週</div></div>
       <div class="stat"><div class="v tnum">${st.wc}<small> 回</small></div><div class="k">今週のトレ</div></div>
     </div>
+
+    <div class="eyebrow">今週の動き</div>
+    <div class="card wk-card">${(()=>{ const thisMon=weekRange().start, lastMon=weekStartOf(shiftDate(thisMon,-1));
+      const tw=weekStats(thisMon), lw=weekStats(lastMon);
+      const volPct=lw.vol>0?Math.round((tw.vol-lw.vol)/lw.vol*100):null;
+      const volSub=volPct==null?(tw.vol>0?'今シーズン初':'まだ記録なし'):(volPct>=0?`先週比 +${volPct}%`:`先週比 ${volPct}%`);
+      const volCls=volPct==null?'':(volPct>=0?'up':'down');
+      const dCls=tw.days>=lw.days?'up':'down';
+      return `<div class="wk-row"><span class="wk-k">トレ回数</span><span class="wk-v tnum">${tw.days}<small>回</small></span><span class="wk-sub ${dCls}">先週 ${lw.days}回</span></div>
+        <div class="wk-row"><span class="wk-k">ボリューム</span><span class="wk-v tnum">${(tw.vol/1000).toFixed(1)}<small>t</small></span><span class="wk-sub ${volCls}">${volSub}</span></div>
+        <div class="wk-row"><span class="wk-k">自己ベスト更新</span><span class="wk-v tnum">${prsThisWeek()}<small>回</small></span><span class="wk-sub">今週</span></div>`; })()}</div>
 
     <div class="eyebrow">自己ベスト（PR）</div>
     ${perEx.length?prBoardHtml:'<div class="hint" style="border:none;padding:0 2px">記録をためると、種目ごとの<b>最高重量・推定1RM・最多回数</b>がここに並びます。</div>'}
