@@ -736,7 +736,7 @@ function save(k,v){ localStorage.setItem(k,JSON.stringify(v)); }
 let exercises=load(KEY_EX,DEFAULT_EX), logs=load(KEY_LOG,[]), routines=load(KEY_RT,DEFAULT_ROUTINES);
 let bw=load(KEY_BW,[]);                       // [{date, kg}]
 let meas=load(KEY_MEAS,[]);                   // [{date, key, v}] 採寸(cm)
-let settings=Object.assign({rest:90, autoTimer:true, sound:true, soundType:'beep3', autoRestType:true, bar:20, smithBar:10, units:'kg', sex:'male', goal:'hypertrophy', level:'int', days:4, physique:null, theme:'light', onboarded:false, guideSeen:false, qsDismissed:false, migratedArm:false, fixedSplit5:false, plates:[20,15,10,5,2.5,1.25]}, load(KEY_SET,{}));
+let settings=Object.assign({rest:90, autoTimer:true, sound:true, soundType:'beep3', soundLong:true, autoRestType:true, bar:20, smithBar:10, units:'kg', sex:'male', goal:'hypertrophy', level:'int', days:4, physique:null, theme:'light', onboarded:false, guideSeen:false, qsDismissed:false, migratedArm:false, fixedSplit5:false, plates:[20,15,10,5,2.5,1.25]}, load(KEY_SET,{}));
 function applyTheme(){ document.documentElement.setAttribute('data-theme','light');
   const m=document.querySelector('meta[name="theme-color"]'); if(m)m.content='#f1f0ec'; }
 applyTheme();
@@ -997,18 +997,18 @@ function tone(a,{freq,start=0,dur=0.15,type='sine',vol=0.3}){
   g.gain.exponentialRampToValueAtTime(0.0001,s+dur);
   o.start(s); o.stop(s+dur+0.03);
 }
-/* 候補音（すべてその場で合成・音声ファイル不要）。vib=マナーモード用の振動パターン */
+/* 候補音（すべてその場で合成・音声ファイル不要）。vib=振動パターン / gap=繰り返し間隔(秒) */
 const SOUNDS={
-  beep3:{name:'ピピピ（今の音）', desc:'電子音を3回', vib:[120,60,120],
-    play:a=>[0,0.18,0.36].forEach(t=>tone(a,{freq:880,start:t,dur:0.15,type:'square',vol:0.22}))},
-  bell:{name:'やわらかいベル', desc:'チーンと余韻のある2音', vib:[200],
-    play:a=>{ tone(a,{freq:1318.5,start:0,dur:0.7,type:'sine',vol:0.32}); tone(a,{freq:1760,start:0.13,dur:0.8,type:'sine',vol:0.24}); }},
-  alarm:{name:'はっきりアラーム', desc:'高音を素早く5連打・気づきやすい', vib:[90,50,90,50,90,50,90],
-    play:a=>[0,0.13,0.26,0.39,0.52].forEach(t=>tone(a,{freq:1046,start:t,dur:0.085,type:'square',vol:0.26}))},
-  rise:{name:'上昇チャイム', desc:'ド→ミ→ソと上がる・達成感', vib:[150,80,220],
-    play:a=>[523,659,784].forEach((f,i)=>tone(a,{freq:f,start:i*0.13,dur:0.2,type:'triangle',vol:0.3}))},
-  pop:{name:'単発ポッ', desc:'ポンッと1回だけ・控えめ', vib:[140],
-    play:a=>tone(a,{freq:660,start:0,dur:0.2,type:'sine',vol:0.32})},
+  beep3:{name:'ピピピ（今の音）', desc:'電子音を3回', vib:[130,70,130,70,130], gap:0.85,
+    play:a=>[0,0.2,0.4].forEach(t=>tone(a,{freq:880,start:t,dur:0.16,type:'square',vol:0.5}))},
+  bell:{name:'やわらかいベル', desc:'チーンと余韻のある2音', vib:[240], gap:1.0,
+    play:a=>{ tone(a,{freq:1318.5,start:0,dur:0.7,type:'sine',vol:0.6}); tone(a,{freq:1760,start:0.14,dur:0.85,type:'sine',vol:0.45}); }},
+  alarm:{name:'はっきりアラーム', desc:'高音を素早く連打・一番気づく', vib:[100,60,100,60,100,60,100], gap:0.75,
+    play:a=>[0,0.13,0.26,0.39,0.52,0.65].forEach(t=>tone(a,{freq:1100,start:t,dur:0.09,type:'square',vol:0.5}))},
+  rise:{name:'上昇チャイム', desc:'ド→ミ→ソ→高ドと上がる・達成感', vib:[150,80,240], gap:0.95,
+    play:a=>[523,659,784,1046].forEach((f,i)=>tone(a,{freq:f,start:i*0.13,dur:0.22,type:'triangle',vol:0.5}))},
+  pop:{name:'単発ポッ', desc:'ポンッと軽く・控えめ', vib:[160], gap:0.7,
+    play:a=>tone(a,{freq:680,start:0,dur:0.22,type:'sine',vol:0.55})},
 };
 function playSound(key, force){
   if(!force && !settings.sound) return;
@@ -1016,7 +1016,12 @@ function playSound(key, force){
   try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)(); if(actx.state==='suspended')actx.resume(); s.play(actx); }catch(e){}
   if(navigator.vibrate) navigator.vibrate(s.vib||[120]);
 }
-function beep(){ playSound(settings.soundType||'beep3'); }
+let alertTimers=[];
+function stopAlert(){ alertTimers.forEach(t=>clearTimeout(t)); alertTimers=[]; }
+/* 休憩おわりの通知：選んだ音を数回くり返して鳴らす（気づきやすく） */
+function playAlert(key){ stopAlert(); const s=SOUNDS[key]||SOUNDS.beep3; const reps=settings.soundLong?7:3; const gapMs=(s.gap||0.9)*1000;
+  for(let i=0;i<reps;i++) alertTimers.push(setTimeout(()=>playSound(key,false), i*gapMs)); }
+function beep(){ playSound(settings.soundType||'beep3'); }        // 単発（PR演出・試聴用）
 
 /* ============ 画面スリープ防止（休憩中だけ点灯維持） ============ */
 let wakeLock=null;
@@ -1026,24 +1031,25 @@ document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==
 
 /* ============ インターバルタイマー ============ */
 const Timer={ id:null, total:0, remain:0, last:0, running:false,
-  start(sec){ this.total=sec; this.remain=sec; this.last=Date.now(); this.running=true; acquireWake();
+  start(sec){ this.total=sec; this.remain=sec; this.last=Date.now(); this.running=true; stopAlert(); acquireWake();
     const b=document.getElementById('restbar'); b.classList.add('show'); b.classList.remove('done');
     document.getElementById('restLbl').textContent='REST'; this.paint(); this.run(); },
   run(){ clearInterval(this.id); this.id=setInterval(()=>{ const now=Date.now(); this.remain-=(now-this.last)/1000; this.last=now;
     if(this.remain<=0){ this.remain=0; this.done(); } this.paint(); },200); },
-  done(){ clearInterval(this.id); this.running=false; releaseWake(); beep();
+  done(){ clearInterval(this.id); this.running=false; releaseWake(); playAlert(settings.soundType||'beep3');
     const b=document.getElementById('restbar'); b.classList.add('done');
     document.getElementById('restLbl').textContent='次のセットへ'; document.getElementById('restTime').textContent='00:00';
     document.getElementById('restProg').style.width='100%';
-    clearTimeout(this._h); this._h=setTimeout(()=>this.hide(),6000); },
+    clearTimeout(this._h); this._h=setTimeout(()=>this.hide(),settings.soundLong?9000:6000); },
   add(d){ if(!this.running && this.remain<=0){ this.start(Math.max(15,d>0?d:15)); return; }
     this.remain=Math.max(0,this.remain+d); this.total=Math.max(this.total,this.remain); this.paint(); },
-  hide(){ clearInterval(this.id); this.running=false; releaseWake(); document.getElementById('restbar').classList.remove('show','done'); },
+  hide(){ clearInterval(this.id); this.running=false; stopAlert(); releaseWake(); document.getElementById('restbar').classList.remove('show','done'); },
   paint(){ const m=Math.floor(this.remain/60), s=Math.ceil(this.remain%60);
     document.getElementById('restTime').textContent=`${m}:${String(s).padStart(2,'0')}`;
     document.getElementById('restProg').style.width=(this.total?(1-this.remain/this.total)*100:0)+'%'; },
 };
-document.getElementById('restbar').addEventListener('click',e=>{ const a=e.target.closest('[data-rt]'); if(!a)return;
+document.getElementById('restbar').addEventListener('click',e=>{ const a=e.target.closest('[data-rt]');
+  if(!a){ if(!Timer.running){ stopAlert(); Timer.hide(); } return; }   // 鳴り終わり後にバーを触ると消音
   const k=a.dataset.rt; if(k==='m')Timer.add(-15); else if(k==='p')Timer.add(15); else Timer.hide(); });
 
 /* ============ 今日 / 任意の日 ============ */
@@ -1620,7 +1626,9 @@ function renderMore(){
 
     ${acc('sound','休憩おわりの音',`
       <div style="font-size:13px;color:var(--txt-2);line-height:1.7;margin:0 2px 11px">タップすると<b>その場で試聴＋選択</b>できます。上の「終了時に音・振動」がオンのとき、休憩おわりにこの音が鳴ります（オフでも振動）。</div>
-      ${Object.entries(SOUNDS).map(([k,s])=>`<div class="snd-row${settings.soundType===k?' on':''}" data-snd="${k}"><div class="snd-info"><div class="snd-name">${s.name}</div><div class="snd-desc">${s.desc}</div></div><span class="snd-play">▶ 試聴</span></div>`).join('')}`)}
+      ${Object.entries(SOUNDS).map(([k,s])=>`<div class="snd-row${settings.soundType===k?' on':''}" data-snd="${k}"><div class="snd-info"><div class="snd-name">${s.name}</div><div class="snd-desc">${s.desc}</div></div><span class="snd-play">▶ 試聴</span></div>`).join('')}
+      <div class="set-row" style="margin-top:11px"><div>長めに鳴らす<br><span style="font-size:11px;color:var(--txt-3)">気づくまで数回くり返す（オフ＝短め）</span></div><div class="toggle ${settings.soundLong?'on':''}" id="tgLong"></div></div>
+      <div class="hint" style="margin:9px 0 0">音が小さいときは、スマホ本体の<b>音量（メディア音量）</b>も上げてください。</div>`)}
 
     ${acc('plate','ジムにあるプレート',`
       <div style="font-size:13px;color:var(--txt-2);line-height:1.7;margin:0 2px 11px">プレート計算で使う重さです。<b>ジムに無いものはオフ</b>に。片側1枚あたりの重さ。</div>
@@ -1655,7 +1663,9 @@ function renderMore(){
   const tgA=document.getElementById('tgAuto'); tgA.onclick=()=>{ settings.autoTimer=!settings.autoTimer; saveAll(); tgA.classList.toggle('on'); };
   const tgRT=document.getElementById('tgRestType'); tgRT.onclick=()=>{ settings.autoRestType=!settings.autoRestType; saveAll(); tgRT.classList.toggle('on'); };
   const tgS=document.getElementById('tgSound'); tgS.onclick=()=>{ settings.sound=!settings.sound; saveAll(); tgS.classList.toggle('on'); if(settings.sound)beep(); };
-  v.querySelectorAll('[data-snd]').forEach(r=>r.onclick=()=>{ const k=r.dataset.snd; settings.soundType=k; saveAll(); v.querySelectorAll('[data-snd]').forEach(x=>x.classList.toggle('on',x.dataset.snd===k)); playSound(k,true); });
+  v.querySelectorAll('[data-snd]').forEach(r=>r.onclick=()=>{ const k=r.dataset.snd; settings.soundType=k; saveAll(); v.querySelectorAll('[data-snd]').forEach(x=>x.classList.toggle('on',x.dataset.snd===k));
+    playSound(k,true); setTimeout(()=>playSound(k,true),(SOUNDS[k]?.gap||0.9)*1000); });   // 2回鳴らして本番の雰囲気を確認
+  const tgL=document.getElementById('tgLong'); if(tgL)tgL.onclick=()=>{ settings.soundLong=!settings.soundLong; saveAll(); tgL.classList.toggle('on'); if(settings.sound)playAlert(settings.soundType||'beep3'); };
   document.getElementById('rMinus').onclick=()=>{ settings.rest=Math.max(15,settings.rest-15); saveAll(); document.getElementById('rVal').textContent=settings.rest+'s'; };
   document.getElementById('rPlus').onclick=()=>{ settings.rest=Math.min(600,settings.rest+15); saveAll(); document.getElementById('rVal').textContent=settings.rest+'s'; };
   document.getElementById('bMinus').onclick=()=>{ settings.bar=Math.max(5,settings.bar-2.5); saveAll(); document.getElementById('bVal').textContent=settings.bar+'kg'; };
@@ -1692,7 +1702,7 @@ function importData(e){
     if(!d.logs||!d.exercises){ toast('対応していないファイルです'); return; }
     if(!confirm('現在のデータをこのバックアップで置き換えます。よろしいですか？'))return;
     exercises=d.exercises||DEFAULT_EX; logs=d.logs||[]; routines=d.routines||DEFAULT_ROUTINES; bw=d.bw||[]; meas=d.meas||[];
-    settings=Object.assign({rest:90,autoTimer:true,sound:true,autoRestType:true,bar:20,smithBar:10,units:'kg',sex:'male',goal:'hypertrophy',level:'int',days:4,physique:null,theme:'light',onboarded:true},d.settings||{});
+    settings=Object.assign({rest:90,autoTimer:true,sound:true,soundType:'beep3',soundLong:true,autoRestType:true,bar:20,smithBar:10,units:'kg',sex:'male',goal:'hypertrophy',level:'int',days:4,physique:null,theme:'light',onboarded:true},d.settings||{});
     if(d.prog) prog=d.prog;
     if(d.dayInfo && typeof d.dayInfo==='object') dayInfo=d.dayInfo;
     saveAll();
