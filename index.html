@@ -354,11 +354,8 @@
   .hist-date{font-size:13px; font-weight:700; letter-spacing:.03em; margin-bottom:11px; display:flex; align-items:center; gap:10px; font-family:var(--font-disp);}
   .hist-date .rt{color:var(--txt-3); font-weight:600; font-family:var(--font-jp);}
   .hist-date .vv{margin-left:auto; color:var(--txt-3); font-weight:600; font-size:12px;}
-  .hd-toggle{cursor:pointer;}
-  .hd-caret{display:inline-block; width:11px; font-size:11px; color:var(--txt-3); flex:0 0 auto;}
-  .hd-meta{color:var(--txt-3); font-weight:600; font-size:11px; font-family:var(--font-jp);}
-  :root[data-theme="light"] .hd-caret{ color:#9fbdad; }
-  :root[data-theme="light"] .hd-meta{ color:#a7c3b4; }
+  .hist-acc{margin-bottom:10px;}
+  .hist-acc .acc-h .hist-hd{font-family:var(--font-disp); font-weight:800; font-size:15px;}
 
   .stat-grid{display:grid; grid-template-columns:1fr 1fr; gap:11px; margin-bottom:4px;}
   .stat{background:linear-gradient(180deg,var(--surface),var(--surface-2)); border:1px solid var(--hair); border-radius:var(--r-md); padding:16px;}
@@ -1196,7 +1193,7 @@ function bigChart(pts){ if(pts.length<2) return `<div class="spark-empty">デー
 let chartExId=null, measSel='chest', cmpA=0, cmpB=-1, barType='barbell', toolKind=null, calMonth=null, pickMuscle=null, animateIn=true, pickerOpen=false, rtShowAll=new Set();
 let statsSub='grow';   // 分析タブ内の小タブ: grow=成長 / kiroku=記録 / karada=からだ
 let prMuscle=null;     // 自己ベスト（PR）の部位フィルタ（null=先頭部位を自動選択）
-let histOpen=null, histInited=false;   // 履歴タブ：開いている日付（アコーディオン）
+let histOpenSet=new Set(), histInited=false;   // 履歴タブ：開いている日付の集合（アコーディオン・複数可）
 function countUp(el,to,dec){ if(!el)return; const dur=750,t0=performance.now(); const run=(t)=>{ let p=Math.min(1,(t-t0)/dur); p=1-Math.pow(1-p,3); el.textContent=(to*p).toFixed(dec); if(p<1)requestAnimationFrame(run); }; requestAnimationFrame(run); }
 
 /* ===== 使い方ガイド ===== */
@@ -1752,16 +1749,19 @@ function renderHistory(){
     document.getElementById('histAdd').onclick=()=>setTab('log'); wireCal(); return; }
   const byDate={}; logs.forEach(l=>{ (byDate[l.date]=byDate[l.date]||[]).push(l); });
   const dates=Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
-  if(!histInited){ histOpen=dates[0]||null; histInited=true; }
+  if(!histInited){ if(dates[0]) histOpenSet.add(dates[0]); histInited=true; }
+  const CHEV_H='<svg class="acc-x" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
   v.innerHTML=`<div class="fade-in"><div class="eyebrow" style="margin-top:6px">今月のまとめ</div>${monthSummaryHtml()}<div class="eyebrow">記録の履歴</div>${addBtn}`+dates.map(d=>{ const rtId=byDate[d].find(l=>l.rtId)?.rtId; const rtName=rtId&&rtObj(rtId)?`${rtObj(rtId).name}の日`:'';
     const items=byDate[d].map(l=>`<div class="item htap" data-hd="${d}" data-hid="${l.id}"><div class="row" style="justify-content:space-between"><span class="n">${exName(l.exId)} <span class="tag">${exMuscle(l.exId)}</span></span><span class="go">${IC.edit}</span></div>${setListHtml(l.sets,l.warm,l.rir)}</div>`).join('');
     const vol=byDate[d].reduce((a,l)=>a+l.sets.reduce((x,s)=>x+s.w*s.r,0),0);
     const ph=photosOn(d); const phHtml=ph.length?`<div class="photo-grid" style="grid-template-columns:repeat(4,1fr);margin-top:9px">${ph.map(p=>`<div class="thumb" data-pid="${p.id}"><img src="${p.data}" loading="lazy" alt=""></div>`).join('')}</div>`:'';
-    const _dm=sessionMinutes(d); const isOpen=d===histOpen;
-    const head=`<div class="hist-date hd-toggle" data-hopen="${d}"><span class="hd-caret">${isOpen?'▾':'▸'}</span>${fmtDate(d)}${rtName?`<span class="rt">${rtName}</span>`:''}${_dm!=null?`<span class="rt" style="background:rgba(255,255,255,.12);color:#dbe6df;padding:2px 9px;border-radius:20px">${fmtDur(_dm)}</span>`:''}<span class="hd-meta">${byDate[d].length}種目</span><span class="vv tnum">${vol.toLocaleString()}kg</span><button class="dayadd" data-add="${d}">＋追加</button></div>`;
-    return `<div class="hist-day${isOpen?' open':''}">${head}${isOpen?`${dayInfoHtml(d)}${items}${phHtml}`:''}</div>`; }).join('')+`</div>`;
+    const _dm=sessionMinutes(d); const isOpen=histOpenSet.has(d);
+    const sub=`${byDate[d].length}種目${rtName?' ・ '+rtName:''}${_dm!=null?' ・ '+fmtDur(_dm):''} ・ ${vol.toLocaleString()}kg`;
+    const head=`<button class="acc-h" data-hopen="${d}"><span><span class="hist-hd">${fmtDate(d)}</span><span class="acc-sub">${sub}</span></span>${CHEV_H}</button>`;
+    const body=`<div class="acc-body">${isOpen?`${dayInfoHtml(d)}${items}${phHtml}<button class="btn ghost sm" data-add="${d}" style="width:100%;margin-top:8px">＋ この日に種目を追加</button>`:''}</div>`;
+    return `<div class="acc hist-acc${isOpen?' open':''}">${head}${body}</div>`; }).join('')+`</div>`;
   document.getElementById('histAdd').onclick=()=>setTab('log'); wireCal();
-  v.querySelectorAll('[data-hopen]').forEach(h=>h.onclick=()=>{ histOpen=(histOpen===h.dataset.hopen?null:h.dataset.hopen); renderHistory(); });
+  v.querySelectorAll('[data-hopen]').forEach(h=>h.onclick=()=>{ const d=h.dataset.hopen; if(histOpenSet.has(d))histOpenSet.delete(d); else histOpenSet.add(d); renderHistory(); });
   v.querySelectorAll('[data-pid]').forEach(t=>t.onclick=ev=>{ ev.stopPropagation(); openPhoto(t.dataset.pid); });
   v.querySelectorAll('.htap').forEach(it=>it.onclick=()=>{ const l=logs.find(x=>x.id===it.dataset.hid);
     workDate=it.dataset.hd; selRt=l?.rtId||null; if(l){ draftExId=l.exId; draftSets=l.sets.map(s=>({w:s.w,r:s.r})); editId=l.id; } setTab('log'); window.scrollTo({top:0,behavior:'smooth'}); });
