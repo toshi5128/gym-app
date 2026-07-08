@@ -61,6 +61,10 @@
   :root[data-theme="light"] .fade-in > .hint{ color:#c3d3c9; border-left-color:rgba(255,255,255,.2); }
   :root[data-theme="light"] .fade-in > .hint b{ color:#e8f0ea; }
   :root[data-theme="light"] .empty{ color:#b6c8bd; }
+  /* 履歴の日付行は緑地の上＝ライトに */
+  :root[data-theme="light"] .hist-date{ color:#eef4ef; }
+  :root[data-theme="light"] .hist-date .rt{ color:#a7c3b4; }
+  :root[data-theme="light"] .hist-date .vv{ color:#c9d6cd; }
   .seg3{display:inline-flex; gap:4px; background:var(--surface-3); padding:4px; border-radius:12px; flex-shrink:0;}
   .seg3-b{font-size:12px; font-weight:700; padding:7px 13px; border-radius:9px; color:var(--txt-2); cursor:pointer; font-family:var(--font-disp); transition:transform .08s, background-color .15s, color .15s;}
   .seg3-b.on{background:var(--acc); color:var(--on-acc);}
@@ -1695,7 +1699,7 @@ function renderHistory(){
     const vol=byDate[d].reduce((a,l)=>a+l.sets.reduce((x,s)=>x+s.w*s.r,0),0);
     const ph=photosOn(d); const phHtml=ph.length?`<div class="photo-grid" style="grid-template-columns:repeat(4,1fr);margin-top:9px">${ph.map(p=>`<div class="thumb" data-pid="${p.id}"><img src="${p.data}" loading="lazy" alt=""></div>`).join('')}</div>`:'';
     const _dm=sessionMinutes(d);
-    return `<div class="hist-day"><div class="hist-date">${fmtDate(d)}${rtName?`<span class="rt">${rtName}</span>`:''}${_dm!=null?`<span class="rt" style="background:var(--surface-2);color:var(--txt-2)">${fmtDur(_dm)}</span>`:''}<span class="vv tnum">${vol.toLocaleString()}kg</span><button class="dayadd" data-add="${d}">＋追加</button></div>${dayInfoHtml(d)}${items}${phHtml}</div>`; }).join('')+`</div>`;
+    return `<div class="hist-day"><div class="hist-date">${fmtDate(d)}${rtName?`<span class="rt">${rtName}</span>`:''}${_dm!=null?`<span class="rt" style="background:rgba(255,255,255,.12);color:#dbe6df;padding:2px 9px;border-radius:20px">${fmtDur(_dm)}</span>`:''}<span class="vv tnum">${vol.toLocaleString()}kg</span><button class="dayadd" data-add="${d}">＋追加</button></div>${dayInfoHtml(d)}${items}${phHtml}</div>`; }).join('')+`</div>`;
   document.getElementById('histAdd').onclick=()=>setTab('log'); wireCal();
   v.querySelectorAll('[data-pid]').forEach(t=>t.onclick=ev=>{ ev.stopPropagation(); openPhoto(t.dataset.pid); });
   v.querySelectorAll('.htap').forEach(it=>it.onclick=()=>{ const l=logs.find(x=>x.id===it.dataset.hid);
