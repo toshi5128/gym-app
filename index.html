@@ -13,7 +13,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
 <!-- クラウド同期（Supabase）SDK。CDN読込に失敗してもアプリはローカルで通常動作する（後段でwindow.supabaseの有無を確認） -->
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <title>ATLAS</title>
 <style>
   :root{
@@ -782,6 +782,10 @@
       <label for="authId">ユーザーID</label>
       <input class="auth-in" id="authId" type="text" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="例）shimoda">
     </div>
+    <div class="auth-field" id="authNameField" style="display:none;">
+      <label for="authName">表示名（お名前・任意）</label>
+      <input class="auth-in" id="authName" type="text" autocomplete="name" placeholder="例）下田">
+    </div>
     <div class="auth-field">
       <label for="authPw">パスワード</label>
       <input class="auth-in" id="authPw" type="password" autocomplete="current-password" placeholder="6文字以上">
@@ -857,15 +861,15 @@ function saveAll(){ saveAllLocal(); scheduleSync(); }
      クラウドへ丸ごとupsert（＝書きすぎない＝I/O枯渇を避ける）。
    ・写真(IndexedDB)は重いのでクラウド同期の対象外（端末ローカルのまま）。
    ============================================================ */
-const SUPABASE_URL='';        // ① Supabase の Project URL をここに貼る
-const SUPABASE_ANON_KEY='';   // ① Supabase の anon public key をここに貼る
+const SUPABASE_URL='https://gwjbpdxsvnbxqktqmuxb.supabase.co';        // atlas-gym プロジェクト
+const SUPABASE_ANON_KEY='sb_publishable_1Mg1c1SLpHYYQvpEQ4tKjw_UTf3IH8B';   // 公開鍵（RLSで各自のデータを保護）
 const CLOUD_ON = !!(SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase);
 const SYNC_META_KEY='gym_sync_v1';   // {lastEdit,lastPush,lastPull}
-let sb=null;
+let sb=null, _cloudUser=null, _isAdmin=false;   // _cloudUser=ログイン中のメール / _isAdmin=オーナー（管理画面が使えるか）
 if(CLOUD_ON){ try{ sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true}}); }catch(e){ console.warn('[sync] init失敗',e); } }
 
 // ユーザーID → ダミーメール（Supabase Authはメール必須のため内部で変換）
-function idToEmail(id){ return id.trim().toLowerCase().replace(/[^a-z0-9._-]/g,'') + '@atlas.gymapp.local'; }
+function idToEmail(id){ return id.trim().toLowerCase().replace(/[^a-z0-9._-]/g,'') + '@atlasgym.app'; }
 function syncMeta(){ return load(SYNC_META_KEY,{}); }
 function setSyncMeta(patch){ const m=Object.assign(syncMeta(),patch); save(SYNC_META_KEY,m); return m; }
 const _ms=s=>{ const t=Date.parse(s||''); return isNaN(t)?0:t; };
@@ -896,6 +900,12 @@ function scheduleSync(){
   _syncTimer=setTimeout(()=>{ pushCloud(); }, 2500);
 }
 async function currentUser(){ if(!sb) return null; try{ const {data}=await sb.auth.getUser(); return data.user||null; }catch(e){ return null; } }
+// ログイン中ユーザーがオーナー（管理者）かを profiles から取得
+async function loadAdminFlag(){
+  _isAdmin=false;
+  if(!sb) return;
+  try{ const {data}=await sb.from('profiles').select('is_admin').maybeSingle(); _isAdmin=!!(data&&data.is_admin); }catch(e){}
+}
 async function pushCloud(){
   if(!CLOUD_ON||!sb||_pushing) return;
   const user=await currentUser(); if(!user) return;
@@ -935,6 +945,7 @@ function authRender(){
   const sw=document.querySelector('.auth-switch');
   if(sw&&sw.firstChild) sw.firstChild.textContent=login?'アカウントをお持ちでない方は ':'すでにアカウントをお持ちの方は ';
   document.getElementById('authPw').setAttribute('autocomplete',login?'current-password':'new-password');
+  const nf=document.getElementById('authNameField'); if(nf) nf.style.display = login?'none':'block';
   const msg=document.getElementById('authMsg'); msg.textContent=''; msg.className='auth-msg';
 }
 function authErrMsg(e){
@@ -957,7 +968,9 @@ async function doAuth(){
   const orig=txt.textContent; btn.disabled=true; txt.innerHTML='<span class="auth-spin"></span>';
   try{
     if(_authMode==='signup'){
-      const {error}=await sb.auth.signUp({email,password:pw});
+      const nameEl=document.getElementById('authName');
+      const dispName=(nameEl&&nameEl.value.trim())||id;   // 表示名が空ならユーザーIDを使う
+      const {error}=await sb.auth.signUp({email,password:pw,options:{data:{display_name:dispName}}});
       if(error) throw error;
       // メール確認OFF前提でセッションが即発行される。既存ローカルデータはこの後pullCloudでseedされる
       msg.className='auth-msg ok'; msg.textContent='アカウントを作成しました。同期を開始します…';
@@ -974,7 +987,9 @@ async function doAuth(){
   }
 }
 async function afterLogin(isNew){
+  const u=await currentUser(); _cloudUser=u?u.email:null;
   await pullCloud();
+  await loadAdminFlag();
   hideAuth();
   render();
   try{ toast(isNew?'ようこそ。記録を同期しました':'おかえりなさい'); }catch(e){}
@@ -984,12 +999,46 @@ async function logoutCloud(){
   try{ await sb.auth.signOut(); }catch(e){}
   location.reload();
 }
+// オーナー管理画面：全ユーザーの進捗を集計して一覧表示（閲覧のみ）
+async function openAdmin(){
+  if(!sb||!_isAdmin) return;
+  let host=document.getElementById('adminScreen');
+  if(!host){ host=document.createElement('div'); host.id='adminScreen'; host.className='authgate'; document.body.appendChild(host); }
+  host.classList.add('on');
+  host.innerHTML='<div class="auth-card" style="max-width:560px"><div style="text-align:center;color:var(--txt-2);padding:24px">読み込み中…</div></div>';
+  try{
+    const [pRes,sRes]=await Promise.all([
+      sb.from('profiles').select('user_id,display_name,is_admin,created_at'),
+      sb.from('gym_state').select('user_id,updated_at,payload')
+    ]);
+    const profs=pRes.data||[], states=sRes.data||[];
+    const byId={}; states.forEach(s=>byId[s.user_id]=s);
+    const wkAgo=new Date(Date.now()-7*864e5);
+    const rows=profs.map(p=>{
+      const st=byId[p.user_id], pl=(st&&st.payload)||{};
+      const logs=Array.isArray(pl.logs)?pl.logs:[];
+      const days=new Set(logs.map(l=>l&&l.date).filter(Boolean)).size;
+      const wk=new Set(logs.filter(l=>l&&l.date&&new Date(l.date)>=wkAgo).map(l=>l.date)).size;
+      const vol=logs.reduce((a,l)=>a+((l&&Array.isArray(l.sets)?l.sets:[]).reduce((x,s)=>x+((+((s&&s.w))||0)*(+((s&&s.r))||0)),0)),0);
+      return {name:p.display_name||(p.user_id||'').slice(0,8), admin:p.is_admin, days, wk, vol, updated:st?st.updated_at:null};
+    }).sort((a,b)=>(b.updated||'').localeCompare(a.updated||''));
+    const list=rows.map(r=>`<div class="item"><div class="row" style="justify-content:space-between"><span class="n">${r.name}${r.admin?' <span class="tag">オーナー</span>':''}</span><span style="color:var(--txt-2);font-size:12px">${r.updated?fmtDate(r.updated.slice(0,10)):'—'}</span></div><div style="display:flex;gap:16px;margin-top:6px;font-size:12.5px;color:var(--txt-2)"><span>記録 <b style="color:var(--txt)">${r.days}日</b></span><span>今週 <b style="color:var(--txt)">${r.wk}回</b></span><span>総ﾎﾞﾘｭｰﾑ <b style="color:var(--txt)">${Math.round(r.vol).toLocaleString()}</b></span></div></div>`).join('')||'<div style="color:var(--txt-2);text-align:center;padding:20px">まだ登録ユーザーがいません。</div>';
+    host.innerHTML=`<div class="auth-card" style="max-width:560px;max-height:90vh;overflow-y:auto">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><div style="font-size:18px;font-weight:800">オーナー管理画面</div><button class="btn ghost" id="admClose" style="width:auto;padding:7px 14px">閉じる</button></div>
+      <div style="color:var(--txt-2);font-size:13px;margin-bottom:14px">登録ユーザー <b style="color:var(--txt)">${rows.length}</b>名の進捗一覧（閲覧のみ・他人のデータは書き換えません）。</div>
+      ${list}</div>`;
+    const c=document.getElementById('admClose'); if(c)c.onclick=()=>host.classList.remove('on');
+  }catch(e){
+    host.innerHTML='<div class="auth-card"><div style="color:var(--danger);padding:8px 0">読み込みに失敗しました。時間をおいて再度お試しください。</div><button class="btn ghost" id="admClose2">閉じる</button></div>';
+    const c=document.getElementById('admClose2'); if(c)c.onclick=()=>host.classList.remove('on');
+  }
+}
 // 起動時ゲート：未ログインならログイン画面、ログイン済みならクラウドと同期
 async function bootSync(){
   if(!CLOUD_ON||!sb) return;               // 同期オフ＝従来通り（ゲートを出さない）
   let session=null;
   try{ const {data}=await sb.auth.getSession(); session=data.session; }catch(e){}
-  if(session){ const r=await pullCloud(); if(r&&r.status==='pulled') render(); }
+  if(session){ _cloudUser=(session.user&&session.user.email)||null; const r=await pullCloud(); await loadAdminFlag(); if(r&&r.status==='pulled') render(); }
   else showAuth();
 }
 function exObj(id){ return exercises.find(x=>x.id===id); }
@@ -1961,9 +2010,16 @@ function renderMore(){
       <button class="btn ghost" id="impBtn">バックアップを読み込む</button>
       <input type="file" id="impFile" accept="application/json" style="display:none">
       ${!(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)&&!navigator.standalone?`<div class="hint" style="margin:12px 0 0"><b>ホーム画面に追加</b>してアプリとして使うと、データが消えにくく起動も速くなります。<br><span style="color:var(--txt-3)">iPhone(Safari)：共有ボタン→「ホーム画面に追加」／Android(Chrome)：メニュー→「アプリをインストール」</span></div>`:''}`)}
+    ${(CLOUD_ON && _cloudUser) ? acc('account','アカウント（クラウド同期）',`
+      <div class="set-row"><div>ログイン中のID</div><div style="color:var(--txt);font-weight:700">${(_cloudUser.split('@')[0]||'')}</div></div>
+      <div style="font-size:13px;color:var(--txt-2);line-height:1.7;margin:11px 2px">このIDとパスワードで、どの端末からでも同じ記録を呼び出せます。</div>
+      ${_isAdmin?`<button class="btn primary" id="adminBtn" style="margin-bottom:9px">オーナー管理画面（全員の進捗）</button>`:''}
+      <button class="btn ghost" id="logoutBtn">ログアウト</button>`) : ''}
   </div>`;
 
   v.querySelectorAll('[data-acc]').forEach(h=>h.onclick=()=>{ const k=h.dataset.acc, box=h.closest('.acc'); const open=box.classList.toggle('open'); if(open)accOpen.add(k); else accOpen.delete(k); });
+  { const logoutBtn=document.getElementById('logoutBtn'); if(logoutBtn) logoutBtn.onclick=()=>{ if(confirm('ログアウトしますか？\nこの端末の記録はクラウドに保存済みなので、次に同じIDでログインすれば戻ります。')) logoutCloud(); };
+    const adminBtn=document.getElementById('adminBtn'); if(adminBtn) adminBtn.onclick=()=>openAdmin(); }
   document.getElementById('redoOb').onclick=()=>showOnboard();
   document.getElementById('openGuide').onclick=()=>showGuide();
   const tgA=document.getElementById('tgAuto'); tgA.onclick=()=>{ settings.autoTimer=!settings.autoTimer; saveAll(); tgA.classList.toggle('on'); };
