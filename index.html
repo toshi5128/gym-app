@@ -11,6 +11,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+<!-- クラウド同期（Supabase）SDK。CDN読込に失敗してもアプリはローカルで通常動作する（後段でwindow.supabaseの有無を確認） -->
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <title>ATLAS</title>
 <style>
   :root{
@@ -135,6 +138,8 @@
   .exo-i{flex:0 0 auto; width:21px; height:21px; border-radius:50%; border:1px solid var(--hair); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; font-style:italic; color:var(--txt-3); font-family:var(--font-disp);}
   .exo-sub{font-size:11.5px; color:var(--txt-3); margin-top:8px; line-height:1.35;}
   .exo-done{color:var(--blue); font-weight:800;}
+  .exo.pend{border-color:var(--blue); border-style:dashed; box-shadow:inset 3px 0 0 var(--blue), var(--shadow);}
+  .exo-pend{color:var(--blue); font-weight:800;}
   .dash-total{text-align:center; padding:20px 18px;}
   :root[data-theme="light"] .dash-total{ background:linear-gradient(180deg,#ffffff,#f7efde); }
   .dt-l{font-size:12px; font-weight:700; color:var(--txt-2); letter-spacing:.06em;}
@@ -677,6 +682,45 @@
   .fade-in.anim .ring-prog{animation:ringfill 1s cubic-bezier(.22,1,.36,1);}
   @keyframes ringfill{from{stroke-dashoffset:213.63;}}
   @media (prefers-reduced-motion: reduce){ .fade-in.anim > *{animation:none;} .fade-in.anim .ring-prog{animation:none;} }
+
+  /* ===== ログイン画面（クラウド同期用） ===== */
+  .authgate{position:fixed; inset:0; z-index:200; display:none; align-items:center; justify-content:center;
+    padding:calc(24px + env(safe-area-inset-top)) 22px calc(24px + env(safe-area-inset-bottom));
+    background:var(--bg); background-image:radial-gradient(120% 55% at 50% -8%, var(--bg-glow) 0%, var(--bg) 62%);
+    overflow-y:auto;}
+  .authgate.on{display:flex;}
+  .auth-card{width:100%; max-width:360px; display:flex; flex-direction:column; align-items:stretch; gap:0;}
+  .auth-brand{display:flex; flex-direction:column; align-items:center; gap:12px; margin-bottom:30px;}
+  .auth-mark{width:56px; height:56px; border-radius:17px; background:linear-gradient(150deg,var(--blue),var(--blue2));
+    display:flex; align-items:center; justify-content:center; color:#fff;
+    box-shadow:0 10px 26px -8px rgba(168,132,47,.6), inset 0 1px 0 rgba(255,255,255,.28);}
+  .auth-brand .t{font-family:var(--font-disp); font-size:26px; font-weight:700; letter-spacing:.28em; color:var(--txt); padding-left:.28em;}
+  .auth-brand .sub{font-family:var(--font-disp); font-size:10px; font-weight:700; letter-spacing:.3em; color:var(--txt-3); margin-top:-6px; padding-left:.3em;}
+  .auth-title{font-size:16px; font-weight:700; color:var(--txt); text-align:center; margin-bottom:4px;}
+  .auth-lead{font-size:12.5px; color:var(--txt-2); text-align:center; line-height:1.6; margin-bottom:22px;}
+  .auth-field{margin-bottom:12px;}
+  .auth-field label{display:block; font-family:var(--font-disp); font-size:10.5px; font-weight:700; letter-spacing:.12em;
+    color:var(--txt-3); margin:0 0 6px 2px; text-transform:uppercase;}
+  .auth-in{width:100%; background:var(--surface); border:1.5px solid var(--hair); border-radius:var(--r-sm);
+    padding:14px 15px; font-size:16px; font-family:var(--font-jp); color:var(--txt); outline:none;
+    transition:border-color .15s, box-shadow .15s;}
+  .auth-in:focus{border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-dim);}
+  .auth-in::placeholder{color:var(--txt-3);}
+  .auth-btn{width:100%; margin-top:10px; background:var(--acc); color:var(--on-acc); border:none; border-radius:var(--r-sm);
+    padding:15px; font-size:15px; font-weight:700; font-family:var(--font-jp); cursor:pointer;
+    display:flex; align-items:center; justify-content:center; gap:8px; transition:transform .08s, opacity .15s;}
+  .auth-btn:active{transform:scale(.985);}
+  .auth-btn[disabled]{opacity:.5; cursor:default;}
+  .auth-msg{min-height:18px; font-size:12.5px; line-height:1.5; text-align:center; margin-top:14px; color:var(--danger);}
+  .auth-msg.ok{color:var(--blue2);}
+  .auth-switch{text-align:center; margin-top:20px; font-size:13px; color:var(--txt-2);}
+  .auth-switch button{background:none; border:none; color:var(--blue2); font-weight:700; font-size:13px; font-family:var(--font-jp);
+    cursor:pointer; padding:2px 4px; text-decoration:underline; text-underline-offset:3px;}
+  .auth-foot{text-align:center; margin-top:26px; font-size:11px; color:var(--txt-3); line-height:1.6;}
+  .auth-spin{width:16px; height:16px; border:2px solid rgba(255,255,255,.35); border-top-color:#fff; border-radius:50%;
+    animation:authspin .7s linear infinite;}
+  :root[data-theme="light"] .auth-spin{border-color:rgba(255,255,255,.5); border-top-color:#fff;}
+  @keyframes authspin{to{transform:rotate(360deg);}}
 </style>
 </head>
 <body>
@@ -707,6 +751,30 @@
   <div class="pv-top"><button id="pvClose">閉じる</button><span id="pvDate"></span><button id="pvDel">削除</button></div>
   <div class="pv-img"><img id="pvImg" src="" alt=""></div>
   <div class="pv-cap"><input id="pvCap" placeholder="メモ（例：胸トレ後 / 体重72.4kg）"></div>
+</div>
+
+<div class="authgate" id="authgate">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <div class="auth-mark"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6.5 6v12M3.5 8.5v7M17.5 6v12M20.5 8.5v7M6.5 12h11"/></svg></div>
+      <div class="t">ATLAS</div>
+      <div class="sub">STRENGTH LOG</div>
+    </div>
+    <div class="auth-title" id="authTitle">ログイン</div>
+    <div class="auth-lead" id="authLead">ユーザーIDとパスワードでログインすると、どの端末でも同じ記録が使えます。</div>
+    <div class="auth-field">
+      <label for="authId">ユーザーID</label>
+      <input class="auth-in" id="authId" type="text" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="例）shimoda">
+    </div>
+    <div class="auth-field">
+      <label for="authPw">パスワード</label>
+      <input class="auth-in" id="authPw" type="password" autocomplete="current-password" placeholder="6文字以上">
+    </div>
+    <button class="auth-btn" id="authBtn"><span id="authBtnTxt">ログイン</span></button>
+    <div class="auth-msg" id="authMsg"></div>
+    <div class="auth-switch">アカウントをお持ちでない方は <button id="authToggle">新規登録</button></div>
+    <div class="auth-foot">記録は安全なクラウドに保存され、<br>このデバイスにも控えが残ります。</div>
+  </div>
 </div>
 
 <script>
@@ -761,7 +829,153 @@ applyTheme();
 let prog=load(KEY_PROG,{program:'531', week:1, cycle:1, tm:{bench:null,squat:null,dead:null}});  // パワーリフティングプログラム
 let dayInfo=load(KEY_DAY,{});   // {date:{cond:1-5, sleep:number|null, memo:string}} その日の体調・メモ
 
-function saveAll(){ save(KEY_EX,exercises); save(KEY_LOG,logs); save(KEY_RT,routines); save(KEY_BW,bw); save(KEY_MEAS,meas); save(KEY_SET,settings); save(KEY_PROG,prog); save(KEY_DAY,dayInfo); }
+function saveAllLocal(){ save(KEY_EX,exercises); save(KEY_LOG,logs); save(KEY_RT,routines); save(KEY_BW,bw); save(KEY_MEAS,meas); save(KEY_SET,settings); save(KEY_PROG,prog); save(KEY_DAY,dayInfo); }
+function saveAll(){ saveAllLocal(); scheduleSync(); }
+
+/* ============================================================
+   クラウド同期（Supabase）— 複数端末で同じ記録を使うための仕組み
+   ------------------------------------------------------------
+   ・接続情報(URL/鍵)が空の間は CLOUD_ON=false ＝ 従来どおりローカルのみで動作。
+     ① Supabaseを用意して下の2つを埋めた瞬間に、ログイン＆同期が有効化される。
+   ・保存は今まで通り即ローカル(saveAllLocal)。その後2.5秒まとめて1回だけ
+     クラウドへ丸ごとupsert（＝書きすぎない＝I/O枯渇を避ける）。
+   ・写真(IndexedDB)は重いのでクラウド同期の対象外（端末ローカルのまま）。
+   ============================================================ */
+const SUPABASE_URL='';        // ① Supabase の Project URL をここに貼る
+const SUPABASE_ANON_KEY='';   // ① Supabase の anon public key をここに貼る
+const CLOUD_ON = !!(SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase);
+const SYNC_META_KEY='gym_sync_v1';   // {lastEdit,lastPush,lastPull}
+let sb=null;
+if(CLOUD_ON){ try{ sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true}}); }catch(e){ console.warn('[sync] init失敗',e); } }
+
+// ユーザーID → ダミーメール（Supabase Authはメール必須のため内部で変換）
+function idToEmail(id){ return id.trim().toLowerCase().replace(/[^a-z0-9._-]/g,'') + '@atlas.gymapp.local'; }
+function syncMeta(){ return load(SYNC_META_KEY,{}); }
+function setSyncMeta(patch){ const m=Object.assign(syncMeta(),patch); save(SYNC_META_KEY,m); return m; }
+const _ms=s=>{ const t=Date.parse(s||''); return isNaN(t)?0:t; };
+
+// 同期対象データを1つのpayloadに（写真は含めない）
+function collectPayload(){ return {exercises,logs,routines,bw,meas,settings,prog,dayInfo}; }
+// クラウド由来payloadをローカル変数＆localStorageへ反映（※クラウドへは書き戻さない=ループ防止）
+function applyPayload(p){
+  if(!p||typeof p!=='object') return false;
+  if(Array.isArray(p.exercises)) exercises=p.exercises;
+  if(Array.isArray(p.logs))      logs=p.logs;
+  if(Array.isArray(p.routines))  routines=p.routines;
+  if(Array.isArray(p.bw))        bw=p.bw;
+  if(Array.isArray(p.meas))      meas=p.meas;
+  if(p.settings&&typeof p.settings==='object') settings=Object.assign(settings,p.settings);
+  if(p.prog&&typeof p.prog==='object')         prog=p.prog;
+  if(p.dayInfo&&typeof p.dayInfo==='object')   dayInfo=p.dayInfo;
+  saveAllLocal();
+  return true;
+}
+
+let _syncTimer=null,_pushing=false;
+// 保存のたびに呼ばれる：最終編集時刻を刻み、2.5秒後にまとめてクラウドへ
+function scheduleSync(){
+  if(!CLOUD_ON||!sb) return;
+  setSyncMeta({lastEdit:new Date().toISOString()});
+  clearTimeout(_syncTimer);
+  _syncTimer=setTimeout(()=>{ pushCloud(); }, 2500);
+}
+async function currentUser(){ if(!sb) return null; try{ const {data}=await sb.auth.getUser(); return data.user||null; }catch(e){ return null; } }
+async function pushCloud(){
+  if(!CLOUD_ON||!sb||_pushing) return;
+  const user=await currentUser(); if(!user) return;
+  _pushing=true; const now=new Date().toISOString();
+  try{
+    const {error}=await sb.from('gym_state').upsert({user_id:user.id,payload:collectPayload(),updated_at:now},{onConflict:'user_id'});
+    if(error) console.warn('[sync] push失敗',error); else setSyncMeta({lastPush:now});
+  }catch(e){ console.warn('[sync] push例外',e); }
+  finally{ _pushing=false; }
+}
+// 起動/ログイン時：クラウドとローカルを突き合わせ、新しい方を採用（1人利用のためLWW）
+async function pullCloud(){
+  if(!CLOUD_ON||!sb) return {status:'off'};
+  const user=await currentUser(); if(!user) return {status:'noauth'};
+  try{
+    const {data,error}=await sb.from('gym_state').select('payload,updated_at').eq('user_id',user.id).maybeSingle();
+    if(error){ console.warn('[sync] pull失敗',error); return {status:'error'}; }
+    if(!data){ await pushCloud(); return {status:'seeded'}; }          // クラウド未作成→今のローカルを初期アップ
+    const cloudT=_ms(data.updated_at), localT=_ms(syncMeta().lastEdit);
+    if(cloudT>localT){ applyPayload(data.payload); setSyncMeta({lastPull:data.updated_at}); return {status:'pulled'}; }
+    await pushCloud(); return {status:'kept-local'};                   // ローカルの方が新しい→上書き防止でpush
+  }catch(e){ console.warn('[sync] pull例外',e); return {status:'error'}; }
+}
+
+/* ---- ログイン画面（認証UI） ---- */
+let _authMode='login';
+function showAuth(){ const g=document.getElementById('authgate'); if(g){ g.classList.add('on'); authRender(); } }
+function hideAuth(){ const g=document.getElementById('authgate'); if(g) g.classList.remove('on'); }
+function authRender(){
+  const login=_authMode==='login';
+  document.getElementById('authTitle').textContent=login?'ログイン':'新規登録';
+  document.getElementById('authLead').textContent=login
+    ?'ユーザーIDとパスワードでログインすると、どの端末でも同じ記録が使えます。'
+    :'ユーザーIDとパスワードを決めてください。この2つで、どの端末からでも記録を呼び出せます。';
+  document.getElementById('authBtnTxt').textContent=login?'ログイン':'アカウントを作成';
+  document.getElementById('authToggle').textContent=login?'新規登録':'ログイン';
+  const sw=document.querySelector('.auth-switch');
+  if(sw&&sw.firstChild) sw.firstChild.textContent=login?'アカウントをお持ちでない方は ':'すでにアカウントをお持ちの方は ';
+  document.getElementById('authPw').setAttribute('autocomplete',login?'current-password':'new-password');
+  const msg=document.getElementById('authMsg'); msg.textContent=''; msg.className='auth-msg';
+}
+function authErrMsg(e){
+  const m=((e&&e.message)||'').toLowerCase();
+  if(m.includes('invalid login')||m.includes('invalid credentials')) return 'ユーザーIDまたはパスワードが違います。';
+  if(m.includes('already')) return 'このユーザーIDは既に使われています。「ログイン」に切り替えてください。';
+  if(m.includes('at least')||m.includes('weak')||m.includes('password')) return 'パスワードは6文字以上にしてください。';
+  if(m.includes('network')||m.includes('fetch')||m.includes('failed to')) return 'ネットワークに接続できません。通信環境をご確認ください。';
+  return 'うまくいきませんでした。少し時間をおいて再度お試しください。';
+}
+async function doAuth(){
+  if(!sb) return;
+  const id=document.getElementById('authId').value.trim();
+  const pw=document.getElementById('authPw').value;
+  const msg=document.getElementById('authMsg'); msg.className='auth-msg';
+  if(id.length<2){ msg.textContent='ユーザーIDは2文字以上で入力してください。'; return; }
+  if(pw.length<6){ msg.textContent='パスワードは6文字以上で入力してください。'; return; }
+  const email=idToEmail(id);
+  const btn=document.getElementById('authBtn'),txt=document.getElementById('authBtnTxt');
+  const orig=txt.textContent; btn.disabled=true; txt.innerHTML='<span class="auth-spin"></span>';
+  try{
+    if(_authMode==='signup'){
+      const {error}=await sb.auth.signUp({email,password:pw});
+      if(error) throw error;
+      // メール確認OFF前提でセッションが即発行される。既存ローカルデータはこの後pullCloudでseedされる
+      msg.className='auth-msg ok'; msg.textContent='アカウントを作成しました。同期を開始します…';
+      await afterLogin(true);
+    } else {
+      const {error}=await sb.auth.signInWithPassword({email,password:pw});
+      if(error) throw error;
+      msg.className='auth-msg ok'; msg.textContent='ログインしました。同期しています…';
+      await afterLogin(false);
+    }
+  }catch(e){
+    msg.className='auth-msg'; msg.textContent=authErrMsg(e);
+    btn.disabled=false; txt.textContent=orig;
+  }
+}
+async function afterLogin(isNew){
+  await pullCloud();
+  hideAuth();
+  render();
+  try{ toast(isNew?'ようこそ。記録を同期しました':'おかえりなさい'); }catch(e){}
+}
+async function logoutCloud(){
+  if(!sb) return;
+  try{ await sb.auth.signOut(); }catch(e){}
+  location.reload();
+}
+// 起動時ゲート：未ログインならログイン画面、ログイン済みならクラウドと同期
+async function bootSync(){
+  if(!CLOUD_ON||!sb) return;               // 同期オフ＝従来通り（ゲートを出さない）
+  let session=null;
+  try{ const {data}=await sb.auth.getSession(); session=data.session; }catch(e){}
+  if(session){ const r=await pullCloud(); if(r&&r.status==='pulled') render(); }
+  else showAuth();
+}
 function exObj(id){ return exercises.find(x=>x.id===id); }
 function exName(id){ const e=exObj(id); return e?e.name:'(削除済)'; }
 function exMuscle(id){ const e=exObj(id); return e?e.muscle:''; }
@@ -1080,6 +1294,7 @@ document.getElementById('restbar').addEventListener('click',e=>{ const a=e.targe
 /* ============ 今日 / 任意の日 ============ */
 let workDate=todayStr();              // 編集・追加の対象日（既定=今日。過去/未来も可）
 let selRt=null, draftExId=null, draftSets=[{w:'',r:''}], draftWarm=[], editId=null;
+let pendingDrafts={};   // exId→{sets,warm} 前回セッションから丸ごと入れた「記録待ち」の下書き（未保存）
 function clearDraft(){ draftSets=[{w:'',r:''}]; draftWarm=[]; }
 function todaysLogs(){ return logs.filter(l=>l.date===workDate); }     // 対象日の記録
 function isToday(){ return workDate===todayStr(); }
@@ -1093,8 +1308,29 @@ function dayInfoHtml(date){ const di=dayInfo[date]; if(!di||(!di.cond&&di.sleep=
   return `<div class="day-info">${bits?`<div class="di-meta">${bits}</div>`:''}${di.memo?`<div class="di-memo">${di.memo.replace(/</g,'&lt;')}</div>`:''}</div>`; }
 function shiftDate(ds,delta){ const a=ds.split('-').map(Number); const dt=new Date(a[0],a[1]-1,a[2]+delta);
   return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
-function setWorkDate(d){ if(!d)d=todayStr(); workDate=d; selRt=null; draftExId=null; clearDraft(); editId=null; renderLog(); }
+function setWorkDate(d){ if(!d)d=todayStr(); workDate=d; selRt=null; draftExId=null; clearDraft(); pendingDrafts={}; editId=null; renderLog(); }
 function lastRecord(exId){ const p=logs.filter(l=>l.exId===exId&&l.date<workDate).sort((a,b)=>b.date.localeCompare(a.date)); return p[0]||null; }
+// 選んだ分割（日）の「前回セッション」= workDateより前で、この分割の記録がある一番新しい日
+function prevRoutineSession(rtId){ if(!rtId)return null;
+  const dates=[...new Set(logs.filter(l=>l.rtId===rtId&&l.date<workDate).map(l=>l.date))].sort((a,b)=>b.localeCompare(a));
+  if(!dates.length)return null; const d=dates[0];
+  return {date:d, logs:logs.filter(l=>l.rtId===rtId&&l.date===d)}; }
+// 記録待ち下書きがあればそれを、なければ空を、編集エリアに読み込む
+function loadDraftFromPending(id){ const p=pendingDrafts[id];
+  if(p){ draftSets=p.sets.map(s=>({...s})); draftWarm=p.warm.map(s=>({...s})); } else clearDraft(); }
+// 編集中の下書きが「記録待ち」の種目なら、途中の変更を退避してから切り替える
+function stashDraftIfPending(){ if(draftExId&&pendingDrafts[draftExId]&&!doneTodayEx(draftExId)){
+  pendingDrafts[draftExId]={sets:draftSets.map(s=>({...s})), warm:draftWarm.map(s=>({...s}))}; } }
+// 前回のこの分割メニューを丸ごと下書きに入れる（各種目に前回値・記録待ち）
+function loadPrevSession(){ const rt=rtObj(selRt); if(!rt)return; const ps=prevRoutineSession(selRt); if(!ps)return;
+  let n=0;
+  ps.logs.forEach(l=>{ if(!rt.exIds.includes(l.exId))return; if(doneTodayEx(l.exId))return;
+    pendingDrafts[l.exId]={ sets:l.sets.map(s=>({w:String(s.w),r:String(s.r),rir:(s.rir!=null?s.rir:null)})),
+      warm:(l.warm||[]).map(s=>({w:String(s.w),r:String(s.r)})) }; n++; });
+  if(!n){ toast('入れられる種目がありません（すべて記録済みか、メニューが変わっています）'); return; }
+  const first=rt.exIds.find(id=>pendingDrafts[id]&&!doneTodayEx(id));
+  if(first){ draftExId=first; loadDraftFromPending(first); }
+  renderLog(); toast(`前回（${fmtDate(ps.date)}）の${n}種目に前回値を入れました。やった種目だけ記録してね`); }
 function daysSince(iso){ if(!iso)return Infinity; const d=(Date.now()-new Date(iso).getTime())/86400000; return isNaN(d)?Infinity:d; }
 function backupOverdue(){ if(!logs.length)return false; if(settings.backupSnooze && new Date(settings.backupSnooze).getTime()>Date.now())return false; return daysSince(settings.lastBackupAt)>=14; }
 function doneTodayEx(exId){ return todaysLogs().some(l=>l.exId===exId); }
@@ -1137,7 +1373,7 @@ function renderLog(keepScroll){
     const sub=last?`前回 ${last.sets.map(s=>s.w+'×'+s.r).join(' / ')}`:'記録なし';
     return `<div class="menu-item ${ok?'ok':''} ${cur?'cur':''}" data-pick="${id}"><div class="chk">${IC.check}</div>
       <div class="mn"><b>${exName(id)}</b><s>${sub}</s></div><button class="exg-i" data-guide="${id}">i</button><div class="go">${cur?IC.dot:IC.chevron}</div></div>`; }).join(''); }
-  if(draftExId===null&&rt){ draftExId=rt.exIds.find(id=>!doneTodayEx(id))||rt.exIds[0]; }
+  if(draftExId===null&&rt){ draftExId=rt.exIds.find(id=>!doneTodayEx(id))||rt.exIds[0]; loadDraftFromPending(draftExId); }
 
   const last=draftExId?lastRecord(draftExId):null;
   const best=draftExId?bestBefore(draftExId):{maxW:0,max1:0};
@@ -1181,11 +1417,16 @@ function renderLog(keepScroll){
 
   // 今日のメニュー：選んだ部位（日）の種目を横スクロールで一覧表示
   const exRowHtml = rt ? (rt.exIds.length ? rt.exIds.map(id=>{ const ok=doneTodayEx(id), cur=id===draftExId, last=lastRecord(id);
-      const sub=last?`前回 ${last.sets.map(s=>s.w+'×'+s.r).join(' / ')}`:'記録なし';
-      return `<div class="exo ${cur?'on':''} ${ok?'ok':''}" data-pick="${id}">
+      const pend=!ok&&!!pendingDrafts[id];
+      const sub=pend?'<span class="exo-pend">前回値セット済 ・ 記録待ち</span>':(last?`前回 ${last.sets.map(s=>s.w+'×'+s.r).join(' / ')}`:'記録なし');
+      return `<div class="exo ${cur?'on':''} ${ok?'ok':''} ${pend?'pend':''}" data-pick="${id}">
         <div class="exo-top"><b>${exName(id)}</b><span class="exo-i" data-guide="${id}">i</span></div>
         <div class="exo-sub">${ok?'<span class="exo-done">完了</span> ・ ':''}${sub}</div></div>`; }).join('')
     : '<div class="empty" style="padding:22px">この日に種目が未登録です。<br>「分割」タブで追加できます。</div>') : '';
+  // 「前回のこの分割を丸ごと入れる」ボタン：前回セッションがあり、まだ入れていない種目があるとき
+  const _ps=prevRoutineSession(selRt);
+  const _fillable=(rt&&_ps)?rt.exIds.filter(id=>_ps.logs.some(l=>l.exId===id)&&!doneTodayEx(id)&&!pendingDrafts[id]):[];
+  const prevSessHtml=(rt&&_ps&&_fillable.length)?`<button class="btn ghost sm" id="loadPrevSess" style="width:100%;margin:4px 0 2px">前回の${rt.name}トレをまるごと入れる（${_fillable.length}種目・${fmtDate(_ps.date)}）</button>`:'';
 
   const backupBanner = backupOverdue()? `<div class="card bk-nudge">
     <div class="bk-txt"><b>データのバックアップ</b><br>${settings.lastBackupAt?`前回から<b>${Math.floor(daysSince(settings.lastBackupAt))}日</b>経っています。`:'まだ一度も取っていません。'}記録は<b>この端末だけ</b>に保存されています。機種変や故障で消えないよう、書き出しておきましょう。</div>
@@ -1203,6 +1444,7 @@ function renderLog(keepScroll){
     <div class="eyebrow">今日のメニュー（部位を選ぶ）</div>
     <div class="days">${dayChips}</div>
     ${sugNote?`<div class="suggest-note">${sugNote}</div>`:''}
+    ${prevSessHtml}
     ${rt?`<div class="exrow">${exRowHtml}</div>`:''}
     <div class="eyebrow">記録する</div>
     <div class="card">
@@ -1259,8 +1501,9 @@ function renderLog(keepScroll){
 
   v.querySelectorAll('[data-cm]').forEach(b=>b.onclick=()=>{ calMonth=shiftMonth(calMonth||todayStr().slice(0,7), b.dataset.cm==='prev'?-1:1); renderLog(true); });
   v.querySelectorAll('[data-cd]').forEach(c=>c.onclick=()=>{ workDate=c.dataset.cd; selRt=null; draftExId=null; clearDraft(); editId=null; renderLog(); window.scrollTo({top:document.querySelector('.days')?.offsetTop-70||0,behavior:'smooth'}); });
-  v.querySelectorAll('[data-rt]').forEach(d=>d.onclick=()=>{ selRt=d.dataset.rt; draftExId=null; clearDraft(); renderLog(true); });
-  v.querySelectorAll('[data-pick]').forEach(m=>m.onclick=()=>{ draftExId=m.dataset.pick; clearDraft(); renderLog(true); });
+  v.querySelectorAll('[data-rt]').forEach(d=>d.onclick=()=>{ selRt=d.dataset.rt; draftExId=null; clearDraft(); pendingDrafts={}; renderLog(true); });
+  v.querySelectorAll('[data-pick]').forEach(m=>m.onclick=()=>{ stashDraftIfPending(); draftExId=m.dataset.pick; loadDraftFromPending(draftExId); renderLog(true); });
+  const _lp=document.getElementById('loadPrevSess'); if(_lp)_lp.onclick=loadPrevSession;
   const _eg=document.getElementById('exGuideBtn'); if(_eg)_eg.onclick=()=>openExGuide(draftExId);
   const _ep=document.getElementById('exPickBtn'); if(_ep)_ep.onclick=()=>openExPicker();
   const _ep2=document.getElementById('exPickBtn2'); if(_ep2)_ep2.onclick=()=>openExPicker();
@@ -1343,8 +1586,9 @@ function saveDraft(){
     celebratePR(`${exName(draftExId)} ・ ${what}`);
   } else { toast('記録しました'); }
   if(isToday() && settings.autoTimer) Timer.start(restFor(draftExId));
+  delete pendingDrafts[draftExId];   // 記録できたので「記録待ち」から外す
   clearDraft();
-  const rt=rtObj(selRt); if(rt){ const nx=rt.exIds.find(id=>!doneTodayEx(id)); if(nx) draftExId=nx; }
+  const rt=rtObj(selRt); if(rt){ const nx=rt.exIds.find(id=>!doneTodayEx(id)); if(nx){ draftExId=nx; loadDraftFromPending(nx); } }
   renderLog();
 }
 
@@ -1984,6 +2228,15 @@ if(!settings.fixedSplit5){
 render();
 if(!settings.onboarded) showOnboard();
 photoAllDB().then(a=>{ photoCache=a; if(tab==='log'||tab==='history') render(); }).catch(()=>{});
+
+/* ============ クラウド同期：認証UIの配線＆起動ゲート ============ */
+(function(){
+  const tgl=document.getElementById('authToggle'), btn=document.getElementById('authBtn'), pw=document.getElementById('authPw');
+  if(tgl) tgl.onclick=()=>{ _authMode=_authMode==='login'?'signup':'login'; authRender(); };
+  if(btn) btn.onclick=doAuth;
+  if(pw)  pw.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); doAuth(); } });
+})();
+bootSync();
 
 /* ============ PWA: サービスワーカー登録（https/Pages公開時に有効） ============ */
 if('serviceWorker' in navigator){
