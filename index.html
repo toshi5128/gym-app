@@ -861,8 +861,8 @@ function saveAll(){ saveAllLocal(); scheduleSync(); }
      クラウドへ丸ごとupsert（＝書きすぎない＝I/O枯渇を避ける）。
    ・写真(IndexedDB)は重いのでクラウド同期の対象外（端末ローカルのまま）。
    ============================================================ */
-const SUPABASE_URL='https://gwjbpdxsvnbxqktqmuxb.supabase.co';        // atlas-gym プロジェクト
-const SUPABASE_ANON_KEY='sb_publishable_1Mg1c1SLpHYYQvpEQ4tKjw_UTf3IH8B';   // 公開鍵（RLSで各自のデータを保護）
+const SUPABASE_URL='https://hnjrgbcgtfohvmxymmau.supabase.co';        // kintore-toshi プロジェクト（旧atlas-gymは削除済）
+const SUPABASE_ANON_KEY='sb_publishable_5yhAdUHtl9PeFNQ0Z94LdA_DDS9kZIt';   // 公開鍵（RLSで各自のデータを保護）
 const CLOUD_ON = !!(SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase);
 const SYNC_META_KEY='gym_sync_v1';   // {lastEdit,lastPush,lastPull}
 let sb=null, _cloudUser=null, _isAdmin=false;   // _cloudUser=ログイン中のメール / _isAdmin=オーナー（管理画面が使えるか）
