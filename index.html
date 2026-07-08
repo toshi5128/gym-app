@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover, user-scalable=no">
-<meta name="theme-color" content="#f1f0ec">
+<meta name="theme-color" content="#0e2c22">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="ATLAS">
@@ -840,7 +840,7 @@ let bw=load(KEY_BW,[]);                       // [{date, kg}]
 let meas=load(KEY_MEAS,[]);                   // [{date, key, v}] 採寸(cm)
 let settings=Object.assign({rest:90, autoTimer:true, sound:true, soundType:'beep3', soundLong:true, autoRestType:true, bar:20, smithBar:10, units:'kg', sex:'male', goal:'hypertrophy', level:'int', days:4, physique:null, theme:'light', onboarded:false, guideSeen:false, qsDismissed:false, migratedArm:false, fixedSplit5:false, plates:[20,15,10,5,2.5,1.25]}, load(KEY_SET,{}));
 function applyTheme(){ document.documentElement.setAttribute('data-theme','light');
-  const m=document.querySelector('meta[name="theme-color"]'); if(m)m.content='#f1f0ec'; }
+  const m=document.querySelector('meta[name="theme-color"]'); if(m)m.content='#0e2c22'; }
 applyTheme();
 let prog=load(KEY_PROG,{program:'531', week:1, cycle:1, tm:{bench:null,squat:null,dead:null}});  // パワーリフティングプログラム
 let dayInfo=load(KEY_DAY,{});   // {date:{cond:1-5, sleep:number|null, memo:string}} その日の体調・メモ
