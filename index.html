@@ -1190,6 +1190,7 @@ function bigChart(pts){ if(pts.length<2) return `<div class="spark-empty">デー
     <path d="${line}" fill="none" stroke="#b0892f" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>${dots}</svg>`; }
 let chartExId=null, measSel='chest', cmpA=0, cmpB=-1, barType='barbell', toolKind=null, calMonth=null, pickMuscle=null, animateIn=true, pickerOpen=false, rtShowAll=new Set();
 let statsSub='grow';   // 分析タブ内の小タブ: grow=成長 / kiroku=記録 / karada=からだ
+let prMuscle=null;     // 自己ベスト（PR）の部位フィルタ（null=先頭部位を自動選択）
 function countUp(el,to,dec){ if(!el)return; const dur=750,t0=performance.now(); const run=(t)=>{ let p=Math.min(1,(t-t0)/dur); p=1-Math.pow(1-p,3); el.textContent=(to*p).toFixed(dec); if(p<1)requestAnimationFrame(run); }; requestAnimationFrame(run); }
 
 /* ===== 使い方ガイド ===== */
@@ -1800,13 +1801,19 @@ function renderStats(){
     const prDate=[maxWdate,max1date].filter(Boolean).sort().pop()||lastDate;   // 直近にベスト更新した日
     return {name:e.name,muscle:e.muscle,maxW,max1:Math.round(max1),maxR,maxRw,lastDate,prDate,trend};
   }).filter(Boolean).sort((a,b)=>b.max1-a.max1);
-  const prBoardHtml=perEx.map(p=>`<div class="pr-card">
-    <div class="pr-head"><span class="n">${p.name} <span class="tag">${p.muscle}</span></span>${p.prDate?`<span class="pr-date">${fmtDate(p.prDate)} 更新</span>`:''}</div>
+  const prCard=p=>`<div class="pr-card">
+    <div class="pr-head"><span class="n">${p.name}</span>${p.prDate?`<span class="pr-date">${fmtDate(p.prDate)} 更新</span>`:''}</div>
     <div class="pr-stats">
       <div class="pr-st"><div class="pr-v tnum">${p.maxW}<small>kg</small></div><div class="pr-k">最高重量</div></div>
       <div class="pr-st"><div class="pr-v tnum">${p.max1}<small>kg</small></div><div class="pr-k">推定1RM</div></div>
       <div class="pr-st"><div class="pr-v tnum">${p.maxR}<small>回</small></div><div class="pr-k">最多回数<br>(${p.maxRw}kg)</div></div>
-    </div></div>`).join('');
+    </div></div>`;
+  // 自己ベストの部位フィルタ（VOLの順＝胸/背中/脚/肩/腕/腹）
+  let prMuscles=Object.keys(VOL).filter(m=>perEx.some(p=>p.muscle===m));
+  perEx.forEach(p=>{ if(!prMuscles.includes(p.muscle)) prMuscles.push(p.muscle); });
+  if(!prMuscle || !prMuscles.includes(prMuscle)) prMuscle=prMuscles[0]||null;
+  const prChips=`<div class="mchips">${prMuscles.map(m=>`<span class="mchip ${m===prMuscle?'on':''}" data-prm="${m}">${m}</span>`).join('')}</div>`;
+  const prBoardHtml=`${prChips}${perEx.filter(p=>p.muscle===prMuscle).map(prCard).join('')}`;
 
   const wv=weeklyVolume(); const dh=deloadHint();
   const volRows=Object.keys(VOL).map(m=>{ const sets=wv[m]||0; const z=volZone(m,sets); const t=VOL[m]; const scale=t.max+4;
@@ -1916,6 +1923,7 @@ function renderStats(){
   v.innerHTML=`<div class="fade-in">${subbar}${groups[statsSub]||groups.grow}</div>`;
 
   v.querySelectorAll('[data-sub]').forEach(t=>t.onclick=()=>{ statsSub=t.dataset.sub; renderStats(); });
+  v.querySelectorAll('[data-prm]').forEach(c=>c.onclick=()=>{ prMuscle=c.dataset.prm; renderStats(); });
   const _bwSave=document.getElementById('bwSave'); if(_bwSave) _bwSave.onclick=()=>{
     const val=parseFloat(document.getElementById('bwIn').value); if(!val||val<=0){ toast('体重を入力してください'); return; }
     const i=bw.findIndex(x=>x.date===todayStr()); if(i>=0)bw[i].kg=val; else bw.push({date:todayStr(),kg:val});
