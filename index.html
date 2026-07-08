@@ -354,8 +354,7 @@
   .hist-date{font-size:13px; font-weight:700; letter-spacing:.03em; margin-bottom:11px; display:flex; align-items:center; gap:10px; font-family:var(--font-disp);}
   .hist-date .rt{color:var(--txt-3); font-weight:600; font-family:var(--font-jp);}
   .hist-date .vv{margin-left:auto; color:var(--txt-3); font-weight:600; font-size:12px;}
-  .hist-acc{margin-bottom:10px;}
-  .hist-acc .acc-h .hist-hd{font-family:var(--font-disp); font-weight:800; font-size:15px;}
+  .hist-summary{color:#c9d6cd; font-size:12px; font-weight:600; margin:0 2px 12px; font-family:var(--font-jp);}
 
   .stat-grid{display:grid; grid-template-columns:1fr 1fr; gap:11px; margin-bottom:4px;}
   .stat{background:linear-gradient(180deg,var(--surface),var(--surface-2)); border:1px solid var(--hair); border-radius:var(--r-md); padding:16px;}
@@ -520,6 +519,9 @@
   .cal-mk{font-size:8px; font-weight:700; color:var(--blue); line-height:1;}
   .cal-cell.today{outline:2px solid var(--blue); outline-offset:-2px;}
   .cal-cell.today .cal-d{color:var(--txt);}
+  .cal-cell.sel{background:var(--acc);}
+  .cal-cell.sel .cal-d{color:var(--on-acc);}
+  .cal-cell.sel .cal-mk{color:rgba(255,255,255,.82);}
 
   /* quick start & guide */
   .qs-card{border-color:rgba(168,132,47,.3);}
@@ -1193,7 +1195,7 @@ function bigChart(pts){ if(pts.length<2) return `<div class="spark-empty">デー
 let chartExId=null, measSel='chest', cmpA=0, cmpB=-1, barType='barbell', toolKind=null, calMonth=null, pickMuscle=null, animateIn=true, pickerOpen=false, rtShowAll=new Set();
 let statsSub='grow';   // 分析タブ内の小タブ: grow=成長 / kiroku=記録 / karada=からだ
 let prMuscle=null;     // 自己ベスト（PR）の部位フィルタ（null=先頭部位を自動選択）
-let histOpenSet=new Set(), histInited=false;   // 履歴タブ：開いている日付の集合（アコーディオン・複数可）
+let histSelDate=null;   // 履歴タブ：カレンダーで選択中の日付（下にその日の記録を表示）
 function countUp(el,to,dec){ if(!el)return; const dur=750,t0=performance.now(); const run=(t)=>{ let p=Math.min(1,(t-t0)/dur); p=1-Math.pow(1-p,3); el.textContent=(to*p).toFixed(dec); if(p<1)requestAnimationFrame(run); }; requestAnimationFrame(run); }
 
 /* ===== 使い方ガイド ===== */
@@ -1704,7 +1706,7 @@ function buildCalendar(){
   let cells=''; for(let i=0;i<startDow;i++)cells+=`<div class="cal-cell empty"></div>`;
   for(let d=1;d<=daysInMonth;d++){ const ds=`${ym}-${String(d).padStart(2,'0')}`; const parts=byDate[ds]?[...byDate[ds]]:[];
     const has=parts.length>0, mk=has?parts.map(p=>p[0]).join('').slice(0,3):'';
-    cells+=`<div class="cal-cell ${has?'has':''} ${ds===todayStr()?'today':''}" data-cd="${ds}"><span class="cal-d">${d}</span>${has?`<span class="cal-mk">${mk}</span>`:''}</div>`; }
+    cells+=`<div class="cal-cell ${has?'has':''} ${ds===todayStr()?'today':''} ${ds===histSelDate?'sel':''}" data-cd="${ds}"><span class="cal-d">${d}</span>${has?`<span class="cal-mk">${mk}</span>`:''}</div>`; }
   return `<div class="card cal-card">
     <div class="cal-head"><button class="cal-nav" data-cm="prev">‹</button>
       <div class="cal-title">${y}年${m}月<span class="cal-sub">${Object.keys(byDate).length}日 トレ</span></div>
@@ -1743,25 +1745,25 @@ function renderHistory(){
   const v=document.getElementById('view');
   calMonth=calMonth||todayStr().slice(0,7);
   function wireCal(){ v.querySelectorAll('[data-cm]').forEach(b=>b.onclick=()=>{ calMonth=shiftMonth(calMonth,b.dataset.cm==='prev'?-1:1); renderHistory(); });
-    v.querySelectorAll('[data-cd]').forEach(c=>c.onclick=()=>{ workDate=c.dataset.cd; selRt=null; draftExId=null; clearDraft(); editId=null; setTab('log'); window.scrollTo({top:0,behavior:'smooth'}); }); }
+    v.querySelectorAll('[data-cd]').forEach(c=>c.onclick=()=>{ histSelDate=c.dataset.cd; renderHistory(); const el=document.getElementById('histRecords'); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); }); }
   const addBtn=`<button class="btn ghost" id="histAdd" style="margin-bottom:16px;display:flex;align-items:center;justify-content:center;gap:8px">＋ 日付を選んで記録を追加・編集</button>`;
   if(!logs.length){ v.innerHTML=`<div class="fade-in"><div class="eyebrow" style="margin-top:6px">今月のまとめ</div>${monthSummaryHtml()}<div class="eyebrow">記録の履歴</div>${addBtn}<div class="empty">${IC.history.replace('<svg','<svg width=30 height=30')}まだ記録がありません。<br>カレンダーの日付や上のボタンから、いつでも追加できます。</div></div>`;
     document.getElementById('histAdd').onclick=()=>setTab('log'); wireCal(); return; }
   const byDate={}; logs.forEach(l=>{ (byDate[l.date]=byDate[l.date]||[]).push(l); });
   const dates=Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
-  if(!histInited){ if(dates[0]) histOpenSet.add(dates[0]); histInited=true; }
-  const CHEV_H='<svg class="acc-x" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
-  v.innerHTML=`<div class="fade-in"><div class="eyebrow" style="margin-top:6px">今月のまとめ</div>${monthSummaryHtml()}<div class="eyebrow">記録の履歴</div>${addBtn}`+dates.map(d=>{ const rtId=byDate[d].find(l=>l.rtId)?.rtId; const rtName=rtId&&rtObj(rtId)?`${rtObj(rtId).name}の日`:'';
-    const items=byDate[d].map(l=>`<div class="item htap" data-hd="${d}" data-hid="${l.id}"><div class="row" style="justify-content:space-between"><span class="n">${exName(l.exId)} <span class="tag">${exMuscle(l.exId)}</span></span><span class="go">${IC.edit}</span></div>${setListHtml(l.sets,l.warm,l.rir)}</div>`).join('');
-    const vol=byDate[d].reduce((a,l)=>a+l.sets.reduce((x,s)=>x+s.w*s.r,0),0);
-    const ph=photosOn(d); const phHtml=ph.length?`<div class="photo-grid" style="grid-template-columns:repeat(4,1fr);margin-top:9px">${ph.map(p=>`<div class="thumb" data-pid="${p.id}"><img src="${p.data}" loading="lazy" alt=""></div>`).join('')}</div>`:'';
-    const _dm=sessionMinutes(d); const isOpen=histOpenSet.has(d);
-    const sub=`${byDate[d].length}種目${rtName?' ・ '+rtName:''}${_dm!=null?' ・ '+fmtDur(_dm):''} ・ ${vol.toLocaleString()}kg`;
-    const head=`<button class="acc-h" data-hopen="${d}"><span><span class="hist-hd">${fmtDate(d)}</span><span class="acc-sub">${sub}</span></span>${CHEV_H}</button>`;
-    const body=`<div class="acc-body">${isOpen?`${dayInfoHtml(d)}${items}${phHtml}<button class="btn ghost sm" data-add="${d}" style="width:100%;margin-top:8px">＋ この日に種目を追加</button>`:''}</div>`;
-    return `<div class="acc hist-acc${isOpen?' open':''}">${head}${body}</div>`; }).join('')+`</div>`;
-  document.getElementById('histAdd').onclick=()=>setTab('log'); wireCal();
-  v.querySelectorAll('[data-hopen]').forEach(h=>h.onclick=()=>{ const d=h.dataset.hopen; if(histOpenSet.has(d))histOpenSet.delete(d); else histOpenSet.add(d); renderHistory(); });
+  if(!histSelDate) histSelDate=dates[0]||todayStr();
+  const rec=byDate[histSelDate]||[];
+  const selVol=rec.reduce((a,l)=>a+l.sets.reduce((x,s)=>x+s.w*s.r,0),0);
+  const selRtId=rec.find(l=>l.rtId)?.rtId; const selRtName=selRtId&&rtObj(selRtId)?`${rtObj(selRtId).name}の日`:'';
+  const selDm=sessionMinutes(histSelDate);
+  const selItems=rec.map(l=>`<div class="item htap" data-hd="${histSelDate}" data-hid="${l.id}"><div class="row" style="justify-content:space-between"><span class="n">${exName(l.exId)} <span class="tag">${exMuscle(l.exId)}</span></span><span class="go">${IC.edit}</span></div>${setListHtml(l.sets,l.warm,l.rir)}</div>`).join('');
+  const selPh=photosOn(histSelDate); const selPhHtml=selPh.length?`<div class="photo-grid" style="grid-template-columns:repeat(4,1fr);margin-top:9px">${selPh.map(p=>`<div class="thumb" data-pid="${p.id}"><img src="${p.data}" loading="lazy" alt=""></div>`).join('')}</div>`:'';
+  const summary=rec.length?`${rec.length}種目${selRtName?' ・ '+selRtName:''}${selDm!=null?' ・ '+fmtDur(selDm):''} ・ ${selVol.toLocaleString()}kg`:'';
+  const panel=rec.length
+    ? `<div class="hist-summary">${summary}</div>${dayInfoHtml(histSelDate)}${selItems}${selPhHtml}<button class="btn ghost sm" data-add="${histSelDate}" style="width:100%;margin-top:10px">＋ この日に種目を追加</button>`
+    : `<div class="empty" style="padding:22px 16px">${IC.history.replace('<svg','<svg width=26 height=26')}この日はまだ記録がありません。<br><button class="btn ghost sm" data-add="${histSelDate}" style="margin-top:12px">＋ この日に記録する</button></div>`;
+  v.innerHTML=`<div class="fade-in"><div class="eyebrow" style="margin-top:6px">今月のまとめ</div>${monthSummaryHtml()}<div class="hint" style="border:none;padding:0 2px;margin:2px 0 14px;color:#c9d6cd">カレンダーの日付を押すと、その日の記録が下に出ます。</div><div class="eyebrow" id="histRecords">${fmtDate(histSelDate)} の記録</div>${panel}</div>`;
+  wireCal();
   v.querySelectorAll('[data-pid]').forEach(t=>t.onclick=ev=>{ ev.stopPropagation(); openPhoto(t.dataset.pid); });
   v.querySelectorAll('.htap').forEach(it=>it.onclick=()=>{ const l=logs.find(x=>x.id===it.dataset.hid);
     workDate=it.dataset.hd; selRt=l?.rtId||null; if(l){ draftExId=l.exId; draftSets=l.sets.map(s=>({w:s.w,r:s.r})); editId=l.id; } setTab('log'); window.scrollTo({top:0,behavior:'smooth'}); });
