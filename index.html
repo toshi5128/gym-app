@@ -31,26 +31,35 @@
     --font-jp:'Zen Kaku Gothic New',-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic UI",system-ui,sans-serif;
     --font-disp:'Space Grotesk','Zen Kaku Gothic New',-apple-system,system-ui,sans-serif;
   }
-  /* ===== エメラルドテーマ（深緑地×白文字×金） ===== */
+  /* ===== エメラルド×クリーム（深緑地×金みの白カード×濃い文字） ===== */
   :root[data-theme="light"]{
-    --bg:#0e2c22; --bg-glow:#164034;
-    --surface:#16402f; --surface-2:#113325; --surface-3:#1f4c3a;
-    --hair:rgba(255,255,255,.10); --hair-2:rgba(255,255,255,.05);
-    --txt:#f2f7f3; --txt-2:#c2d1c8; --txt-3:#8ba99b;
-    --acc:#f4f8f5; --acc-dim:rgba(255,255,255,.12); --on-acc:#0e2c22; --danger:#ff8a72;
-    --blue:#cba24e; --blue2:#9c7a2c; --blue-dim:rgba(203,162,78,.16);
-    --pos:#57cf94; --pos-2:#2ea36c; --pos-dim:rgba(87,207,148,.16);   /* ポジティブ＝明るいエメラルド */
-    --hl:inset 0 1px 0 rgba(255,255,255,.07);
-    --shadow:0 10px 24px -14px rgba(0,0,0,.5), 0 24px 48px -24px rgba(0,0,0,.55);
-    --card-grad:#16402f;
+    --bg:#0e2c22; --bg-glow:#153a2c;
+    --surface:#e9dfc2; --surface-2:#e0d4b2; --surface-3:#e5dabb;
+    --hair:rgba(28,24,16,.13); --hair-2:rgba(28,24,16,.06);
+    --txt:#1c1a17; --txt-2:#5a5347; --txt-3:#8a7f6a;
+    --acc:#1c1a17; --acc-dim:rgba(28,24,16,.07); --on-acc:#f2ecdb; --danger:#c0492f;
+    --blue:#a8842f; --blue2:#876a23; --blue-dim:rgba(168,132,47,.14);
+    --pos:#1f7a52; --pos-2:#155e3e; --pos-dim:rgba(31,122,82,.13);   /* ポジティブ＝深いエメラルド */
+    --hl:inset 0 1px 0 rgba(255,255,255,.5);
+    --shadow:0 8px 22px -12px rgba(0,0,0,.5), 0 20px 44px -24px rgba(0,0,0,.4);
+    --card-grad:#eee6cd;
   }
-  :root[data-theme="light"] .hero{ background:linear-gradient(180deg,#1a4a37,#0e2c22); }
-  :root[data-theme="light"] .suggest-card{ background:linear-gradient(180deg,#194835,#123528); }
-  :root[data-theme="light"] .goal-card, :root[data-theme="light"] .goal-cta{ background:linear-gradient(180deg,#1a4a37,#123528); }
+  :root[data-theme="light"] .hero{ background:linear-gradient(180deg,#efe7cf,#e9dfc2); }
+  :root[data-theme="light"] .suggest-card{ background:linear-gradient(180deg,#f0e6cb,#e9dfc2); }
+  :root[data-theme="light"] .goal-card, :root[data-theme="light"] .goal-cta{ background:linear-gradient(180deg,#efe7cf,#e5dabb); }
   :root[data-theme="light"] header{ background:linear-gradient(180deg, rgba(12,38,29,.96) 60%, rgba(12,38,29,0)); }
-  :root[data-theme="light"] nav{ background:rgba(9,30,23,.82); box-shadow:0 20px 50px -22px rgba(0,0,0,.6); }
-  :root[data-theme="light"] .toggle::after{ box-shadow:0 1px 3px rgba(0,0,0,.45); }
-  :root[data-theme="light"] .onboard{ background:rgba(11,34,26,.97); }
+  :root[data-theme="light"] nav{ background:rgba(244,238,222,.92); box-shadow:0 20px 44px -20px rgba(0,0,0,.5); }
+  :root[data-theme="light"] .toggle::after{ box-shadow:0 1px 3px rgba(60,48,20,.3); }
+  :root[data-theme="light"] .onboard{ background:rgba(238,230,208,.98); }
+  /* 緑地の上に乗る文字はライトに保つ（カードの中は濃い文字） */
+  :root[data-theme="light"] .brand .t,
+  :root[data-theme="light"] .brand .date .d{ color:#eef4ef; }
+  :root[data-theme="light"] .brand .sub,
+  :root[data-theme="light"] .brand .date .w{ color:#9fbcac; }
+  :root[data-theme="light"] .eyebrow{ color:#a7c3b4; }
+  :root[data-theme="light"] .eyebrow::after{ background:rgba(255,255,255,.14); }
+  :root[data-theme="light"] .fade-in > .hint{ color:#c3d3c9; border-left-color:rgba(255,255,255,.2); }
+  :root[data-theme="light"] .empty{ color:#b6c8bd; }
   .seg3{display:inline-flex; gap:4px; background:var(--surface-3); padding:4px; border-radius:12px; flex-shrink:0;}
   .seg3-b{font-size:12px; font-weight:700; padding:7px 13px; border-radius:9px; color:var(--txt-2); cursor:pointer; font-family:var(--font-disp); transition:transform .08s, background-color .15s, color .15s;}
   .seg3-b.on{background:var(--acc); color:var(--on-acc);}
@@ -116,7 +125,7 @@
   .dpick{flex:1; height:48px; background:var(--surface-2); border:1px solid var(--hair); border-radius:13px; color:var(--txt);
     font-weight:700; font-size:15px; padding:0 14px; font-family:var(--font-disp); -webkit-appearance:none; appearance:none; text-align:center;}
   .dpick.edit{border-color:rgba(168,132,47,.5); background:var(--blue-dim);}
-  .dpick::-webkit-calendar-picker-indicator{filter:invert(1); opacity:.55; cursor:pointer;}
+  .dpick::-webkit-calendar-picker-indicator{opacity:.5; cursor:pointer;}
   .datebar .dtoday{height:48px; padding:0 16px; border-radius:13px; background:var(--acc); color:var(--on-acc); border:none;
     font-weight:700; font-size:13px; cursor:pointer; flex-shrink:0; font-family:var(--font-disp);}
 
@@ -143,7 +152,7 @@
   .exo.pend{border-color:var(--blue); border-style:dashed; box-shadow:inset 3px 0 0 var(--blue), var(--shadow);}
   .exo-pend{color:var(--blue); font-weight:800;}
   .dash-total{text-align:center; padding:20px 18px;}
-  :root[data-theme="light"] .dash-total{ background:linear-gradient(180deg,#1a4a37,#0e2c22); }
+  :root[data-theme="light"] .dash-total{ background:linear-gradient(180deg,#efe7cf,#e9dfc2); }
   .dt-l{font-size:12px; font-weight:700; color:var(--txt-2); letter-spacing:.06em;}
   .dt-v{font-size:40px; font-weight:800; letter-spacing:-.02em; line-height:1.05; margin:4px 0 8px;}
   .dt-v small{font-size:18px; font-weight:700; color:var(--txt-2);}
