@@ -616,6 +616,7 @@
   .weektab.on{background:var(--acc); color:var(--on-acc); border-color:transparent;}
   .weektab small{display:block; font-size:9px; color:var(--txt-3); font-weight:600; margin-top:2px; font-family:var(--font-jp);}
   .weektab.on small{color:rgba(242,236,219,.72);}
+  .subtabs{display:grid; grid-template-columns:repeat(3,1fr); gap:6px; margin:0 0 18px;}
   .lift-block{margin-bottom:14px;}
   .lift-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:9px;}
   .lift-head .ln{font-weight:700; font-size:16px;}
@@ -1188,6 +1189,7 @@ function bigChart(pts){ if(pts.length<2) return `<div class="spark-empty">デー
     <path d="${area}" fill="rgba(168,132,47,.12)" stroke="none"/>
     <path d="${line}" fill="none" stroke="#b0892f" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>${dots}</svg>`; }
 let chartExId=null, measSel='chest', cmpA=0, cmpB=-1, barType='barbell', toolKind=null, calMonth=null, pickMuscle=null, animateIn=true, pickerOpen=false, rtShowAll=new Set();
+let statsSub='grow';   // 分析タブ内の小タブ: grow=成長 / kiroku=記録 / karada=からだ
 function countUp(el,to,dec){ if(!el)return; const dur=750,t0=performance.now(); const run=(t)=>{ let p=Math.min(1,(t-t0)/dur); p=1-Math.pow(1-p,3); el.textContent=(to*p).toFixed(dec); if(p<1)requestAnimationFrame(run); }; requestAnimationFrame(run); }
 
 /* ===== 使い方ガイド ===== */
@@ -1860,16 +1862,15 @@ function renderStats(){
       <div class="cmp-slot"><div class="cmp-tag">ビフォー（過去）</div><div class="cmp-img" data-cmp="${parr[ai].id}"><img src="${parr[ai].data}" alt=""></div><label class="cmp-lbl">いつ</label><select id="cmpAsel">${opt(ai)}</select></div>
       <div class="cmp-slot"><div class="cmp-tag">アフター（最近）</div><div class="cmp-img" data-cmp="${parr[bi].id}"><img src="${parr[bi].data}" alt=""></div><label class="cmp-lbl">いつ</label><select id="cmpBsel">${opt(bi)}</select></div></div>`; }
 
-  v.innerHTML=`<div class="fade-in">
-    <div class="eyebrow">サマリー</div>
+  const summarySec=`<div class="eyebrow">サマリー</div>
     <div class="stat-grid">
       <div class="stat"><div class="v tnum">${days}<small> 日</small></div><div class="k">トレ日数</div></div>
       <div class="stat"><div class="v tnum">${(totalVol/1000).toFixed(1)}<small> t</small></div><div class="k">累計ボリューム</div></div>
       <div class="stat"><div class="v tnum">${st.cur}<small> 週</small></div><div class="k">連続トレ週</div></div>
       <div class="stat"><div class="v tnum">${st.wc}<small> 回</small></div><div class="k">今週のトレ</div></div>
-    </div>
+    </div>`;
 
-    <div class="eyebrow">今週の動き</div>
+  const weekSec=`<div class="eyebrow">今週の動き</div>
     <div class="card wk-card">${(()=>{ const thisMon=weekRange().start, lastMon=weekStartOf(shiftDate(thisMon,-1));
       const tw=weekStats(thisMon), lw=weekStats(lastMon);
       const volPct=lw.vol>0?Math.round((tw.vol-lw.vol)/lw.vol*100):null;
@@ -1878,42 +1879,48 @@ function renderStats(){
       const dCls=tw.days>=lw.days?'up':'down';
       return `<div class="wk-row"><span class="wk-k">トレ回数</span><span class="wk-v tnum">${tw.days}<small>回</small></span><span class="wk-sub ${dCls}">先週 ${lw.days}回</span></div>
         <div class="wk-row"><span class="wk-k">ボリューム</span><span class="wk-v tnum">${(tw.vol/1000).toFixed(1)}<small>t</small></span><span class="wk-sub ${volCls}">${volSub}</span></div>
-        <div class="wk-row"><span class="wk-k">自己ベスト更新</span><span class="wk-v tnum"${prsThisWeek()>0?' style="color:var(--pos)"':''}>${prsThisWeek()}<small>回</small></span><span class="wk-sub${prsThisWeek()>0?' up':''}">今週</span></div>`; })()}</div>
+        <div class="wk-row"><span class="wk-k">自己ベスト更新</span><span class="wk-v tnum"${prsThisWeek()>0?' style="color:var(--pos)"':''}>${prsThisWeek()}<small>回</small></span><span class="wk-sub${prsThisWeek()>0?' up':''}">今週</span></div>`; })()}</div>`;
 
-    <div class="eyebrow">自己ベスト（PR）</div>
-    ${perEx.length?prBoardHtml:'<div class="hint" style="border:none;padding:0 2px">記録をためると、種目ごとの<b>最高重量・推定1RM・最多回数</b>がここに並びます。</div>'}
+  const prSec=`<div class="eyebrow">自己ベスト（PR）</div>
+    ${perEx.length?prBoardHtml:'<div class="hint" style="border:none;padding:0 2px">記録をためると、種目ごとの<b>最高重量・推定1RM・最多回数</b>がここに並びます。</div>'}`;
 
-    <div class="eyebrow">トレーニングの記録（直近12週）</div>
-    <div class="card">${heatHtml}<div class="hint" style="margin-top:9px">1マス＝1日。白いマスがトレした日。最高 ${st.best} 週連続。</div></div>
-
-    <div class="eyebrow">今週のボリューム（部位別）</div>
-    ${dh?`<div class="banner">${dh}</div>`:''}
-    <div class="card">${volRows}
-      <div class="hint" style="margin-top:4px">今週の<b>セット数</b>（${fmtDate(weekRange().start)}〜）。白い帯が成長の目安（週<b>10〜20セット</b>前後・個人差あり）。</div></div>
-
-    <div class="eyebrow">筋力レベル（あなたのランク）</div>
-    <div class="card">${stdHtml}<div class="hint" style="margin-top:10px">体重比でBIG3の到達レベルを表示（${settings.sex==='female'?'女性':'男性'}基準・目安）。設定で性別を変更できます。</div></div>
-
-    <div class="eyebrow">推移グラフ（推定1RM）</div>
+  const chartSec=`<div class="eyebrow">推移グラフ（推定1RM）</div>
     <div class="card">
       ${perEx.length?`<select id="chartSel" style="margin-bottom:4px">${chartOpts}</select>${bigChart(chartPts)}`:`<div class="empty" style="padding:24px">${IC.stats.replace('<svg','<svg width=28 height=28')}記録が貯まると推移が出ます。</div>`}
-    </div>
+    </div>`;
 
-    <div class="eyebrow">体重</div>
-    ${bwCard}
-    <div class="eyebrow">採寸（部位サイズ）</div>
-    ${measCard}
+  const stdSec=`<div class="eyebrow">筋力レベル（あなたのランク）</div>
+    <div class="card">${stdHtml}<div class="hint" style="margin-top:10px">体重比でBIG3の到達レベルを表示（${settings.sex==='female'?'女性':'男性'}基準・目安）。設定で性別を変更できます。</div></div>`;
 
-    <div class="eyebrow">進捗写真の比較</div>
-    <div class="card">${cmpHtml}</div>
+  const calSec=`<div class="eyebrow">トレーニングの記録（直近12週）</div>
+    <div class="card">${heatHtml}<div class="hint" style="margin-top:9px">1マス＝1日。白いマスがトレした日。最高 ${st.best} 週連続。</div></div>`;
 
-  </div>`;
+  const volSec=`<div class="eyebrow">今週のボリューム（部位別）</div>
+    ${dh?`<div class="banner">${dh}</div>`:''}
+    <div class="card">${volRows}
+      <div class="hint" style="margin-top:4px">今週の<b>セット数</b>（${fmtDate(weekRange().start)}〜）。白い帯が成長の目安（週<b>10〜20セット</b>前後・個人差あり）。</div></div>`;
 
-  document.getElementById('bwSave').onclick=()=>{
+  const bwSec=`<div class="eyebrow">体重</div>
+    ${bwCard}`;
+
+  const measSec=`<div class="eyebrow">採寸（部位サイズ）</div>
+    ${measCard}`;
+
+  const cmpSec=`<div class="eyebrow">進捗写真の比較</div>
+    <div class="card">${cmpHtml}</div>`;
+
+  const SUBS=[['grow','成長','PR・グラフ'],['kiroku','記録','量・頻度'],['karada','からだ','体重・写真']];
+  const subbar=`<div class="subtabs">${SUBS.map(([k,label,sub])=>`<div class="weektab ${statsSub===k?'on':''}" data-sub="${k}">${label}<small>${sub}</small></div>`).join('')}</div>`;
+  const groups={ grow:summarySec+weekSec+prSec+chartSec+stdSec, kiroku:calSec+volSec, karada:bwSec+measSec+cmpSec };
+
+  v.innerHTML=`<div class="fade-in">${subbar}${groups[statsSub]||groups.grow}</div>`;
+
+  v.querySelectorAll('[data-sub]').forEach(t=>t.onclick=()=>{ statsSub=t.dataset.sub; renderStats(); });
+  const _bwSave=document.getElementById('bwSave'); if(_bwSave) _bwSave.onclick=()=>{
     const val=parseFloat(document.getElementById('bwIn').value); if(!val||val<=0){ toast('体重を入力してください'); return; }
     const i=bw.findIndex(x=>x.date===todayStr()); if(i>=0)bw[i].kg=val; else bw.push({date:todayStr(),kg:val});
     saveAll(); toast('体重を記録しました'); renderStats(); };
-  document.getElementById('measSave').onclick=()=>{
+  const _measSave=document.getElementById('measSave'); if(_measSave) _measSave.onclick=()=>{
     const val=parseFloat(document.getElementById('measIn').value); if(!val||val<=0){ toast('数値を入力してください'); return; }
     const i=meas.findIndex(x=>x.date===todayStr()&&x.key===measSel); if(i>=0)meas[i].v=val; else meas.push({date:todayStr(),key:measSel,v:val});
     saveAll(); toast(measName+'を記録しました'); renderStats(); };
