@@ -1949,10 +1949,10 @@ function renderStats(){
 
   const calSec=`<div class="eyebrow">トレーニングの記録（直近12週）</div>
     <div class="card">
-      <div class="stat-grid" style="margin-bottom:16px">
-        <div class="stat"><div class="v tnum">${totalDays}<small> 日</small></div><div class="k">12週の合計</div></div>
-        <div class="stat"><div class="v tnum">${avgWk}<small> 回</small></div><div class="k">週の平均</div></div>
-        <div class="stat"><div class="v tnum">${st.cur}<small> 週</small></div><div class="k">連続中<br>(最高${st.best}週)</div></div>
+      <div class="stat-grid" style="grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
+        <div class="stat" style="padding:13px 10px"><div class="v tnum">${totalDays}<small> 日</small></div><div class="k">12週の合計</div></div>
+        <div class="stat" style="padding:13px 10px"><div class="v tnum">${avgWk}<small> 回</small></div><div class="k">週の平均</div></div>
+        <div class="stat" style="padding:13px 10px"><div class="v tnum">${st.cur}<small> 週</small></div><div class="k">連続中<br>最高${st.best}週</div></div>
       </div>
       ${wkBars}
       <div class="hint" style="margin-top:10px">棒1本＝1週間。高いほど、その週に<b>たくさんトレした</b>という意味です（数字＝その週のトレ日数）。いちばん右が今週。</div></div>`;
