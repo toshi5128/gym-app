@@ -592,6 +592,9 @@
   .mchips{display:flex; flex-wrap:wrap; gap:7px; margin-bottom:12px;}
   .mchip{background:var(--surface-2); border:1px solid var(--hair); border-radius:20px; padding:7px 13px; font-size:13px; font-weight:600; cursor:pointer; color:var(--txt-2);}
   .mchip.on{background:var(--acc); color:var(--on-acc); border-color:transparent;}
+  .chart-lead{font-size:12.5px; line-height:1.55; color:var(--txt-2); margin-bottom:11px;}
+  .chart-lead b{color:var(--txt); font-weight:800;}
+  .chart-cur{font-size:14px; font-weight:800; color:var(--txt); margin:2px 0 6px;}
   .cmp{display:grid; grid-template-columns:1fr 1fr; gap:9px;}
   .cmp .cmp-slot{}
   .cmp .cmp-img{aspect-ratio:3/4; border-radius:12px; overflow:hidden; background:var(--surface-2); cursor:pointer;}
@@ -1831,7 +1834,7 @@ function renderStats(){
       byDate[l.date]=Math.max(byDate[l.date]||0,es); }); if(l.date>lastDate)lastDate=l.date; });
     const trend=Object.keys(byDate).sort().map(d=>Math.round(byDate[d]));
     const prDate=[maxWdate,max1date].filter(Boolean).sort().pop()||lastDate;   // 直近にベスト更新した日
-    return {name:e.name,muscle:e.muscle,maxW,max1:Math.round(max1),maxR,maxRw,lastDate,prDate,trend};
+    return {id:e.id,name:e.name,muscle:e.muscle,maxW,max1:Math.round(max1),maxR,maxRw,lastDate,prDate,trend};
   }).filter(Boolean).sort((a,b)=>b.max1-a.max1);
   const prCard=p=>`<div class="pr-card">
     <div class="pr-head"><span class="n">${p.name}</span>${p.prDate?`<span class="pr-date">${fmtDate(p.prDate)} 更新</span>`:''}</div>
@@ -1869,11 +1872,12 @@ function renderStats(){
         <div class="std-sub">推定1RM ${Math.round(best)}kg ・ 体重比 ${ratio.toFixed(2)}倍 ・ ${nextTxt}</div>
         <div class="std-seg">${STD_LV.map((n,i)=>`<div class="seg ${i<=lv?'on':''}">${n}</div>`).join('')}</div></div>`; }).join(''); }
 
-  // 詳細チャート
-  if(!chartExId && perEx.length) chartExId=perEx[0].id;
+  // 詳細チャート — 2回以上記録した種目だけがグラフ化できる
+  const graphable=perEx.filter(p=>p.trend.length>=2);   // 既にmax1降順（＝強い種目が先頭）
+  if(!graphable.some(p=>p.id===chartExId)) chartExId=graphable.length?graphable[0].id:null;
   let chartPts=[]; if(chartExId){ const byD={}; logs.filter(l=>l.exId===chartExId).forEach(l=>{ const m=Math.max(...l.sets.map(s=>est1rm(s.w,s.r))); byD[l.date]=Math.max(byD[l.date]||0,m); });
     chartPts=Object.keys(byD).sort().map(d=>({d:d.slice(5).replace('-','/'),val:Math.round(byD[d])})); }
-  const chartOpts=perEx.map(p=>`<option value="${p.id}" ${p.id===chartExId?'selected':''}>${p.name}</option>`).join('');
+  const chartChips=graphable.map(p=>`<span class="mchip ${p.id===chartExId?'on':''}" data-chart="${p.id}">${p.name}</span>`).join('');
 
   // 採寸
   const ms=measSeries(measSel); const mcur=ms[ms.length-1], mprev=ms[ms.length-2]; const measName=(MEAS_LIST.find(x=>x[0]===measSel)||['','部位'])[1];
@@ -1923,9 +1927,13 @@ function renderStats(){
   const prSec=`<div class="eyebrow">自己ベスト（PR）</div>
     ${perEx.length?prBoardHtml:'<div class="hint" style="border:none;padding:0 2px">記録をためると、種目ごとの<b>最高重量・推定1RM・最多回数</b>がここに並びます。</div>'}`;
 
-  const chartSec=`<div class="eyebrow">推移グラフ（推定1RM）</div>
+  const curName=(graphable.find(p=>p.id===chartExId)||{}).name||'';
+  const chartSec=`<div class="eyebrow">推移グラフ</div>
     <div class="card">
-      ${perEx.length?`<select id="chartSel" style="margin-bottom:4px">${chartOpts}</select>${bigChart(chartPts)}`:`<div class="empty" style="padding:24px">${IC.stats.replace('<svg','<svg width=28 height=28')}記録が貯まると推移が出ます。</div>`}
+      ${graphable.length?`<div class="chart-lead">種目を選ぶと、あなたの<b>推定1RM</b>（＝1回だけ全力で挙げられる重さの目安）がどう伸びてきたかを線で見られます。</div>
+        <div class="mchips">${chartChips}</div>
+        <div class="chart-cur">${curName}</div>
+        ${bigChart(chartPts)}`:`<div class="empty" style="padding:24px">${IC.stats.replace('<svg','<svg width=28 height=28')}同じ種目を2回以上記録すると、ここに伸びのグラフが出ます。</div>`}
     </div>`;
 
   const stdSec=`<div class="eyebrow">筋力レベル（あなたのランク）</div>
@@ -1965,7 +1973,7 @@ function renderStats(){
     const i=meas.findIndex(x=>x.date===todayStr()&&x.key===measSel); if(i>=0)meas[i].v=val; else meas.push({date:todayStr(),key:measSel,v:val});
     saveAll(); toast(measName+'を記録しました'); renderStats(); };
   v.querySelectorAll('[data-meas]').forEach(c=>c.onclick=()=>{ measSel=c.dataset.meas; renderStats(); });
-  const cs=document.getElementById('chartSel'); if(cs)cs.onchange=e=>{ chartExId=e.target.value; renderStats(); };
+  v.querySelectorAll('[data-chart]').forEach(c=>c.onclick=()=>{ chartExId=c.dataset.chart; renderStats(); });
   const ca=document.getElementById('cmpAsel'); if(ca)ca.onchange=e=>{ cmpA=+e.target.value; renderStats(); };
   const cb=document.getElementById('cmpBsel'); if(cb)cb.onchange=e=>{ cmpB=+e.target.value; renderStats(); };
   v.querySelectorAll('[data-pdays]').forEach(c=>c.onclick=()=>{ const d=+c.dataset.pdays; cmpB=parr.length-1; cmpA=(d===0?0:cmpFindAgo(d)); renderStats(); });
