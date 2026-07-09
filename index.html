@@ -608,6 +608,8 @@
   .thumb{position:relative; aspect-ratio:1; border-radius:12px; overflow:hidden; background:var(--surface-2); cursor:pointer;}
   .thumb img{width:100%; height:100%; object-fit:cover; display:block;}
   .thumb:active{opacity:.8;}
+  .ph-month{font-size:13px; font-weight:800; color:var(--txt-2); margin:4px 2px 9px; display:flex; align-items:center; gap:8px;}
+  .ph-count{font-size:11px; font-weight:600; color:var(--txt-3);}
   .pview{position:fixed; inset:0; z-index:85; background:rgba(0,0,0,.95); display:none; flex-direction:column;}
   .pview.show{display:flex;}
   .pview .pv-top{display:flex; justify-content:space-between; align-items:center; padding:calc(14px + env(safe-area-inset-top)) 18px 10px;}
@@ -820,6 +822,7 @@ const IC={
   history:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3.5" y="5" width="17" height="16" rx="2.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4" stroke-linecap="round"/></svg>',
   stats:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 4v16h16" stroke-linecap="round"/><path d="M7.5 14l3.5-3.5 3 3 4.5-5.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
   routine:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3.5l8 4.2-8 4.2-8-4.2z" stroke-linejoin="round"/><path d="M4 12l8 4.2 8-4.2" stroke-linejoin="round" stroke-linecap="round"/></svg>',
+  photos:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8 7l1.5-2.5h5L16 7" stroke-linejoin="round" stroke-linecap="round"/><circle cx="12" cy="13.4" r="3.3"/></svg>',
   more:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M4 21v-6M4 11V3M12 21v-9M12 8V3M20 21v-4M20 13V3"/><path d="M2 15h4M10 8h4M18 17h4"/></svg>',
   check:'<svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5 11-11"/></svg>',
   chevron:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>',
@@ -1214,10 +1217,11 @@ function countUp(el,to,dec){ if(!el)return; const dur=750,t0=performance.now(); 
 const GUIDE=[
   {t:'① 目的を決める',d:'設定で選んだ目的（筋力／筋肥大／減量）が、休憩時間や「次の目標」提案の土台になります。設定からいつでも変更できます。'},
   {t:'② 「今日」タブで記録する',d:'今日やる分割を選び、種目ごとに「重さ × 回数」を入力して記録。記録すると休憩タイマーが自動で動き、前回超え・自己ベストを教えてくれます。「次の目標」も自動表示。'},
-  {t:'③ 「分析」タブで振り返る',d:'今週のボリューム（部位別セット数）・筋力ランク・推定1RMの推移・体重・採寸・進捗写真の比較がまとまっています。'},
+  {t:'③ 「分析」タブで振り返る',d:'今週のボリューム（部位別セット数）・筋力ランク・推定1RMの推移・体重・採寸がまとまっています。'},
   {t:'④ 「PL」タブで本格的に伸ばす',d:'ベンチ・スクワット・デッドを伸ばす定番プログラム（5/3/1）と、停滞したときの打開策・フォームのコツが入っています。'},
-  {t:'⑤ 「分割」タブでメニュー管理',d:'自分の分割に種目を割り当て。PPLや上下分割などのテンプレからワンタップで作ることもできます。'},
-  {t:'⑥ 困ったら',d:'設定タブからこのガイドを再表示。データは端末内に保存され、設定→データでバックアップ（書き出し／読み込み）できます。'},
+  {t:'⑤ 「変化」タブで体の変化を見る',d:'進捗写真をビフォー／アフターで並べて比較。過去の写真は月ごとの一覧でも振り返れます。写真は「今日」タブで追加します。'},
+  {t:'⑥ 分割メニューの管理',d:'「設定」タブ →「分割メニュー」で、各日に種目を割り当て。PPLや上下分割などのテンプレからワンタップで作ることもできます。'},
+  {t:'⑦ 困ったら',d:'設定タブからこのガイドを再表示。データは端末内に保存され、設定→データでバックアップ（書き出し／読み込み）できます。'},
 ];
 function showGuide(){ const el=document.getElementById('onboard'); el.style.display='flex';
   el.innerHTML=`<div class="ob-card"><div class="ob-title">このアプリの進め方</div>
@@ -1303,7 +1307,7 @@ function openExPicker(){
 })();
 
 /* ============ ナビ ============ */
-const TABS=[['log','今日',IC.today],['history','履歴',IC.history],['stats','分析',IC.stats],['pl','PL',IC.pl],['routine','分割',IC.routine],['more','設定',IC.more]];
+const TABS=[['log','今日',IC.today],['history','履歴',IC.history],['stats','分析',IC.stats],['pl','PL',IC.pl],['photos','変化',IC.photos],['more','設定',IC.more]];
 let tab='log';
 document.getElementById('nav').innerHTML=TABS.map(([id,label,ic])=>`<button data-tab="${id}" class="${id==='log'?'active':''}">${ic}${label}</button>`).join('');
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
@@ -1511,7 +1515,7 @@ function renderLog(keepScroll){
       return `<div class="exo ${cur?'on':''} ${ok?'ok':''} ${pend?'pend':''}" data-pick="${id}">
         <div class="exo-top"><b>${exName(id)}</b><span class="exo-i" data-guide="${id}">i</span></div>
         <div class="exo-sub">${ok?'<span class="exo-done">完了</span> ・ ':''}${sub}</div></div>`; }).join('')
-    : '<div class="empty" style="padding:22px">この日に種目が未登録です。<br>「分割」タブで追加できます。</div>') : '';
+    : '<div class="empty" style="padding:22px">この日に種目が未登録です。<br>「設定」タブ →「分割メニュー」で追加できます。</div>') : '';
   // 「前回のこの分割を丸ごと入れる」ボタン：前回セッションがあり、まだ入れていない種目があるとき
   const _ps=prevRoutineSession(selRt);
   const _fillable=(rt&&_ps)?rt.exIds.filter(id=>_ps.logs.some(l=>l.exId===id)&&!doneTodayEx(id)&&!pendingDrafts[id]):[];
@@ -1888,22 +1892,6 @@ function renderStats(){
     <div class="bw-input"><div class="field"><input id="measIn" type="number" inputmode="decimal" placeholder="${measName}（cm）" value=""><span class="unit">cm</span></div>
       <button class="btn primary" style="width:auto;padding:0 20px" id="measSave">記録</button></div></div>`;
 
-  // 進捗写真の比較
-  const parr=[...photoCache].sort((a,b)=>(a.date+(a.createdAt||'')).localeCompare(b.date+(b.createdAt||'')));
-  const cmpLatest=parr.length?new Date(parr[parr.length-1].date):null;
-  const cmpFindAgo=days=>{ if(!parr.length)return 0; const target=cmpLatest-days*86400000; let best=0,bd=Infinity; parr.forEach((p,i)=>{ const dd=Math.abs(new Date(p.date)-target); if(dd<bd){bd=dd;best=i;} }); return best; };
-  let cmpHtml;
-  if(parr.length<2){ cmpHtml=`<div class="hint" style="border:none;padding:0">写真が2枚以上たまると、ビフォー／アフターを並べて比較できます（「今日」タブで追加）。</div>`; }
-  else { const ai=Math.min(Math.max(0,cmpA),parr.length-1); const bi=cmpB<0?parr.length-1:Math.min(cmpB,parr.length-1);
-    const opt=(sel)=>parr.map((p,i)=>`<option value="${i}" ${i===sel?'selected':''}>${fmtDate(p.date)}</option>`).join('');
-    const days=Math.abs(Math.round((new Date(parr[bi].date)-new Date(parr[ai].date))/86400000));
-    const spanDays=Math.round((cmpLatest-new Date(parr[0].date))/86400000);
-    const PRESETS=[['全期間',0],['1ヶ月',30],['3ヶ月',90],['6ヶ月',180],['1年',365]].filter(([l,d])=>d===0||spanDays>=d*0.8);
-    const presetChips=`<div class="cmp-presets">${PRESETS.map(([lab,d])=>`<span class="cmp-chip" data-pdays="${d}">${d===0?'最初↔最新':lab+'前→最新'}</span>`).join('')}</div>`;
-    const period=`<div class="cmp-period">期間：<b>${fmtDate(parr[ai].date)}</b> → <b>${fmtDate(parr[bi].date)}</b>　<span class="cmp-span">${days}日間${days>=7?`（約${Math.round(days/7)}週間）`:''}</span></div>`;
-    cmpHtml=`${presetChips}${period}<div class="cmp">
-      <div class="cmp-slot"><div class="cmp-tag">ビフォー（過去）</div><div class="cmp-img" data-cmp="${parr[ai].id}"><img src="${parr[ai].data}" alt=""></div><label class="cmp-lbl">いつ</label><select id="cmpAsel">${opt(ai)}</select></div>
-      <div class="cmp-slot"><div class="cmp-tag">アフター（最近）</div><div class="cmp-img" data-cmp="${parr[bi].id}"><img src="${parr[bi].data}" alt=""></div><label class="cmp-lbl">いつ</label><select id="cmpBsel">${opt(bi)}</select></div></div>`; }
 
   const summarySec=`<div class="eyebrow">サマリー</div>
     <div class="stat-grid">
@@ -1953,12 +1941,9 @@ function renderStats(){
   const measSec=`<div class="eyebrow">採寸（部位サイズ）</div>
     ${measCard}`;
 
-  const cmpSec=`<div class="eyebrow">進捗写真の比較</div>
-    <div class="card">${cmpHtml}</div>`;
-
-  const SUBS=[['grow','成長','PR・グラフ'],['kiroku','記録','量・頻度'],['karada','からだ','体重・写真']];
+  const SUBS=[['grow','成長','PR・グラフ'],['kiroku','記録','量・頻度'],['karada','からだ','体重・採寸']];
   const subbar=`<div class="subtabs">${SUBS.map(([k,label,sub])=>`<div class="weektab ${statsSub===k?'on':''}" data-sub="${k}">${label}<small>${sub}</small></div>`).join('')}</div>`;
-  const groups={ grow:summarySec+weekSec+prSec+chartSec+stdSec, kiroku:calSec+volSec, karada:bwSec+measSec+cmpSec };
+  const groups={ grow:summarySec+weekSec+prSec+chartSec+stdSec, kiroku:calSec+volSec, karada:bwSec+measSec };
 
   v.innerHTML=`<div class="fade-in">${subbar}${groups[statsSub]||groups.grow}</div>`;
 
@@ -1974,37 +1959,76 @@ function renderStats(){
     saveAll(); toast(measName+'を記録しました'); renderStats(); };
   v.querySelectorAll('[data-meas]').forEach(c=>c.onclick=()=>{ measSel=c.dataset.meas; renderStats(); });
   v.querySelectorAll('[data-chart]').forEach(c=>c.onclick=()=>{ chartExId=c.dataset.chart; renderStats(); });
-  const ca=document.getElementById('cmpAsel'); if(ca)ca.onchange=e=>{ cmpA=+e.target.value; renderStats(); };
-  const cb=document.getElementById('cmpBsel'); if(cb)cb.onchange=e=>{ cmpB=+e.target.value; renderStats(); };
-  v.querySelectorAll('[data-pdays]').forEach(c=>c.onclick=()=>{ const d=+c.dataset.pdays; cmpB=parr.length-1; cmpA=(d===0?0:cmpFindAgo(d)); renderStats(); });
-  v.querySelectorAll('[data-cmp]').forEach(t=>t.onclick=()=>openPhoto(t.dataset.cmp));
 }
 
 /* ============ 分割 ============ */
-function renderRoutine(){
-  const v=document.getElementById('view');
-  v.innerHTML=`<div class="fade-in">
-    <div class="eyebrow">テンプレートから作る</div>
-    <div class="hint" style="margin:0 4px 12px">目的に合う分割をワンタップで用意（必要な種目も自動で追加）。<b>今の分割は置き換わります</b>（記録した内容は消えません）。</div>
+// 分割メニューのパネル（設定タブのアコーディオン内で使う）——テンプレ作成＋日ごとの種目割り当て
+function splitPanelHtml(){
+  return `<div class="hint" style="margin:0 2px 12px">目的に合う分割をワンタップで用意（必要な種目も自動で追加）。<b>今の分割は置き換わります</b>（記録した内容は消えません）。</div>
     ${HYP_TEMPLATES.map(t=>`<div class="card"><div class="row" style="justify-content:space-between"><strong style="font-size:16px">${t.name}</strong><button class="btn ghost sm" data-tmpl="${t.key}">これにする</button></div>
       <div style="font-size:13px;color:var(--txt-2);line-height:1.6;margin-top:7px">${t.desc}</div>
       <div class="tmpl-days">${t.days.map(d=>d.name).join(' ／ ')}</div></div>`).join('')}
-
-    <div class="eyebrow">いまの分割（種目を割り当て）</div>
-    <div style="padding:0 4px 12px; color:var(--txt-3); font-size:13px; line-height:1.7;">各日にどの種目を入れるかをタップで編集。「今日」タブで前回の続きを自動でおすすめします。</div>
+    <div class="eyebrow" style="margin-top:16px">いまの分割（種目を割り当て）</div>
+    <div style="padding:0 2px 12px; color:var(--txt-3); font-size:13px; line-height:1.7;">各日にどの種目を入れるかをタップで編集。「今日」タブで前回の続きを自動でおすすめします。</div>
     ${routines.map(r=>{ const onIds=new Set(r.exIds);
       const tm=RT_MUS[r.name]||null;                       // この日の対象部位（複合日はnull）
       const showAll=rtShowAll.has(r.id)||!tm;
       const list=showAll?exercises:exercises.filter(e=>e.muscle===tm||onIds.has(e.id));
       const chips=list.map(e=>`<span class="chip ${onIds.has(e.id)?'on':''}" data-rt="${r.id}" data-ex="${e.id}">${e.name}</span>`).join('')
-        || '<div class="hint" style="border:none;padding:6px 2px;margin:0">この部位の種目がありません。「設定 → 種目を追加」で登録できます。</div>';
+        || '<div class="hint" style="border:none;padding:6px 2px;margin:0">この部位の種目がありません。上の「種目を追加」で登録できます。</div>';
       const toggle=tm?`<button class="btn ghost sm" data-rtall="${r.id}" style="margin-top:11px">${showAll?'この部位の種目だけ表示':'＋ 他の部位の種目も表示'}</button>`:'';
-      return `<div class="card"><div class="row" style="justify-content:space-between"><strong style="font-size:17px">${r.name}の日</strong><span class="tag">${r.exIds.length} 種目</span></div><div class="ex-pick">${chips}</div>${toggle}</div>`; }).join('')}</div>`;
-  v.querySelectorAll('[data-tmpl]').forEach(b=>b.onclick=()=>{ if(!confirm('いまの分割をこのテンプレートで置き換えます。よろしいですか？\n（記録した内容は消えません）'))return;
-    applyTemplate(b.dataset.tmpl); selRt=null; draftExId=null; toast('分割を作りました'); renderRoutine(); });
-  v.querySelectorAll('[data-ex]').forEach(c=>c.onclick=()=>{ const r=rtObj(c.dataset.rt),id=c.dataset.ex;
-    if(r.exIds.includes(id))r.exIds=r.exIds.filter(x=>x!==id); else r.exIds.push(id); saveAll(); renderRoutine(); });
-  v.querySelectorAll('[data-rtall]').forEach(b=>b.onclick=()=>{ const id=b.dataset.rtall; rtShowAll.has(id)?rtShowAll.delete(id):rtShowAll.add(id); renderRoutine(); });
+      return `<div class="card"><div class="row" style="justify-content:space-between"><strong style="font-size:17px">${r.name}の日</strong><span class="tag">${r.exIds.length} 種目</span></div><div class="ex-pick">${chips}</div>${toggle}</div>`; }).join('')}`;
+}
+function wireSplitPanel(root){
+  root.querySelectorAll('[data-tmpl]').forEach(b=>b.onclick=()=>{ if(!confirm('いまの分割をこのテンプレートで置き換えます。よろしいですか？\n（記録した内容は消えません）'))return;
+    applyTemplate(b.dataset.tmpl); selRt=null; draftExId=null; toast('分割を作りました'); renderMore(); });
+  root.querySelectorAll('[data-ex]').forEach(c=>c.onclick=()=>{ const r=rtObj(c.dataset.rt),id=c.dataset.ex;
+    if(r.exIds.includes(id))r.exIds=r.exIds.filter(x=>x!==id); else r.exIds.push(id); saveAll(); renderMore(); });
+  root.querySelectorAll('[data-rtall]').forEach(b=>b.onclick=()=>{ const id=b.dataset.rtall; rtShowAll.has(id)?rtShowAll.delete(id):rtShowAll.add(id); renderMore(); });
+}
+
+/* ============ 変化（進捗写真：ビフォー→アフター） ============ */
+function renderPhotos(){
+  const v=document.getElementById('view');
+  const parr=[...photoCache].sort((a,b)=>(a.date+(a.createdAt||'')).localeCompare(b.date+(b.createdAt||'')));
+  // ---- ビフォー／アフター比較 ----
+  const cmpLatest=parr.length?new Date(parr[parr.length-1].date):null;
+  const cmpFindAgo=days=>{ if(!parr.length)return 0; const target=cmpLatest-days*86400000; let best=0,bd=Infinity; parr.forEach((p,i)=>{ const dd=Math.abs(new Date(p.date)-target); if(dd<bd){bd=dd;best=i;} }); return best; };
+  let cmpHtml;
+  if(parr.length<2){ cmpHtml=`<div class="hint" style="border:none;padding:0">写真が2枚以上たまると、ビフォー／アフターを並べて比較できます。下の「＋ 写真を追加」から今日の姿を残しましょう。</div>`; }
+  else { const ai=Math.min(Math.max(0,cmpA),parr.length-1); const bi=cmpB<0?parr.length-1:Math.min(cmpB,parr.length-1);
+    const opt=(sel)=>parr.map((p,i)=>`<option value="${i}" ${i===sel?'selected':''}>${fmtDate(p.date)}</option>`).join('');
+    const days=Math.abs(Math.round((new Date(parr[bi].date)-new Date(parr[ai].date))/86400000));
+    const spanDays=Math.round((cmpLatest-new Date(parr[0].date))/86400000);
+    const PRESETS=[['全期間',0],['1ヶ月',30],['3ヶ月',90],['6ヶ月',180],['1年',365]].filter(([l,d])=>d===0||spanDays>=d*0.8);
+    const presetChips=`<div class="cmp-presets">${PRESETS.map(([lab,d])=>`<span class="cmp-chip" data-pdays="${d}">${d===0?'最初↔最新':lab+'前→最新'}</span>`).join('')}</div>`;
+    const period=`<div class="cmp-period">期間：<b>${fmtDate(parr[ai].date)}</b> → <b>${fmtDate(parr[bi].date)}</b>　<span class="cmp-span">${days}日間${days>=7?`（約${Math.round(days/7)}週間）`:''}</span></div>`;
+    cmpHtml=`${presetChips}${period}<div class="cmp">
+      <div class="cmp-slot"><div class="cmp-tag">ビフォー（過去）</div><div class="cmp-img" data-cmp="${parr[ai].id}"><img src="${parr[ai].data}" alt=""></div><label class="cmp-lbl">いつ</label><select id="cmpAsel">${opt(ai)}</select></div>
+      <div class="cmp-slot"><div class="cmp-tag">アフター（最近）</div><div class="cmp-img" data-cmp="${parr[bi].id}"><img src="${parr[bi].data}" alt=""></div><label class="cmp-lbl">いつ</label><select id="cmpBsel">${opt(bi)}</select></div></div>`; }
+  // ---- すべての写真（月ごと・新しい順） ----
+  const byMonth={}; [...parr].reverse().forEach(p=>{ const k=p.date.slice(0,7); (byMonth[k]=byMonth[k]||[]).push(p); });
+  const monthKeys=Object.keys(byMonth).sort().reverse();
+  const galleryHtml=monthKeys.length?monthKeys.map(k=>{ const [y,m]=k.split('-');
+    return `<div class="ph-month">${+y}年${+m}月 <span class="ph-count">${byMonth[k].length}枚</span></div>
+      <div class="photo-grid" style="grid-template-columns:repeat(4,1fr)">${byMonth[k].map(p=>`<div class="thumb" data-pid="${p.id}"><img src="${p.data}" loading="lazy" alt=""></div>`).join('')}</div>`; }).join('')
+    : `<div class="empty" style="padding:22px">${IC.photos.replace('<svg','<svg width=28 height=28')}まだ写真がありません。<br>「＋ 写真を追加」で今日の姿を残しましょう。</div>`;
+
+  v.innerHTML=`<div class="fade-in">
+    <div class="eyebrow">ビフォー → アフター</div>
+    <div class="card">${cmpHtml}</div>
+    <div class="row" style="justify-content:space-between;align-items:center;margin:18px 4px 10px">
+      <div class="eyebrow" style="margin:0">すべての写真</div>
+      <button class="btn ghost sm" id="phAdd" style="width:auto;padding:0 14px">＋ 写真を追加</button>
+    </div>
+    ${galleryHtml}</div>`;
+
+  const ca=document.getElementById('cmpAsel'); if(ca)ca.onchange=e=>{ cmpA=+e.target.value; renderPhotos(); };
+  const cb=document.getElementById('cmpBsel'); if(cb)cb.onchange=e=>{ cmpB=+e.target.value; renderPhotos(); };
+  v.querySelectorAll('[data-pdays]').forEach(c=>c.onclick=()=>{ const d=+c.dataset.pdays; cmpB=parr.length-1; cmpA=(d===0?0:cmpFindAgo(d)); renderPhotos(); });
+  v.querySelectorAll('[data-cmp]').forEach(t=>t.onclick=()=>openPhoto(t.dataset.cmp));
+  v.querySelectorAll('[data-pid]').forEach(t=>t.onclick=()=>openPhoto(t.dataset.pid));
+  const phAdd=document.getElementById('phAdd'); if(phAdd)phAdd.onclick=()=>{ workDate=todayStr(); setTab('log'); window.scrollTo({top:0}); toast('下の「＋ 写真を追加」から今日の写真を残せます'); };
 }
 
 /* ============ 設定（種目・タイマー・データ） ============ */
@@ -2058,6 +2082,8 @@ function renderMore(){
           ${open&&lib?`<div class="zfix" style="margin-top:11px"><div class="fx">効く部位</div>${lib.m}<div class="fx" style="margin-top:8px">フォームのコツ</div>${lib.cue.map(c=>'・ '+c).join('<br>')}${lib.sub?`<div class="fx" style="margin-top:8px">代わりになる種目</div>${lib.sub.join(' ／ ')}`:''}</div>`:''}
         </div>`; }).join('')}`)}
 
+    ${acc('split','分割メニュー（テンプレ・種目の割り当て）',splitPanelHtml())}
+
     ${acc('data','データ（バックアップ）',`
       <div style="font-size:13px;color:var(--txt-2);line-height:1.7;margin-bottom:13px">全記録（写真も含む）はこの端末内に保存されます。機種変や万一の消失に備え、ときどき書き出しておくと安心です。<br><span style="color:var(--txt-3);font-size:12px">※写真が多いとファイルが大きくなります。</span></div>
       <div class="bk-status">最終バックアップ：<b>${settings.lastBackupAt?fmtDate(settings.lastBackupAt.slice(0,10))+`（${Math.floor(daysSince(settings.lastBackupAt))}日前）`:'まだありません'}</b></div>
@@ -2104,6 +2130,7 @@ function renderMore(){
   document.getElementById('expBtn').onclick=exportData;
   document.getElementById('impBtn').onclick=()=>document.getElementById('impFile').click();
   document.getElementById('impFile').onchange=importData;
+  wireSplitPanel(v);
 }
 
 /* ============ バックアップ ============ */
@@ -2297,7 +2324,7 @@ function render(){
   else if(tab==='history') renderHistory();
   else if(tab==='stats') renderStats();
   else if(tab==='pl') renderPL();
-  else if(tab==='routine') renderRoutine();
+  else if(tab==='photos') renderPhotos();
   else if(tab==='more') renderMore();
   if(animateIn){ const fi=document.querySelector('#view .fade-in'); if(fi)fi.classList.add('anim'); animateIn=false; }
 }
@@ -2354,7 +2381,7 @@ if(!settings.fixedSplit5){
 
 render();
 if(!settings.onboarded) showOnboard();
-photoAllDB().then(a=>{ photoCache=a; if(tab==='log'||tab==='history') render(); }).catch(()=>{});
+photoAllDB().then(a=>{ photoCache=a; if(tab==='log'||tab==='history'||tab==='photos') render(); }).catch(()=>{});
 
 /* ============ クラウド同期：認証UIの配線＆起動ゲート ============ */
 (function(){
