@@ -1224,7 +1224,7 @@ const GUIDE=[
   {t:'② 「今日」タブで記録する',d:'今日やる分割を選び、種目ごとに「重さ × 回数」を入力して記録。記録すると休憩タイマーが自動で動き、前回超え・自己ベストを教えてくれます。「次の目標」も自動表示。'},
   {t:'③ 「分析」タブで振り返る',d:'今週のボリューム（部位別セット数）・筋力ランク・推定1RMの推移・体重・採寸がまとまっています。'},
   {t:'④ 「PL」タブで本格的に伸ばす',d:'ベンチ・スクワット・デッドを伸ばす定番プログラム（5/3/1）と、停滞したときの打開策・フォームのコツが入っています。'},
-  {t:'⑤ 「変化」タブで体の変化を見る',d:'進捗写真をビフォー／アフターで並べて比較。過去の写真は月ごとの一覧でも振り返れます。写真は「今日」タブで追加します。'},
+  {t:'⑤ 「変化」タブで体の変化を見る',d:'進捗写真をビフォー／アフターで並べて比較。過去の写真は月ごとの一覧でも振り返れます。写真の追加もこの「変化」タブの「＋ 写真を追加」から。'},
   {t:'⑥ 分割メニューの管理',d:'「設定」タブ →「分割メニュー」で、各日に種目を割り当て。PPLや上下分割などのテンプレからワンタップで作ることもできます。'},
   {t:'⑦ 困ったら',d:'設定タブからこのガイドを再表示。データは端末内に保存され、設定→データでバックアップ（書き出し／読み込み）できます。'},
 ];
@@ -1576,13 +1576,6 @@ function renderLog(keepScroll){
     <div class="eyebrow">${isToday()?'今日やった種目':'この日の記録'}</div>
     <div id="todayList"></div>
 
-    <div class="eyebrow">${isToday()?'今日の写真':'この日の写真'}</div>
-    <div class="card">
-      <div class="photo-grid">${photosOn(workDate).map(p=>`<div class="thumb" data-pid="${p.id}"><img src="${p.data}" loading="lazy" alt=""></div>`).join('')}</div>
-      <button class="btn ghost" id="addPhoto">＋ 写真を追加</button>
-      <input type="file" id="photoInput" accept="image/*" multiple style="display:none">
-    </div>
-
     ${(()=>{ const di=dayInfo[workDate]||{}; const has=di.cond||di.sleep!=null||di.memo;
       const condLab={1:'だるい',2:'いまいち',3:'ふつう',4:'好調',5:'絶好調'};
       const head=has?`<span class="acc-sub">${[di.cond?'調子: '+condLab[di.cond]:'',di.sleep!=null?'睡眠 '+di.sleep+'h':'',di.memo?'メモあり':''].filter(Boolean).join(' ・ ')}</span>`:'';
@@ -1657,9 +1650,6 @@ function renderLog(keepScroll){
   const qg=document.getElementById('qsGuide'); if(qg)qg.onclick=()=>showGuide();
   v.querySelectorAll('[data-qs]').forEach(s=>s.onclick=()=>{ const a=s.dataset.qs;
     if(a==='weight')setTab('stats'); else { const el=v.querySelector('.exrow,.card'); if(el)el.scrollIntoView({behavior:'smooth',block:'center'}); } });
-  document.getElementById('addPhoto').onclick=()=>document.getElementById('photoInput').click();
-  document.getElementById('photoInput').onchange=async e=>{ const files=[...e.target.files]; if(!files.length)return; toast('写真を保存中…'); try{ await addPhotos(files,workDate); }catch(err){ toast('保存に失敗しました'); } e.target.value=''; renderLog(); toast('写真を追加しました'); };
-  v.querySelectorAll('[data-pid]').forEach(t=>t.onclick=()=>openPhoto(t.dataset.pid));
   v.querySelectorAll('[data-eff]').forEach(b=>b.onclick=()=>{ const i=+b.dataset.eff, order=[null,0,1,2,3], cur=draftSets[i].rir; const idx=order.indexOf(cur==null?null:cur); draftSets[i].rir=order[(idx+1)%order.length]; renderLog(true); });
   v.querySelectorAll('[data-acc]').forEach(h=>h.onclick=()=>{ const k=h.dataset.acc, box=h.closest('.acc'); const open=box.classList.toggle('open'); if(open)accOpen.add(k); else accOpen.delete(k); });
   v.querySelectorAll('[data-cond]').forEach(c=>c.onclick=()=>{ const n=+c.dataset.cond, cur=(dayInfo[workDate]||{}).cond; setDay('cond',cur===n?'':n); v.querySelectorAll('[data-cond]').forEach(x=>x.classList.toggle('on',+x.dataset.cond===n&&cur!==n)); });
@@ -2048,6 +2038,7 @@ function renderPhotos(){
     <div class="row" style="justify-content:space-between;align-items:center;margin:18px 4px 10px">
       <div class="eyebrow" style="margin:0">すべての写真</div>
       <button class="btn ghost sm" id="phAdd" style="width:auto;padding:0 14px">＋ 写真を追加</button>
+      <input type="file" id="phInput" accept="image/*" multiple style="display:none">
     </div>
     ${galleryHtml}</div>`;
 
@@ -2056,7 +2047,10 @@ function renderPhotos(){
   v.querySelectorAll('[data-pdays]').forEach(c=>c.onclick=()=>{ const d=+c.dataset.pdays; cmpB=parr.length-1; cmpA=(d===0?0:cmpFindAgo(d)); renderPhotos(); });
   v.querySelectorAll('[data-cmp]').forEach(t=>t.onclick=()=>openPhoto(t.dataset.cmp));
   v.querySelectorAll('[data-pid]').forEach(t=>t.onclick=()=>openPhoto(t.dataset.pid));
-  const phAdd=document.getElementById('phAdd'); if(phAdd)phAdd.onclick=()=>{ workDate=todayStr(); setTab('log'); window.scrollTo({top:0}); toast('下の「＋ 写真を追加」から今日の写真を残せます'); };
+  const phAdd=document.getElementById('phAdd'); const phInput=document.getElementById('phInput');
+  if(phAdd&&phInput){ phAdd.onclick=()=>phInput.click();
+    phInput.onchange=async e=>{ const files=[...e.target.files]; if(!files.length)return; toast('写真を保存中…');
+      try{ await addPhotos(files,todayStr()); }catch(err){ toast('保存に失敗しました'); } e.target.value=''; renderPhotos(); toast('写真を追加しました'); }; }
 }
 
 /* ============ 設定（種目・タイマー・データ） ============ */
