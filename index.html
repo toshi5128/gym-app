@@ -595,6 +595,7 @@
   .chart-lead{font-size:12.5px; line-height:1.55; color:var(--txt-2); margin-bottom:11px;}
   .chart-lead b{color:var(--txt); font-weight:800;}
   .chart-cur{font-size:14px; font-weight:800; color:var(--txt); margin:2px 0 6px;}
+  .chart-sublabel{font-size:11px; font-weight:700; color:var(--txt-3); letter-spacing:.04em; margin:-4px 2px 7px;}
   .cmp{display:grid; grid-template-columns:1fr 1fr; gap:9px;}
   .cmp .cmp-slot{}
   .cmp .cmp-img{aspect-ratio:3/4; border-radius:12px; overflow:hidden; background:var(--surface-2); cursor:pointer;}
@@ -1206,7 +1207,7 @@ function bigChart(pts){ if(pts.length<2) return `<div class="spark-empty">デー
     <text x="${L}" y="${H-7}" class="ct">${pts[0].d}</text><text x="${W-R}" y="${H-7}" class="ct" text-anchor="end">${pts[pts.length-1].d}</text>
     <path d="${area}" fill="rgba(168,132,47,.12)" stroke="none"/>
     <path d="${line}" fill="none" stroke="#b0892f" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>${dots}</svg>`; }
-let chartExId=null, measSel='chest', cmpA=0, cmpB=-1, barType='barbell', toolKind=null, calMonth=null, pickMuscle=null, animateIn=true, pickerOpen=false, rtShowAll=new Set();
+let chartExId=null, chartMuscle=null, measSel='chest', cmpA=0, cmpB=-1, barType='barbell', toolKind=null, calMonth=null, pickMuscle=null, animateIn=true, pickerOpen=false, rtShowAll=new Set();
 let statsSub='grow';   // 分析タブ内の小タブ: grow=成長 / kiroku=記録 / karada=からだ
 let prMuscle=null;     // 自己ベスト（PR）の部位フィルタ（null=先頭部位を自動選択）
 let histSelDate=null;   // 履歴タブ：カレンダーで選択中の日付（下にその日の記録を表示）
@@ -1876,12 +1877,17 @@ function renderStats(){
         <div class="std-sub">推定1RM ${Math.round(best)}kg ・ 体重比 ${ratio.toFixed(2)}倍 ・ ${nextTxt}</div>
         <div class="std-seg">${STD_LV.map((n,i)=>`<div class="seg ${i<=lv?'on':''}">${n}</div>`).join('')}</div></div>`; }).join(''); }
 
-  // 詳細チャート — 2回以上記録した種目だけがグラフ化できる
+  // 詳細チャート — 2回以上記録した種目だけがグラフ化できる。まず部位→その中の種目、の2段（自己ベストと同じ）
   const graphable=perEx.filter(p=>p.trend.length>=2);   // 既にmax1降順（＝強い種目が先頭）
-  if(!graphable.some(p=>p.id===chartExId)) chartExId=graphable.length?graphable[0].id:null;
+  let chartMuscles=Object.keys(VOL).filter(m=>graphable.some(p=>p.muscle===m));
+  graphable.forEach(p=>{ if(!chartMuscles.includes(p.muscle)) chartMuscles.push(p.muscle); });
+  if(!chartMuscle || !chartMuscles.includes(chartMuscle)) chartMuscle=chartMuscles[0]||null;
+  const chartInMus=graphable.filter(p=>p.muscle===chartMuscle);
+  if(!chartInMus.some(p=>p.id===chartExId)) chartExId=chartInMus[0]?.id||null;
   let chartPts=[]; if(chartExId){ const byD={}; logs.filter(l=>l.exId===chartExId).forEach(l=>{ const m=Math.max(...l.sets.map(s=>est1rm(s.w,s.r))); byD[l.date]=Math.max(byD[l.date]||0,m); });
     chartPts=Object.keys(byD).sort().map(d=>({d:d.slice(5).replace('-','/'),val:Math.round(byD[d])})); }
-  const chartChips=graphable.map(p=>`<span class="mchip ${p.id===chartExId?'on':''}" data-chart="${p.id}">${p.name}</span>`).join('');
+  const chartMusChips=chartMuscles.map(m=>`<span class="mchip ${m===chartMuscle?'on':''}" data-chartm="${m}">${m}</span>`).join('');
+  const chartExChips=chartInMus.map(p=>`<span class="mchip ${p.id===chartExId?'on':''}" data-chart="${p.id}">${p.name}</span>`).join('');
 
   // 採寸
   const ms=measSeries(measSel); const mcur=ms[ms.length-1], mprev=ms[ms.length-2]; const measName=(MEAS_LIST.find(x=>x[0]===measSel)||['','部位'])[1];
@@ -1918,8 +1924,10 @@ function renderStats(){
   const curName=(graphable.find(p=>p.id===chartExId)||{}).name||'';
   const chartSec=`<div class="eyebrow">推移グラフ</div>
     <div class="card">
-      ${graphable.length?`<div class="chart-lead">種目を選ぶと、あなたの<b>推定1RM</b>（＝1回だけ全力で挙げられる重さの目安）がどう伸びてきたかを線で見られます。</div>
-        <div class="mchips">${chartChips}</div>
+      ${graphable.length?`<div class="chart-lead"><b>部位</b>を選び、その中の<b>種目</b>を選ぶと、<b>推定1RM</b>（＝1回だけ全力で挙げられる重さの目安）がどう伸びてきたかを線で見られます。</div>
+        <div class="mchips">${chartMusChips}</div>
+        <div class="chart-sublabel">種目</div>
+        <div class="mchips">${chartExChips}</div>
         <div class="chart-cur">${curName}</div>
         ${bigChart(chartPts)}`:`<div class="empty" style="padding:24px">${IC.stats.replace('<svg','<svg width=28 height=28')}同じ種目を2回以上記録すると、ここに伸びのグラフが出ます。</div>`}
     </div>`;
@@ -1958,6 +1966,7 @@ function renderStats(){
     const i=meas.findIndex(x=>x.date===todayStr()&&x.key===measSel); if(i>=0)meas[i].v=val; else meas.push({date:todayStr(),key:measSel,v:val});
     saveAll(); toast(measName+'を記録しました'); renderStats(); };
   v.querySelectorAll('[data-meas]').forEach(c=>c.onclick=()=>{ measSel=c.dataset.meas; renderStats(); });
+  v.querySelectorAll('[data-chartm]').forEach(c=>c.onclick=()=>{ chartMuscle=c.dataset.chartm; chartExId=null; renderStats(); });
   v.querySelectorAll('[data-chart]').forEach(c=>c.onclick=()=>{ chartExId=c.dataset.chart; renderStats(); });
 }
 
