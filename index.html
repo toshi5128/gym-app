@@ -317,6 +317,11 @@
   .stp-b{width:25px; height:48px; flex-shrink:0; border:none; background:transparent; color:var(--blue); font-size:20px; font-weight:700; cursor:pointer; padding:0; font-family:var(--font-disp); line-height:1;}
   .stp-b:active{background:var(--blue-dim);}
   .set-line .no{color:var(--txt-3); text-align:center; font-size:13px; font-weight:700; font-family:var(--font-disp);}
+  .stp.bw{padding-left:10px; gap:6px;}
+  .stp-bwtag{font-size:12px; font-weight:800; color:var(--blue); flex-shrink:0; font-family:var(--font-jp);}
+  .bw-toggle{font-size:12px; font-weight:800; font-family:var(--font-jp); padding:5px 13px; border-radius:16px; border:1px solid var(--hair); background:var(--surface-2); color:var(--txt-2); cursor:pointer; flex-shrink:0;}
+  .bw-toggle.on{background:var(--blue-dim); border-color:rgba(168,132,47,.5); color:var(--blue);}
+  .bw-toggle:active{transform:scale(.95);}
   .field{position:relative;}
   .field .unit{position:absolute; right:13px; top:50%; transform:translateY(-50%); font-size:11px; color:var(--txt-3); pointer-events:none; font-weight:600;}
   .field input{padding-right:34px;}
@@ -1074,6 +1079,11 @@ function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(
 const WK=['日','月','火','水','木','金','土'];
 function fmtDate(s){ const [y,m,d]=s.split('-'); return `${Number(m)}/${Number(d)}（${WK[new Date(s).getDay()]}）`; }
 function est1rm(w,r){ return w*(1+r/30); }                    // Epley
+// 自重セット対応：実効重量＝その日以前で最新の体重 ＋ 加重(s.w)。素の自重は s.w=0。
+function bwOn(date){ if(!bw||!bw.length)return 0; const sorted=[...bw].sort((a,b)=>a.date<b.date?-1:1); let v=sorted[0].kg; for(const b of sorted){ if(b.date<=date)v=b.kg; else break; } return v||0; }
+function setKg(s,date){ if(!s)return 0; return s.bw ? (bwOn(date)+(+s.w||0)) : (+s.w||0); }
+function setWtLabel(s){ if(s&&s.bw)return '自重'+((+s.w>0)?('+'+s.w+'kg'):''); return (s?s.w:0)+'kg'; }   // 表示: 「60kg」「自重」「自重+10kg」
+function setWtShort(s){ if(s&&s.bw)return '自重'+((+s.w>0)?('+'+s.w):''); return ''+(s?s.w:0); }          // 単位なし: 「60」「自重」「自重+10」
 function weekStartStr(ds){ const dt=new Date(ds+'T00:00:00'); const off=(dt.getDay()+6)%7; dt.setDate(dt.getDate()-off);
   return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`; }
 
@@ -1098,6 +1108,7 @@ function incFor(exId){ const e=exObj(exId); return (e&&e.muscle==='脚')?5:2.5; 
 function suggestNext(exId){ const last=lastRecord(exId); const rng=goalRange();
   if(!last)return {kind:'new', sets:rng.sets, text:`まずは ${rng.lo}〜${rng.hi}回 をきれいに挙げられる重さで「基準」を作りましょう。`};
   const top=last.sets.reduce((a,s)=> (s.w>a.w||(s.w===a.w&&s.r>a.r))?s:a, last.sets[0]);
+  if(top.bw){ const r=top.r+1; return {kind:'rep', bw:true, w:top.w, r, sets:rng.sets, text:`前回 ${setWtLabel(top)}×${top.r}回。自重は<b>回数を伸ばす</b>のが成長。あと1回を目標に。`}; }
   if(last.rir!=null && last.rir>=3 && top.r>=rng.lo){ const w=round25(top.w+incFor(exId)); return {kind:'up', w, r:rng.lo, sets:rng.sets, text:`前回はまだ余裕あり（あと${last.rir}回）。<b>重さを上げる</b>好機です。`}; }
   if(top.r>=rng.hi){ const w=round25(top.w+incFor(exId)); return {kind:'up', w, r:rng.lo, sets:rng.sets, text:`前回 ${top.w}kg×${top.r}回で上限(${rng.hi}回)に到達。<b>重さを上げる</b>サインです。`}; }
   return {kind:'rep', w:top.w, r:Math.min(rng.hi,top.r+1), sets:rng.sets, text:`前回 ${top.w}kg×${top.r}回。同じ重さで<b>あと1回</b>を狙う（${rng.hi}回に届いたら次回に増量）。`}; }
@@ -1133,10 +1144,10 @@ function ymd(dt){ return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2
 function weekRange(){ const d=new Date(); const day=(d.getDay()+6)%7; const mon=new Date(d.getFullYear(),d.getMonth(),d.getDate()-day); const sun=new Date(mon); sun.setDate(mon.getDate()+6); return {start:ymd(mon),end:ymd(sun)}; }
 function weeklyVolume(){ const {start,end}=weekRange(); const vol={}; logs.filter(l=>l.date>=start&&l.date<=end).forEach(l=>{ const m=exMuscle(l.exId)||'その他'; vol[m]=(vol[m]||0)+l.sets.length; }); return vol; }
 function weekStats(monStr){ const ls=logs.filter(l=>weekStartOf(l.date)===monStr);
-  return { days:new Set(ls.map(l=>l.date)).size, vol:ls.reduce((a,l)=>a+l.sets.reduce((x,s)=>x+s.w*s.r,0),0), sets:ls.reduce((a,l)=>a+l.sets.length,0) }; }
+  return { days:new Set(ls.map(l=>l.date)).size, vol:ls.reduce((a,l)=>a+l.sets.reduce((x,s)=>x+setKg(s,l.date)*s.r,0),0), sets:ls.reduce((a,l)=>a+l.sets.length,0) }; }
 function prsThisWeek(){ const {start,end}=weekRange(); let c=0;
   exercises.forEach(e=>{ const ls=logs.filter(l=>l.exId===e.id); if(ls.length<2)return;
-    let bw2=0,bwd='',b1=0,b1d=''; ls.forEach(l=>l.sets.forEach(s=>{ if(s.w>bw2){bw2=s.w;bwd=l.date;} const es=est1rm(s.w,s.r); if(es>b1){b1=es;b1d=l.date;} }));
+    let bw2=0,bwd='',b1=0,b1d=''; ls.forEach(l=>l.sets.forEach(s=>{ const k=setKg(s,l.date); if(k>bw2){bw2=k;bwd=l.date;} const es=est1rm(k,s.r); if(es>b1){b1=es;b1d=l.date;} }));
     if((bwd>=start&&bwd<=end)||(b1d>=start&&b1d<=end))c++; });
   return c; }
 function volZone(m,sets){ const t=VOL[m]; if(!t)return {label:'—',cls:''}; if(sets<t.min)return {label:'足りない',cls:'z-low'}; if(sets<=t.max)return {label:'最適',cls:'z-ok'}; return {label:'多め',cls:'z-high'}; }
@@ -1285,7 +1296,7 @@ function openExPicker(){
     const expanded=exPickExpanded.has(m);
     const shown=expanded?list:list.slice(0,LIMIT);
     const rows=shown.map(e=>{ const lr=lastRecord(e.id);
-      const sub=lr?`前回 ${lr.sets.map(s=>s.w+'×'+s.r).join(' / ')}`:'記録なし';
+      const sub=lr?`前回 ${lr.sets.map(s=>setWtShort(s)+'×'+s.r).join(' / ')}`:'記録なし';
       return `<div class="exp-row ${e.id===draftExId?'on':''}" data-exp="${e.id}">
         <div class="epn"><b>${e.name}</b><s>${sub}</s></div>
         <button class="epi" data-expg="${e.id}">i</button></div>`; }).join('');
@@ -1423,7 +1434,7 @@ function stashDraftIfPending(){ if(draftExId&&pendingDrafts[draftExId]&&!doneTod
 function loadPrevSession(){ const rt=rtObj(selRt); if(!rt)return; const ps=prevRoutineSession(selRt); if(!ps)return;
   let n=0;
   ps.logs.forEach(l=>{ if(!rt.exIds.includes(l.exId))return; if(doneTodayEx(l.exId))return;
-    pendingDrafts[l.exId]={ sets:l.sets.map(s=>({w:String(s.w),r:String(s.r),rir:(s.rir!=null?s.rir:null)})),
+    pendingDrafts[l.exId]={ sets:l.sets.map(s=>({w:String(s.w),r:String(s.r),rir:(s.rir!=null?s.rir:null), ...(s.bw?{bw:true}:{})})),
       warm:(l.warm||[]).map(s=>({w:String(s.w),r:String(s.r)})) }; n++; });
   if(!n){ toast('入れられる種目がありません（すべて記録済みか、メニューが変わっています）'); return; }
   const first=rt.exIds.find(id=>pendingDrafts[id]&&!doneTodayEx(id));
@@ -1434,14 +1445,14 @@ function backupOverdue(){ if(!logs.length)return false; if(settings.backupSnooze
 function doneTodayEx(exId){ return todaysLogs().some(l=>l.exId===exId); }
 function bestBefore(exId){ // 対象日より前のベスト
   let maxW=0,max1=0;
-  logs.filter(l=>l.exId===exId&&l.date<workDate).forEach(l=>l.sets.forEach(s=>{ if(s.w>maxW)maxW=s.w; const e=est1rm(s.w,s.r); if(e>max1)max1=e; }));
+  logs.filter(l=>l.exId===exId&&l.date<workDate).forEach(l=>l.sets.forEach(s=>{ const k=setKg(s,l.date); if(k>maxW)maxW=k; const e=est1rm(k,s.r); if(e>max1)max1=e; }));
   return {maxW, max1};
 }
 function suggestRt(){ const past=logs.filter(l=>l.date<workDate&&l.rtId).sort((a,b)=>b.date.localeCompare(a.date));
   if(!past.length) return routines[0]?.id||null; const i=routines.findIndex(r=>r.id===past[0].rtId);
   return i<0?(routines[0]?.id||null):routines[(i+1)%routines.length].id; }
 function loadForEdit(id){ const l=logs.find(x=>x.id===id); if(!l)return; editId=id; draftExId=l.exId;
-  draftSets=l.sets.map(s=>({w:s.w,r:s.r,rir:(s.rir!=null?s.rir:null)})); draftWarm=(l.warm||[]).map(s=>({w:s.w,r:s.r}));
+  draftSets=l.sets.map(s=>({w:s.w,r:s.r,rir:(s.rir!=null?s.rir:null), ...(s.bw?{bw:true}:{})})); draftWarm=(l.warm||[]).map(s=>({w:s.w,r:s.r}));
   if(l.rir!=null && draftSets.length && draftSets[draftSets.length-1].rir==null) draftSets[draftSets.length-1].rir=l.rir;  // 旧:種目1つ→最終セットへ移行
   if(l.rtId)selRt=l.rtId; renderLog();
   const sel=document.getElementById('exSel'); if(sel)sel.scrollIntoView({behavior:'smooth',block:'center'}); }
@@ -1457,7 +1468,7 @@ function renderLog(keepScroll){
   const sug=suggestRt(); const rt=rtObj(selRt);
   const totalEx=rt?rt.exIds.length:0, doneEx=rt?rt.exIds.filter(id=>doneTodayEx(id)).length:0;
   const pct=totalEx?doneEx/totalEx:0;
-  const todayVol=todaysLogs().reduce((a,l)=>a+l.sets.reduce((x,s)=>x+s.w*s.r,0),0);
+  const todayVol=todaysLogs().reduce((a,l)=>a+l.sets.reduce((x,s)=>x+setKg(s,l.date)*s.r,0),0);
   const volDec=todayVol>=1000?1:2, volStr=(todayVol/1000).toFixed(volDec);
 
   const dayChips=routines.map(r=>{ const all=r.exIds.length&&r.exIds.every(id=>doneTodayEx(id)); const some=r.exIds.some(id=>doneTodayEx(id));
@@ -1468,7 +1479,7 @@ function renderLog(keepScroll){
 
   let menuHtml='';
   if(rt){ menuHtml=rt.exIds.map(id=>{ const ok=doneTodayEx(id),cur=id===draftExId,last=lastRecord(id);
-    const sub=last?`前回 ${last.sets.map(s=>s.w+'×'+s.r).join(' / ')}`:'記録なし';
+    const sub=last?`前回 ${last.sets.map(s=>setWtShort(s)+'×'+s.r).join(' / ')}`:'記録なし';
     return `<div class="menu-item ${ok?'ok':''} ${cur?'cur':''}" data-pick="${id}"><div class="chk">${IC.check}</div>
       <div class="mn"><b>${exName(id)}</b><s>${sub}</s></div><button class="exg-i" data-guide="${id}">i</button><div class="go">${cur?IC.dot:IC.chevron}</div></div>`; }).join(''); }
   if(draftExId===null&&rt){ draftExId=rt.exIds.find(id=>!doneTodayEx(id))||rt.exIds[0]; loadDraftFromPending(draftExId); }
@@ -1481,15 +1492,18 @@ function renderLog(keepScroll){
     targetHtml=`<div class="suggest-card">
       <div class="sc-head"><span class="pin">次の目標</span><span class="sc-goal">${goalLabel}モード</span></div>
       <div class="sc-body">${sug.text}${best.maxW?`<br>自己ベスト ${best.maxW}kg（推定1RM ${Math.round(best.max1)}kg）`:''}</div>
-      ${sug.w?`<div class="sc-target">${sug.w}kg × ${sug.r}回 <span style="font-size:13px;color:var(--txt-3)">× ${sug.sets}セット目安</span></div>
+      ${(sug.w||sug.bw)?`<div class="sc-target">${setWtLabel(sug)} × ${sug.r}回 <span style="font-size:13px;color:var(--txt-3)">× ${sug.sets}セット目安</span></div>
         <button class="btn ghost sm" id="useSug" style="width:100%">この目標をセットに入れる</button>`:''}
     </div>`;
   }
-  const lastHtml=last?`<div class="top-mini">前回 ${fmtDate(last.date)}：${last.sets.map(s=>s.w+'kg×'+s.r).join(' / ')} <button class="mini-btn" id="useLast">前回と同じで入力</button></div>`:'';
+  const lastHtml=last?`<div class="top-mini">前回 ${fmtDate(last.date)}：${last.sets.map(s=>setWtLabel(s)+'×'+s.r).join(' / ')} <button class="mini-btn" id="useLast">前回と同じで入力</button></div>`:'';
   const EFF={'':'—','0':'限界','1':'あと1','2':'あと2','3':'あと3+'};
   const setRows=(arr,grp)=>arr.map((s,i)=>{ const ev=(s.rir==null?'':String(s.rir));
+    const wCell=(grp==='main'&&s.bw)
+      ? `<div class="stp bw"><span class="stp-bwtag">自重</span><input type="number" inputmode="decimal" placeholder="＋kg" value="${s.w}" data-grp="${grp}" data-si="${i}" data-f="w"></div>`
+      : `<div class="stp"><button class="stp-b" data-grp="${grp}" data-si="${i}" data-f="w" data-d="-1">−</button><input type="number" inputmode="decimal" placeholder="0" value="${s.w}" data-grp="${grp}" data-si="${i}" data-f="w"><button class="stp-b" data-grp="${grp}" data-si="${i}" data-f="w" data-d="1">+</button></div>`;
     return `<div class="set-line${grp==='warm'?' warm':''}"><span class="no">${grp==='warm'?'W'+(i+1):(i+1)}</span>
-    <div class="stp"><button class="stp-b" data-grp="${grp}" data-si="${i}" data-f="w" data-d="-1">−</button><input type="number" inputmode="decimal" placeholder="0" value="${s.w}" data-grp="${grp}" data-si="${i}" data-f="w"><button class="stp-b" data-grp="${grp}" data-si="${i}" data-f="w" data-d="1">+</button></div>
+    ${wCell}
     <div class="stp"><button class="stp-b" data-grp="${grp}" data-si="${i}" data-f="r" data-d="-1">−</button><input type="number" inputmode="numeric" placeholder="0" value="${s.r}" data-grp="${grp}" data-si="${i}" data-f="r"><button class="stp-b" data-grp="${grp}" data-si="${i}" data-f="r" data-d="1">+</button></div>
     ${grp==='main'?`<button class="eff eff-${ev||'none'}" data-eff="${i}">${EFF[ev]}</button>`:'<span class="eff-sp"></span>'}
     <button class="del" data-grp="${grp}" data-del="${i}">×</button></div>`; }).join('');
@@ -1516,7 +1530,7 @@ function renderLog(keepScroll){
   // 今日のメニュー：選んだ部位（日）の種目を横スクロールで一覧表示
   const exRowHtml = rt ? (rt.exIds.length ? rt.exIds.map(id=>{ const ok=doneTodayEx(id), cur=id===draftExId, last=lastRecord(id);
       const pend=!ok&&!!pendingDrafts[id];
-      const sub=pend?'<span class="exo-pend">前回値セット済 ・ 記録待ち</span>':(last?`前回 ${last.sets.map(s=>s.w+'×'+s.r).join(' / ')}`:'記録なし');
+      const sub=pend?'<span class="exo-pend">前回値セット済 ・ 記録待ち</span>':(last?`前回 ${last.sets.map(s=>setWtShort(s)+'×'+s.r).join(' / ')}`:'記録なし');
       return `<div class="exo ${cur?'on':''} ${ok?'ok':''} ${pend?'pend':''}" data-pick="${id}">
         <div class="exo-top"><b>${exName(id)}</b><span class="exo-i" data-guide="${id}">i</span></div>
         <div class="exo-sub">${ok?'<span class="exo-done">完了</span> ・ ':''}${sub}</div></div>`; }).join('')
@@ -1559,7 +1573,10 @@ function renderLog(keepScroll){
       ${draftWarm.length?setRows(draftWarm,'warm'):'<div class="warm-empty">軽い重さで体を温めるセット。「自動で組む」か下のボタンで追加できます。</div>'}
       <button class="btn ghost sm" id="addWarm" style="width:100%;margin-top:4px">＋ ウォームアップを追加</button>
       <div style="height:18px"></div>
-      <label class="lbl">メインセット（重量kg × 回数 ・ 右の枠でキツさ）</label>
+      <div class="row" style="justify-content:space-between;align-items:center;margin-bottom:3px">
+        <label class="lbl" style="margin:0">メインセット（${draftSets.some(s=>s.bw)?'自重＋加重kg':'重量kg'} × 回数）</label>
+        <button class="bw-toggle${draftSets.some(s=>s.bw)?' on':''}" id="bwToggle" title="自分の体重で行う種目（懸垂・ディップスなど）">自重</button>
+      </div>
       ${setRows(draftSets,'main')}
       <button class="btn ghost sm" id="addSet" style="width:100%;margin-top:4px">＋ メインセットを追加</button>
       <div class="hint" style="border:none;padding:6px 2px 0;margin:0">各セット右の枠をタップで「キツさ（あと何回できたか）」を記録できます（任意）：— → 限界 → あと1 → あと2 → あと3+。</div>
@@ -1607,13 +1624,14 @@ function renderLog(keepScroll){
   const _ep=document.getElementById('exPickBtn'); if(_ep)_ep.onclick=()=>openExPicker();
   const _ep2=document.getElementById('exPickBtn2'); if(_ep2)_ep2.onclick=()=>openExPicker();
   v.querySelectorAll('[data-guide]').forEach(b=>b.onclick=ev=>{ ev.stopPropagation(); openExGuide(b.dataset.guide); });
-  document.getElementById('addSet').onclick=()=>{ const l=draftSets[draftSets.length-1]; draftSets.push({w:l?l.w:'',r:l?l.r:''}); renderLog(true); const f=document.querySelector(`input[data-grp="main"][data-si="${draftSets.length-1}"][data-f="w"]`); if(f)f.focus(); };
+  document.getElementById('addSet').onclick=()=>{ const l=draftSets[draftSets.length-1]; draftSets.push({w:l?l.w:'',r:l?l.r:'', ...(l&&l.bw?{bw:true}:{})}); renderLog(true); const f=document.querySelector(`input[data-grp="main"][data-si="${draftSets.length-1}"][data-f="w"]`); if(f)f.focus(); };
+  { const bt=document.getElementById('bwToggle'); if(bt)bt.onclick=()=>{ const on=draftSets.some(s=>s.bw); draftSets.forEach(s=>{ if(on){ delete s.bw; } else { s.bw=true; if(s.w==='0')s.w=''; } }); renderLog(true); }; }
   document.getElementById('addWarm').onclick=()=>{ const l=draftWarm[draftWarm.length-1]; draftWarm.push({w:l?l.w:'',r:l?l.r:''}); renderLog(true); const f=document.querySelector(`input[data-grp="warm"][data-si="${draftWarm.length-1}"][data-f="w"]`); if(f)f.focus(); };
   document.getElementById('warmAuto').onclick=()=>{ const w=curWeight(); if(!w){ toast('先にメインの重さか目標を入れてください'); return; } draftWarm=warmupSets(w,curBar()).map(s=>({w:s.w,r:s.r})); renderLog(true); };
-  document.getElementById('copyLast').onclick=()=>{ if(last){ draftSets=last.sets.map(s=>({w:s.w,r:s.r})); draftWarm=(last.warm||[]).map(s=>({w:s.w,r:s.r})); renderLog(true); } };
+  document.getElementById('copyLast').onclick=()=>{ if(last){ draftSets=last.sets.map(s=>({w:s.w,r:s.r, ...(s.bw?{bw:true}:{})})); draftWarm=(last.warm||[]).map(s=>({w:s.w,r:s.r})); renderLog(true); } };
   document.getElementById('restNow').onclick=()=>Timer.start(draftExId?restFor(draftExId):settings.rest);
-  const _us=document.getElementById('useSug'); if(_us)_us.onclick=()=>{ const s=suggestNext(draftExId); if(s.w){ draftSets=Array.from({length:s.sets},()=>({w:s.w,r:s.r})); renderLog(true); } };
-  const _ul=document.getElementById('useLast'); if(_ul)_ul.onclick=()=>{ const lr=lastRecord(draftExId); if(lr&&lr.sets.length){ draftSets=lr.sets.map(s=>({w:String(s.w),r:String(s.r)})); draftWarm=(lr.warm||[]).map(s=>({w:String(s.w),r:String(s.r)})); renderLog(true); toast((lr.warm&&lr.warm.length)?'前回のウォームアップとセットを入れました':'前回のセットを入れました'); } };
+  const _us=document.getElementById('useSug'); if(_us)_us.onclick=()=>{ const s=suggestNext(draftExId); if(s.w||s.bw){ draftSets=Array.from({length:s.sets},()=>({w:(s.bw?(s.w||''):s.w),r:s.r, ...(s.bw?{bw:true}:{})})); renderLog(true); } };
+  const _ul=document.getElementById('useLast'); if(_ul)_ul.onclick=()=>{ const lr=lastRecord(draftExId); if(lr&&lr.sets.length){ draftSets=lr.sets.map(s=>({w:String(s.w),r:String(s.r), ...(s.bw?{bw:true}:{})})); draftWarm=(lr.warm||[]).map(s=>({w:String(s.w),r:String(s.r)})); renderLog(true); toast((lr.warm&&lr.warm.length)?'前回のウォームアップとセットを入れました':'前回のセットを入れました'); } };
   const _bn=document.getElementById('bkNow'); if(_bn)_bn.onclick=()=>{ exportData(); renderLog(); };
   const _bl=document.getElementById('bkLater'); if(_bl)_bl.onclick=()=>{ settings.backupSnooze=new Date(Date.now()+3*86400000).toISOString(); saveAll(); renderLog(); };
   const curWeight=()=>{ const ws=draftSets.map(s=>Number(s.w)).filter(x=>x>0); if(ws.length)return Math.max(...ws); const s=suggestNext(draftExId); return s.w||0; };
@@ -1661,8 +1679,8 @@ function renderLog(keepScroll){
 }
 
 function saveDraft(){
-  const sets=draftSets.filter(s=>s.w!==''&&s.r!=='').map(s=>({w:Number(s.w),r:Number(s.r), ...(s.rir!=null?{rir:s.rir}:{})}));
-  if(!sets.length){ toast('メインセットの重量と回数を入力してください'); return; }
+  const sets=draftSets.filter(s=> s.r!=='' && (s.bw||s.w!=='')).map(s=>({w:(s.bw?Number(s.w||0):Number(s.w)),r:Number(s.r), ...(s.bw?{bw:true}:{}), ...(s.rir!=null?{rir:s.rir}:{})}));
+  if(!sets.length){ toast(draftSets.some(s=>s.bw)?'メインセットの回数を入力してください':'メインセットの重量と回数を入力してください'); return; }
   const warm=draftWarm.filter(s=>s.w!==''&&s.r!=='').map(s=>({w:Number(s.w),r:Number(s.r)}));
   const lastRir=sets.length?sets[sets.length-1].rir:undefined;   // 互換: 種目代表のキツさ=最終セット
   // 既存記録の編集
@@ -1673,7 +1691,7 @@ function saveDraft(){
   }
   // 新規追加（対象日 workDate に記録）
   const before=bestBefore(draftExId);
-  const tMaxW=Math.max(...sets.map(s=>s.w)); const tMax1=Math.max(...sets.map(s=>est1rm(s.w,s.r)));
+  const tMaxW=Math.max(...sets.map(s=>setKg(s,workDate))); const tMax1=Math.max(...sets.map(s=>est1rm(setKg(s,workDate),s.r)));
   logs.push({id:uid(), date:workDate, exId:draftExId, sets, rtId:selRt, at:new Date().toISOString(), ...(lastRir!=null?{rir:lastRir}:{}), ...(warm.length?{warm}:{})});
   saveAll();
   // PR演出・タイマーは「今日」の記録のときだけ（過去日の振り返り入力では出さない）
@@ -1699,7 +1717,7 @@ function celebratePR(sub){
 /* セットを「1・2・3…」の番号付き縦リストで表示（履歴・当日リスト共通） */
 function setListHtml(sets, warm, logRir){
   const EFFL={0:'限界',1:'あと1回',2:'あと2回',3:'あと3回+'};
-  const row=(n,s,cls,eff)=>`<div class="sl${cls?' '+cls:''}"><span class="sl-n">${n}</span><span class="sl-v">${s.w}<small>kg</small> × ${s.r}<small>回</small></span>${eff!=null?`<span class="sl-eff eff-${eff}">${EFFL[eff]}</span>`:''}</div>`;
+  const row=(n,s,cls,eff)=>`<div class="sl${cls?' '+cls:''}"><span class="sl-n">${n}</span><span class="sl-v">${s.bw?`自重${(+s.w>0)?`<small>+${s.w}kg</small>`:''}`:`${s.w}<small>kg</small>`} × ${s.r}<small>回</small></span>${eff!=null?`<span class="sl-eff eff-${eff}">${EFFL[eff]}</span>`:''}</div>`;
   let h='';
   if(warm&&warm.length) h+=warm.map((s,i)=>row('W'+(i+1),s,'warm',null)).join('');
   h+=sets.map((s,i)=>{ const eff=(s.rir!=null?s.rir:(i===sets.length-1&&logRir!=null?logRir:null)); return row(i+1,s,'',eff); }).join('');
@@ -1710,7 +1728,7 @@ function renderTodayList(){
   if(!t.length){ el.innerHTML=`<div class="empty">${IC.today.replace('<svg','<svg width=30 height=30')}${isToday()?'まだ今日の記録はありません。':'この日の記録はありません。'}<br>上で種目を選んで追加できます。</div>`; return; }
   const _mins=sessionMinutes(workDate);
   const _sum=`<div class="day-sum">${t.length}種目${_mins!=null?` ・ トレ時間 <b>${fmtDur(_mins)}</b>`:''}</div>`;
-  el.innerHTML=_sum+t.map(l=>{ const vol=l.sets.reduce((a,s)=>a+s.w*s.r,0);
+  el.innerHTML=_sum+t.map(l=>{ const vol=l.sets.reduce((a,s)=>a+setKg(s,l.date)*s.r,0);
     return `<div class="item${editId===l.id?' editing':''}"><div class="row" style="justify-content:space-between"><span class="n">${exName(l.exId)} <span class="tag">${exMuscle(l.exId)}</span></span>
       <div class="row" style="gap:2px"><button class="del edit" data-edit="${l.id}">${IC.edit}</button><button class="del" data-rm="${l.id}">×</button></div></div>
       ${setListHtml(l.sets,l.warm,l.rir)}
@@ -1739,7 +1757,7 @@ function buildCalendar(){
 }
 /* 今月のまとめ（負荷量ダッシュボード＋月カレンダー）— 履歴タブ上部で使用 */
 function monthSummaryHtml(){
-  const _volOf=(arr)=>arr.reduce((a,l)=>a+l.sets.reduce((x,s)=>x+s.w*s.r,0),0);
+  const _volOf=(arr)=>arr.reduce((a,l)=>a+l.sets.reduce((x,s)=>x+setKg(s,l.date)*s.r,0),0);
   const _c7=shiftDate(todayStr(),-6), _c28=shiftDate(todayStr(),-27), _td=todayStr();
   const v7=_volOf(logs.filter(l=>l.date>=_c7&&l.date<=_td));
   const v28=_volOf(logs.filter(l=>l.date>=_c28&&l.date<=_td));
@@ -1776,7 +1794,7 @@ function renderHistory(){
   const dates=Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
   if(!histSelDate) histSelDate=dates[0]||todayStr();
   const rec=byDate[histSelDate]||[];
-  const selVol=rec.reduce((a,l)=>a+l.sets.reduce((x,s)=>x+s.w*s.r,0),0);
+  const selVol=rec.reduce((a,l)=>a+l.sets.reduce((x,s)=>x+setKg(s,l.date)*s.r,0),0);
   const selRtId=rec.find(l=>l.rtId)?.rtId; const selRtName=selRtId&&rtObj(selRtId)?`${rtObj(selRtId).name}の日`:'';
   const selDm=sessionMinutes(histSelDate);
   const selItems=rec.map(l=>`<div class="item htap" data-hd="${histSelDate}" data-hid="${l.id}"><div class="row" style="justify-content:space-between"><span class="n">${exName(l.exId)} <span class="tag">${exMuscle(l.exId)}</span></span><span class="go">${IC.edit}</span></div>${setListHtml(l.sets,l.warm,l.rir)}</div>`).join('');
@@ -1811,7 +1829,7 @@ function spark(vals){
 function renderStats(){
   const v=document.getElementById('view');
   const days=new Set(logs.map(l=>l.date)).size;
-  const totalVol=logs.reduce((a,l)=>a+l.sets.reduce((x,s)=>x+s.w*s.r,0),0);
+  const totalVol=logs.reduce((a,l)=>a+l.sets.reduce((x,s)=>x+setKg(s,l.date)*s.r,0),0);
 
   // 体重
   const bwSorted=[...bw].sort((a,b)=>a.date.localeCompare(b.date));
@@ -1826,10 +1844,10 @@ function renderStats(){
 
   let perEx=exercises.map(e=>{ const ls=logs.filter(l=>l.exId===e.id); if(!ls.length)return null;
     let maxW=0,maxWdate='',max1=0,max1date='',maxR=0,maxRw=0,lastDate=''; const byDate={};
-    ls.forEach(l=>{ l.sets.forEach(s=>{
-      if(s.w>maxW){maxW=s.w;maxWdate=l.date;}
-      const es=est1rm(s.w,s.r); if(es>max1){max1=es;max1date=l.date;}
-      if(s.r>maxR){maxR=s.r;maxRw=s.w;}
+    ls.forEach(l=>{ l.sets.forEach(s=>{ const k=setKg(s,l.date);
+      if(k>maxW){maxW=k;maxWdate=l.date;}
+      const es=est1rm(k,s.r); if(es>max1){max1=es;max1date=l.date;}
+      if(s.r>maxR){maxR=s.r;maxRw=k;}
       byDate[l.date]=Math.max(byDate[l.date]||0,es); }); if(l.date>lastDate)lastDate=l.date; });
     const trend=Object.keys(byDate).sort().map(d=>Math.round(byDate[d]));
     const prDate=[maxWdate,max1date].filter(Boolean).sort().pop()||lastDate;   // 直近にベスト更新した日
@@ -1886,7 +1904,7 @@ function renderStats(){
   if(!chartMuscle || !chartMuscles.includes(chartMuscle)) chartMuscle=chartMuscles[0]||null;
   const chartInMus=graphable.filter(p=>p.muscle===chartMuscle);
   if(!chartInMus.some(p=>p.id===chartExId)) chartExId=chartInMus[0]?.id||null;
-  let chartPts=[]; if(chartExId){ const byD={}; logs.filter(l=>l.exId===chartExId).forEach(l=>{ const m=Math.max(...l.sets.map(s=>est1rm(s.w,s.r))); byD[l.date]=Math.max(byD[l.date]||0,m); });
+  let chartPts=[]; if(chartExId){ const byD={}; logs.filter(l=>l.exId===chartExId).forEach(l=>{ const m=Math.max(...l.sets.map(s=>est1rm(setKg(s,l.date),s.r))); byD[l.date]=Math.max(byD[l.date]||0,m); });
     chartPts=Object.keys(byD).sort().map(d=>({d:d.slice(5).replace('-','/'),val:Math.round(byD[d])})); }
   const chartMusChips=chartMuscles.map(m=>`<span class="mchip ${m===chartMuscle?'on':''}" data-chartm="${m}">${m}</span>`).join('');
   const chartExChips=chartInMus.map(p=>`<span class="mchip ${p.id===chartExId?'on':''}" data-chart="${p.id}">${p.name}</span>`).join('');
@@ -2232,8 +2250,8 @@ const STICK={
 };
 let stickSel={bench:null,squat:null,dead:null};
 function round25(x){ return Math.round(x/2.5)*2.5; }
-function bestE1rm(exId){ let m=0; logs.filter(l=>l.exId===exId).forEach(l=>l.sets.forEach(s=>{ const e=est1rm(s.w,s.r); if(e>m)m=e; })); return m; }
-function liftTrend(exId){ const byDate={}; logs.filter(l=>l.exId===exId).forEach(l=>{ const m=Math.max(...l.sets.map(s=>est1rm(s.w,s.r))); byDate[l.date]=Math.max(byDate[l.date]||0,m); });
+function bestE1rm(exId){ let m=0; logs.filter(l=>l.exId===exId).forEach(l=>l.sets.forEach(s=>{ const e=est1rm(setKg(s,l.date),s.r); if(e>m)m=e; })); return m; }
+function liftTrend(exId){ const byDate={}; logs.filter(l=>l.exId===exId).forEach(l=>{ const m=Math.max(...l.sets.map(s=>est1rm(setKg(s,l.date),s.r))); byDate[l.date]=Math.max(byDate[l.date]||0,m); });
   return Object.keys(byDate).sort().map(d=>Math.round(byDate[d])); }
 function stallStatus(exId){ const t=liftTrend(exId);
   if(t.length<3) return {state:'few',t};
