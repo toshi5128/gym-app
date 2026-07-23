@@ -368,6 +368,15 @@
   .wk-time{font-family:var(--font-disp); font-weight:800; font-size:42px; line-height:1.05; color:#f4eedd; font-variant-numeric:tabular-nums;}
   .wk-stop{margin-top:4px; padding:9px 22px; border-radius:12px; background:rgba(255,255,255,.13); border:1px solid rgba(255,255,255,.28); color:#f2ecdb; font-weight:700; font-size:13px; cursor:pointer; font-family:var(--font-jp);}
   .wk-stop:active{transform:scale(.97);}
+  /* ヘッダーに貼り付く常時表示バー（どのタブ・どこまでスクロールしても終了できる） */
+  .wkbar{display:none; align-items:center; gap:9px; margin-top:11px; padding:7px 8px 7px 13px; border-radius:13px;
+    background:linear-gradient(165deg,#17402f,#0e2c22); border:1px solid rgba(168,132,47,.45); box-shadow:0 7px 20px -9px rgba(0,0,0,.7);}
+  .wkbar.on{display:flex;}
+  .wkb-lab{font-size:11px; font-weight:800; letter-spacing:.1em; color:#cdbd88;}
+  .wkb-time{font-family:var(--font-disp); font-weight:800; font-size:17px; line-height:1; color:#f4eedd; font-variant-numeric:tabular-nums; margin-left:auto;}
+  .wkb-end{padding:6px 15px; border-radius:10px; background:rgba(255,255,255,.13); border:1px solid rgba(255,255,255,.28);
+    color:#f2ecdb; font-weight:700; font-size:12.5px; cursor:pointer; font-family:var(--font-jp); flex-shrink:0;}
+  .wkb-end:active{transform:scale(.96);}
 
   .stat-grid{display:grid; grid-template-columns:1fr 1fr; gap:11px; margin-bottom:4px;}
   .stat{background:linear-gradient(180deg,var(--surface),var(--surface-2)); border:1px solid var(--hair); border-radius:var(--r-md); padding:16px;}
@@ -773,6 +782,11 @@
     <div class="mark"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6.5 6v12M3.5 8.5v7M17.5 6v12M20.5 8.5v7M6.5 12h11"/></svg></div>
     <div><div class="t">ATLAS</div><div class="sub">STRENGTH LOG</div></div>
     <div class="date"><div class="d" id="hdrDate"></div><div class="w" id="hdrWeek"></div></div>
+  </div>
+  <div class="wkbar" id="wkbar">
+    <span class="wk-dot"></span><span class="wkb-lab">トレ中</span>
+    <span class="wkb-time" id="wkbTime">0:00</span>
+    <button class="wkb-end" id="wkbEnd">終了</button>
   </div>
 </header>
 
@@ -1408,8 +1422,36 @@ function sessionMinutes(date){ if(settings.sessionDur && settings.sessionDur[dat
   if(ts.length<2)return null; const mins=Math.round((ts[ts.length-1]-ts[0])/60000); return (mins>0&&mins<=720)?mins:null; }   // 12時間超は計測不能扱い
 function fmtDur(mins){ if(mins==null)return ''; const h=Math.floor(mins/60), m=mins%60; return h>0?`${h}時間${m}分`:`${m}分`; }
 function fmtClock(ms){ const s=Math.max(0,Math.floor(ms/1000)); const h=Math.floor(s/3600), m=Math.floor(s%3600/60), sec=s%60; const p=n=>String(n).padStart(2,'0'); return h>0?`${h}:${p(m)}:${p(sec)}`:`${m}:${p(sec)}`; }
-function startWkTick(){ if(_wkInt){ clearInterval(_wkInt); _wkInt=null; } const aw=settings.activeWorkout; if(!(aw&&aw.date===todayStr()))return;
-  _wkInt=setInterval(()=>{ const el=document.getElementById('wkTimer'); if(!el){ clearInterval(_wkInt); _wkInt=null; return; } el.textContent=fmtClock(Date.now()-aw.startedAt); }, 1000); }
+// 計測中とみなす条件：開始から12時間以内（日をまたいでも続行。それ超えは押し忘れ扱い）
+function wkActiveNow(){ const aw=settings.activeWorkout; if(!aw||!aw.startedAt)return null;
+  return (Date.now()-aw.startedAt < 12*3600*1000) ? aw : null; }
+// ヘッダーの常時バーと今日タブのカード、両方の経過時間を塗る
+function paintWk(){ const aw=wkActiveNow(); const bar=document.getElementById('wkbar');
+  if(bar) bar.classList.toggle('on', !!aw);
+  if(!aw) return; const t=fmtClock(Date.now()-aw.startedAt);
+  const b=document.getElementById('wkbTime'); if(b) b.textContent=t;
+  const c=document.getElementById('wkTimer'); if(c) c.textContent=t; }
+function startWkTick(){ if(_wkInt){ clearInterval(_wkInt); _wkInt=null; } paintWk(); if(!wkActiveNow())return;
+  _wkInt=setInterval(()=>{ if(!wkActiveNow()){ clearInterval(_wkInt); _wkInt=null; paintWk(); rescueStaleWorkout(); return; } paintWk(); }, 1000); }
+function startWorkout(){ settings.activeWorkout={startedAt:Date.now(),date:todayStr()}; saveAll();
+  if(tab==='log') renderLog(true); else { render(); startWkTick(); } }
+function endWorkout(){ const aw=settings.activeWorkout;
+  if(aw){ const dur=Math.max(1,Math.round((Date.now()-aw.startedAt)/60000));
+    if(!confirm('トレーニングを終了しますか？\nトレ時間 '+fmtDur(dur)+' を記録します。'))return;
+    settings.sessionDur=settings.sessionDur||{}; settings.sessionDur[aw.date]=dur; }
+  settings.activeWorkout=null; if(_wkInt){ clearInterval(_wkInt); _wkInt=null; } saveAll(); paintWk();
+  toast('お疲れさま！ トレ時間を記録しました'); if(tab==='log') renderLog(true); else render(); }
+// 押し忘れ救済：12時間を超えた「開始したまま」を、その日の最後の記録時刻までの時間として拾う
+function rescueStaleWorkout(){ const aw=settings.activeWorkout; if(!aw||wkActiveNow())return;
+  const ts=logs.filter(l=>l.date===aw.date&&l.at).map(l=>new Date(l.at).getTime()).filter(n=>!isNaN(n));
+  const last=ts.length?Math.max.apply(null,ts):0;
+  const dur=last>aw.startedAt?Math.round((last-aw.startedAt)/60000):0;
+  let saved=false;
+  if(dur>0&&dur<=720&&!(settings.sessionDur&&settings.sessionDur[aw.date]!=null)){
+    if(confirm(fmtDate(aw.date)+'のトレーニングが「終了」されていません。\n最後に記録した時刻までの トレ時間 '+fmtDur(dur)+' として記録しますか？\n（キャンセルすると破棄します）')){
+      settings.sessionDur=settings.sessionDur||{}; settings.sessionDur[aw.date]=dur; saved=true; } }
+  settings.activeWorkout=null; saveAll(); paintWk();
+  if(saved){ toast('トレ時間を記録しました'); render(); } }
 const COND_LAB={1:'だるい',2:'いまいち',3:'ふつう',4:'好調',5:'絶好調'};
 function setDay(k,val){ const d=dayInfo[workDate]||(dayInfo[workDate]={}); if(val===''||val==null||(typeof val==='number'&&isNaN(val)))delete d[k]; else d[k]=val; if(!Object.keys(d).length)delete dayInfo[workDate]; saveAll(); }
 function dayInfoHtml(date){ const di=dayInfo[date]; if(!di||(!di.cond&&di.sleep==null&&!di.memo))return '';
@@ -1543,7 +1585,7 @@ function renderLog(keepScroll){
   const backupBanner = backupOverdue()? `<div class="card bk-nudge">
     <div class="bk-txt"><b>データのバックアップ</b><br>${settings.lastBackupAt?`前回から<b>${Math.floor(daysSince(settings.lastBackupAt))}日</b>経っています。`:'まだ一度も取っていません。'}記録は<b>この端末だけ</b>に保存されています。機種変や故障で消えないよう、書き出しておきましょう。</div>
     <div class="bk-btns"><button class="btn solid sm" id="bkNow">今すぐ書き出す</button><button class="btn ghost sm" id="bkLater">あとで</button></div></div>` : '';
-  const _aw=settings.activeWorkout; const wkActive=isToday()&&_aw&&_aw.date===todayStr();
+  const _aw=wkActiveNow(); const wkActive=isToday()&&!!_aw;
   const wkHtml=!isToday()?'':(wkActive
     ? `<div class="card wk-timer"><div class="wk-live"><span class="wk-dot"></span>トレーニング中</div><div class="wk-time tnum" id="wkTimer">${fmtClock(Date.now()-_aw.startedAt)}</div><button class="wk-stop" id="wkStop">■ 終了する</button></div>`
     : `<button class="btn solid wk-start" id="wkStart" style="width:100%">▶ 筋トレを開始</button>`);
@@ -1611,8 +1653,8 @@ function renderLog(keepScroll){
   document.getElementById('dPick').onchange=e=>setWorkDate(e.target.value);
   const _dt=document.getElementById('dToday'); if(_dt)_dt.onclick=()=>setWorkDate(todayStr());
   const _ce=document.getElementById('cancelEdit'); if(_ce)_ce.onclick=()=>{ editId=null; clearDraft(); renderLog(); };
-  const _wkS=document.getElementById('wkStart'); if(_wkS)_wkS.onclick=()=>{ settings.activeWorkout={startedAt:Date.now(),date:todayStr()}; saveAll(); renderLog(true); };
-  const _wkE=document.getElementById('wkStop'); if(_wkE)_wkE.onclick=()=>{ const aw=settings.activeWorkout; if(aw){ const dur=Math.max(1,Math.round((Date.now()-aw.startedAt)/60000)); settings.sessionDur=settings.sessionDur||{}; settings.sessionDur[aw.date]=dur; } settings.activeWorkout=null; if(_wkInt){clearInterval(_wkInt);_wkInt=null;} saveAll(); toast('お疲れさま！ 今日のトレ時間を記録しました'); renderLog(true); };
+  const _wkS=document.getElementById('wkStart'); if(_wkS)_wkS.onclick=startWorkout;
+  const _wkE=document.getElementById('wkStop'); if(_wkE)_wkE.onclick=endWorkout;
   startWkTick();
 
   v.querySelectorAll('[data-cm]').forEach(b=>b.onclick=()=>{ calMonth=shiftMonth(calMonth||todayStr().slice(0,7), b.dataset.cm==='prev'?-1:1); renderLog(true); });
@@ -2367,6 +2409,7 @@ function render(){
   else if(tab==='photos') renderPhotos();
   else if(tab==='more') renderMore();
   if(animateIn){ const fi=document.querySelector('#view .fade-in'); if(fi)fi.classList.add('anim'); animateIn=false; }
+  startWkTick();     // どのタブでもヘッダーの「トレ中」バーを生かす
 }
 
 /* ============ オンボーディング（初回の目的設定） ============ */
@@ -2419,7 +2462,9 @@ if(!settings.fixedSplit5){
   settings.fixedSplit5=true; saveAll();
 }
 
+{ const _we=document.getElementById('wkbEnd'); if(_we) _we.onclick=endWorkout; }
 render();
+rescueStaleWorkout();     // 前回「終了」を押し忘れたセッションを拾う
 if(!settings.onboarded) showOnboard();
 photoAllDB().then(a=>{ photoCache=a; if(tab==='log'||tab==='history'||tab==='photos') render(); }).catch(()=>{});
 
