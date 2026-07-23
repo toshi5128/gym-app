@@ -620,6 +620,21 @@
   .cmp .cmp-img img{width:100%; height:100%; object-fit:cover;}
   .cmp select{margin-top:7px; padding:9px; font-size:13px;}
   .cmp-tag{font-size:10px; font-weight:700; letter-spacing:.1em; color:var(--txt-3); font-family:var(--font-disp); margin-bottom:5px;}
+  /* 比較枠をタップ →「すべての写真」から選ぶモード */
+  .cmp-slot.picking .cmp-img{outline:2.5px solid var(--blue); outline-offset:2px;}
+  .cmp-slot.picking .cmp-img img{opacity:.5;}
+  .cmp-hint{font-size:10.5px; font-weight:700; color:var(--txt-3); text-align:center; margin-top:6px; line-height:1.4;}
+  .cmp-slot.picking .cmp-hint{color:var(--blue);}
+  /* ↓ 緑地の上に乗るのでライト文字で上書き */
+  .pickbar{display:flex; align-items:center; gap:10px; background:linear-gradient(165deg,#17402f,#0e2c22);
+    border:1px solid rgba(168,132,47,.5); border-radius:12px; padding:11px 13px; margin:0 2px 11px;}
+  .pickbar .pb-t{font-size:13px; font-weight:800; color:#e7d9ae; line-height:1.4;}
+  .pickbar .pb-x{margin-left:auto; flex-shrink:0; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.28);
+    color:#f2ecdb; border-radius:9px; padding:7px 13px; font-size:12px; font-weight:700; cursor:pointer; font-family:var(--font-jp);}
+  .pickbar .pb-x:active{transform:scale(.96);}
+  .thumb.pick-on{outline:2.5px solid var(--blue); outline-offset:-2.5px;}
+  .th-badge{position:absolute; left:5px; top:5px; font-size:9px; font-weight:800; letter-spacing:.06em;
+    padding:3px 7px; border-radius:7px; background:rgba(14,44,34,.86); color:#f0e6cc; pointer-events:none;}
 
   /* photos */
   .photo-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
@@ -1236,7 +1251,7 @@ function bigChart(pts){ if(pts.length<2) return `<div class="spark-empty">デー
     <text x="${L}" y="${H-7}" class="ct">${pts[0].d}</text><text x="${W-R}" y="${H-7}" class="ct" text-anchor="end">${pts[pts.length-1].d}</text>
     <path d="${area}" fill="rgba(168,132,47,.12)" stroke="none"/>
     <path d="${line}" fill="none" stroke="#b0892f" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>${dots}</svg>`; }
-let chartExId=null, chartMuscle=null, measSel='chest', cmpA=0, cmpB=-1, barType='barbell', toolKind=null, calMonth=null, pickMuscle=null, animateIn=true, pickerOpen=false, rtShowAll=new Set();
+let chartExId=null, chartMuscle=null, measSel='chest', cmpA=0, cmpB=-1, cmpPick=null, barType='barbell', toolKind=null, calMonth=null, pickMuscle=null, animateIn=true, pickerOpen=false, rtShowAll=new Set();
 let statsSub='grow';   // 分析タブ内の小タブ: grow=成長 / kiroku=記録 / karada=からだ
 let prMuscle=null;     // 自己ベスト（PR）の部位フィルタ（null=先頭部位を自動選択）
 let histSelDate=null;   // 履歴タブ：カレンダーで選択中の日付（下にその日の記録を表示）
@@ -2072,8 +2087,8 @@ function renderPhotos(){
   // ---- ビフォー／アフター比較 ----
   const cmpLatest=parr.length?new Date(parr[parr.length-1].date):null;
   const cmpFindAgo=days=>{ if(!parr.length)return 0; const target=cmpLatest-days*86400000; let best=0,bd=Infinity; parr.forEach((p,i)=>{ const dd=Math.abs(new Date(p.date)-target); if(dd<bd){bd=dd;best=i;} }); return best; };
-  let cmpHtml;
-  if(parr.length<2){ cmpHtml=`<div class="hint" style="border:none;padding:0">写真が2枚以上たまると、ビフォー／アフターを並べて比較できます。下の「＋ 写真を追加」から今日の姿を残しましょう。</div>`; }
+  let cmpHtml, cmpUsed={a:null,b:null};
+  if(parr.length<2){ cmpPick=null; cmpHtml=`<div class="hint" style="border:none;padding:0">写真が2枚以上たまると、ビフォー／アフターを並べて比較できます。下の「＋ 写真を追加」から今日の姿を残しましょう。</div>`; }
   else { const ai=Math.min(Math.max(0,cmpA),parr.length-1); const bi=cmpB<0?parr.length-1:Math.min(cmpB,parr.length-1);
     const opt=(sel)=>parr.map((p,i)=>`<option value="${i}" ${i===sel?'selected':''}>${fmtDate(p.date)}</option>`).join('');
     const days=Math.abs(Math.round((new Date(parr[bi].date)-new Date(parr[ai].date))/86400000));
@@ -2082,31 +2097,53 @@ function renderPhotos(){
     const presetChips=`<div class="cmp-presets">${PRESETS.map(([lab,d])=>`<span class="cmp-chip" data-pdays="${d}">${d===0?'最初↔最新':lab+'前→最新'}</span>`).join('')}</div>`;
     const period=`<div class="cmp-period">期間：<b>${fmtDate(parr[ai].date)}</b> → <b>${fmtDate(parr[bi].date)}</b>　<span class="cmp-span">${days}日間${days>=7?`（約${Math.round(days/7)}週間）`:''}</span></div>`;
     cmpHtml=`${presetChips}${period}<div class="cmp">
-      <div class="cmp-slot"><div class="cmp-tag">ビフォー（過去）</div><div class="cmp-img" data-cmp="${parr[ai].id}"><img src="${parr[ai].data}" alt=""></div><label class="cmp-lbl">いつ</label><select id="cmpAsel">${opt(ai)}</select></div>
-      <div class="cmp-slot"><div class="cmp-tag">アフター（最近）</div><div class="cmp-img" data-cmp="${parr[bi].id}"><img src="${parr[bi].data}" alt=""></div><label class="cmp-lbl">いつ</label><select id="cmpBsel">${opt(bi)}</select></div></div>`; }
+      <div class="cmp-slot ${cmpPick==='a'?'picking':''}"><div class="cmp-tag">ビフォー（過去）</div>
+        <div class="cmp-img" data-pickslot="a"><img src="${parr[ai].data}" alt=""></div>
+        <div class="cmp-hint">${cmpPick==='a'?'下から選んでください':'タップして選ぶ'}</div>
+        <label class="cmp-lbl">いつ</label><select id="cmpAsel">${opt(ai)}</select></div>
+      <div class="cmp-slot ${cmpPick==='b'?'picking':''}"><div class="cmp-tag">アフター（最近）</div>
+        <div class="cmp-img" data-pickslot="b"><img src="${parr[bi].data}" alt=""></div>
+        <div class="cmp-hint">${cmpPick==='b'?'下から選んでください':'タップして選ぶ'}</div>
+        <label class="cmp-lbl">いつ</label><select id="cmpBsel">${opt(bi)}</select></div></div>`;
+    cmpUsed={a:parr[ai].id, b:parr[bi].id}; }
   // ---- すべての写真（月ごと・新しい順） ----
   const byMonth={}; [...parr].reverse().forEach(p=>{ const k=p.date.slice(0,7); (byMonth[k]=byMonth[k]||[]).push(p); });
   const monthKeys=Object.keys(byMonth).sort().reverse();
+  const thBadge=id=>id===cmpUsed.a?'<span class="th-badge">ビフォー</span>':(id===cmpUsed.b?'<span class="th-badge">アフター</span>':'');
   const galleryHtml=monthKeys.length?monthKeys.map(k=>{ const [y,m]=k.split('-');
     return `<div class="ph-month">${+y}年${+m}月 <span class="ph-count">${byMonth[k].length}枚</span></div>
-      <div class="photo-grid" style="grid-template-columns:repeat(4,1fr)">${byMonth[k].map(p=>`<div class="thumb" data-pid="${p.id}"><img src="${p.data}" loading="lazy" alt=""></div>`).join('')}</div>`; }).join('')
+      <div class="photo-grid" style="grid-template-columns:repeat(4,1fr)">${byMonth[k].map(p=>`<div class="thumb ${cmpPick&&p.id===cmpUsed[cmpPick]?'pick-on':''}" data-pid="${p.id}"><img src="${p.data}" loading="lazy" alt="">${thBadge(p.id)}</div>`).join('')}</div>`; }).join('')
     : `<div class="empty" style="padding:22px">${IC.photos.replace('<svg','<svg width=28 height=28')}まだ写真がありません。<br>「＋ 写真を追加」で今日の姿を残しましょう。</div>`;
 
   v.innerHTML=`<div class="fade-in">
     <div class="eyebrow">ビフォー → アフター</div>
     <div class="card">${cmpHtml}</div>
     <div class="row" style="justify-content:space-between;align-items:center;margin:18px 4px 10px">
-      <div class="eyebrow" style="margin:0">すべての写真</div>
+      <div class="eyebrow" style="margin:0" id="phAllTop">すべての写真</div>
       <button class="btn ghost sm" id="phAdd" style="width:auto;padding:0 14px">＋ 写真を追加</button>
       <input type="file" id="phInput" accept="image/*" multiple style="display:none">
     </div>
+    ${cmpPick?`<div class="pickbar"><div class="pb-t">${cmpPick==='a'?'ビフォー':'アフター'}にする写真をタップ</div><button class="pb-x" id="pickCancel">やめる</button></div>`:''}
     ${galleryHtml}</div>`;
 
   const ca=document.getElementById('cmpAsel'); if(ca)ca.onchange=e=>{ cmpA=+e.target.value; renderPhotos(); };
   const cb=document.getElementById('cmpBsel'); if(cb)cb.onchange=e=>{ cmpB=+e.target.value; renderPhotos(); };
-  v.querySelectorAll('[data-pdays]').forEach(c=>c.onclick=()=>{ const d=+c.dataset.pdays; cmpB=parr.length-1; cmpA=(d===0?0:cmpFindAgo(d)); renderPhotos(); });
-  v.querySelectorAll('[data-cmp]').forEach(t=>t.onclick=()=>openPhoto(t.dataset.cmp));
-  v.querySelectorAll('[data-pid]').forEach(t=>t.onclick=()=>openPhoto(t.dataset.pid));
+  v.querySelectorAll('[data-pdays]').forEach(c=>c.onclick=()=>{ const d=+c.dataset.pdays; cmpPick=null; cmpB=parr.length-1; cmpA=(d===0?0:cmpFindAgo(d)); renderPhotos(); });
+  // 比較枠をタップ → 下の一覧から選ぶモードへ（もう一度タップで解除）
+  v.querySelectorAll('[data-pickslot]').forEach(t=>t.onclick=()=>{ const s=t.dataset.pickslot;
+    cmpPick=(cmpPick===s)?null:s; renderPhotos();
+    if(cmpPick){ const g=document.getElementById('phAllTop'); if(g)g.scrollIntoView({behavior:'smooth',block:'start'}); } });
+  const pkX=document.getElementById('pickCancel'); if(pkX)pkX.onclick=()=>{ cmpPick=null; renderPhotos(); };
+  // 一覧のタップ：選ぶモード中は比較枠へセット、通常は拡大表示
+  v.querySelectorAll('[data-pid]').forEach(t=>t.onclick=()=>{ const id=t.dataset.pid;
+    if(!cmpPick){ openPhoto(id); return; }
+    const i=parr.findIndex(p=>p.id===id); if(i<0)return;
+    const other=cmpPick==='a'?(cmpB<0?parr.length-1:Math.min(cmpB,parr.length-1)):Math.min(Math.max(0,cmpA),parr.length-1);
+    if(i===other){ const cur=cmpPick==='a'?Math.min(Math.max(0,cmpA),parr.length-1):(cmpB<0?parr.length-1:Math.min(cmpB,parr.length-1));
+      if(cmpPick==='a'){ cmpB=cur; } else { cmpA=cur; } }   // 反対側の写真を選んだら入れ替え
+    if(cmpPick==='a') cmpA=i; else cmpB=i;
+    cmpPick=null; renderPhotos();
+    const top=document.querySelector('#view .cmp'); if(top)top.scrollIntoView({behavior:'smooth',block:'center'}); });
   const phAdd=document.getElementById('phAdd'); const phInput=document.getElementById('phInput');
   if(phAdd&&phInput){ phAdd.onclick=()=>phInput.click();
     phInput.onchange=async e=>{ const files=[...e.target.files]; if(!files.length)return; toast('写真を保存中…');
@@ -2402,6 +2439,7 @@ function renderPL(){
 
 /* ============ ルーター ============ */
 function render(){
+  if(tab!=='photos') cmpPick=null;     // 別タブへ移ったら「写真を選ぶモード」は解除
   if(tab==='log') renderLog();
   else if(tab==='history') renderHistory();
   else if(tab==='stats') renderStats();
