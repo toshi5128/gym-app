@@ -654,6 +654,24 @@
   .pview .pv-img img{max-width:100%; max-height:100%; object-fit:contain; border-radius:8px;}
   .pview .pv-cap{padding:12px 18px calc(20px + env(safe-area-inset-bottom));}
   .pview .pv-cap input{width:100%; background:var(--surface-2); border:1px solid var(--hair); color:var(--txt); border-radius:12px; padding:13px; font-size:15px; outline:none; font-family:inherit;}
+  .pv-poses{display:flex; gap:6px; overflow-x:auto; margin-bottom:10px; padding-bottom:2px; -webkit-overflow-scrolling:touch;}
+  .pv-poses::-webkit-scrollbar{display:none;}
+  .pv-pose{flex-shrink:0; font-size:12.5px; font-weight:700; color:rgba(255,255,255,.72); background:rgba(255,255,255,.12);
+    border-radius:20px; padding:7px 14px; cursor:pointer; font-family:var(--font-disp);}
+  .pv-pose.on{background:var(--blue); color:#1c1a17;}
+
+  /* 変化タブ：向き・部位の切替 */
+  .pose-tabs{display:flex; gap:6px; overflow-x:auto; margin:0 -4px 12px; padding:0 4px 3px; -webkit-overflow-scrolling:touch;}
+  .pose-tabs::-webkit-scrollbar{display:none;}
+  .pose-tab{flex-shrink:0; display:flex; align-items:center; gap:6px; font-size:13.5px; font-weight:700; color:var(--txt-2);
+    background:var(--surface-2); border:1px solid var(--hair); border-radius:20px; padding:8px 15px; cursor:pointer;
+    font-family:var(--font-disp); transition:transform .08s, background-color .15s, color .15s;}
+  .pose-tab.on{background:var(--acc); color:var(--on-acc); border-color:transparent;}
+  .pose-tab:active{transform:scale(.95);}
+  .pose-tab .pt-n{font-size:10.5px; font-weight:700; color:var(--txt-3); font-variant-numeric:tabular-nums;}
+  .pose-tab.on .pt-n{color:rgba(242,236,219,.75);}
+  .pose-guide{font-size:12px; color:var(--txt-2); line-height:1.7; margin:0 0 13px; padding:9px 12px; border-radius:10px; background:var(--surface-2);}
+  .pose-guide b{color:var(--txt); font-weight:800;}
 
   /* powerlifting */
   .pl-intro{font-size:13px; color:var(--txt-2); line-height:1.7;}
@@ -823,7 +841,7 @@
 <div class="pview" id="pview">
   <div class="pv-top"><button id="pvClose">閉じる</button><span id="pvDate"></span><button id="pvDel">削除</button></div>
   <div class="pv-img"><img id="pvImg" src="" alt=""></div>
-  <div class="pv-cap"><input id="pvCap" placeholder="メモ（例：胸トレ後 / 体重72.4kg）"></div>
+  <div class="pv-cap"><div class="pv-poses" id="pvPoses"></div><input id="pvCap" placeholder="メモ（例：胸トレ後 / 体重72.4kg）"></div>
 </div>
 
 <div class="authgate" id="authgate">
@@ -1143,7 +1161,19 @@ function suggestNext(exId){ const last=lastRecord(exId); const rng=goalRange();
   return {kind:'rep', w:top.w, r:Math.min(rng.hi,top.r+1), sets:rng.sets, text:`前回 ${top.w}kg×${top.r}回。同じ重さで<b>あと1回</b>を狙う（${rng.hi}回に届いたら次回に増量）。`}; }
 
 /* ===== 写真（IndexedDBに自動リサイズ保存） ===== */
-let photoCache=[];        // {id,date,cap,data(dataURL),createdAt}
+let photoCache=[];        // {id,date,cap,data(dataURL),createdAt,pose}
+/* 撮る向き・部位。毎回この決まったポーズで撮ると変化が比べやすい（poseキーは保存値なので変更禁止） */
+const POSES=[
+  {k:'front', n:'前',   g:'正面を向いてまっすぐ立つ。腕は体の横に自然におろし、力は抜いたまま。'},
+  {k:'rear',  n:'後ろ', g:'背中を向けてまっすぐ立つ。腕は体の横におろし、力は抜いたまま。'},
+  {k:'chest', n:'胸',   g:'正面で両手を胸の前で合わせ、押し合うように胸に力を入れる。'},
+  {k:'lats',  n:'背中', g:'背中を向けて両手を腰に当て、脇の下を広げる（ラットスプレッド）。'},
+  {k:'delts', n:'肩',   g:'正面で両腕を体の横に少し開き、肩を張る。あごを引いて立つ。'},
+  {k:'arms',  n:'腕',   g:'正面で両ひじを肩の高さに上げ、力こぶを作る（ダブルバイセップス）。'},
+  {k:'legs',  n:'脚',   g:'正面で片脚を半歩前に出し、太ももに力を入れる。'},
+];
+const POSE_N=Object.fromEntries(POSES.map(p=>[p.k,p.n]));
+function poseOf(p){ return POSE_N[p&&p.pose]?p.pose:'front'; }   // 旧データ（pose無し）は「前」扱い
 let _db=null;
 function idb(){ return new Promise((res,rej)=>{ if(_db)return res(_db); const r=indexedDB.open('atlas_db',1);
   r.onupgradeneeded=()=>{ const db=r.result; if(!db.objectStoreNames.contains('photos')) db.createObjectStore('photos',{keyPath:'id'}); };
@@ -1157,13 +1187,22 @@ function fileToDataURL(file,maxDim=1280,q=0.82){ return new Promise((res,rej)=>{
   fr.onload=()=>{ const img=new Image(); img.onload=()=>{ let w=img.width,h=img.height; const sc=Math.min(1,maxDim/Math.max(w,h)); w=Math.round(w*sc); h=Math.round(h*sc);
     const c=document.createElement('canvas'); c.width=w; c.height=h; c.getContext('2d').drawImage(img,0,0,w,h); try{res(c.toDataURL('image/jpeg',q));}catch(e){res(fr.result);} };
     img.onerror=rej; img.src=fr.result; }; fr.onerror=rej; fr.readAsDataURL(file); }); }
-async function addPhotos(files,date){ for(const f of files){ if(!f.type||!f.type.startsWith('image/'))continue; const data=await fileToDataURL(f);
-  const o={id:uid(),date,cap:'',data,createdAt:new Date().toISOString()}; await photoPut(o); photoCache.push(o); } }
+async function addPhotos(files,date,pose){ for(const f of files){ if(!f.type||!f.type.startsWith('image/'))continue; const data=await fileToDataURL(f);
+  const o={id:uid(),date,cap:'',data,createdAt:new Date().toISOString(),pose:POSE_N[pose]?pose:'front'}; await photoPut(o); photoCache.push(o); } }
 function photosOn(date){ return photoCache.filter(p=>p.date===date).sort((a,b)=>(a.createdAt||'').localeCompare(b.createdAt||'')); }
 let viewPid=null;
 function openPhoto(id){ const p=photoCache.find(x=>x.id===id); if(!p)return; viewPid=id;
   document.getElementById('pvImg').src=p.data; document.getElementById('pvCap').value=p.cap||'';
-  document.getElementById('pvDate').textContent=fmtDate(p.date); document.getElementById('pview').classList.add('show'); }
+  document.getElementById('pvDate').textContent=fmtDate(p.date)+'　'+POSE_N[poseOf(p)];
+  renderPvPoses(); document.getElementById('pview').classList.add('show'); }
+/* 拡大表示の中で「向き・部位」を付け替える（旧写真の仕分けにも使う） */
+function renderPvPoses(){ const box=document.getElementById('pvPoses'); const p=photoCache.find(x=>x.id===viewPid); if(!box||!p)return;
+  const cur=poseOf(p);
+  box.innerHTML=POSES.map(o=>`<span class="pv-pose ${o.k===cur?'on':''}" data-pvpose="${o.k}">${o.n}</span>`).join('');
+  box.querySelectorAll('[data-pvpose]').forEach(c=>c.onclick=async()=>{ const t=photoCache.find(x=>x.id===viewPid); if(!t)return;
+    t.pose=c.dataset.pvpose; try{ await photoPut(t); }catch(err){}
+    document.getElementById('pvDate').textContent=fmtDate(t.date)+'　'+POSE_N[poseOf(t)];
+    renderPvPoses(); if(tab==='photos') renderPhotos(); toast(POSE_N[poseOf(t)]+'に移しました'); }); }
 function closePhoto(){ document.getElementById('pview').classList.remove('show'); viewPid=null; }
 
 /* ===== Tier2: 筋肥大エンジン（週間ボリューム／デロード／テンプレ／種目ライブラリ） ===== */
@@ -1251,7 +1290,7 @@ function bigChart(pts){ if(pts.length<2) return `<div class="spark-empty">デー
     <text x="${L}" y="${H-7}" class="ct">${pts[0].d}</text><text x="${W-R}" y="${H-7}" class="ct" text-anchor="end">${pts[pts.length-1].d}</text>
     <path d="${area}" fill="rgba(168,132,47,.12)" stroke="none"/>
     <path d="${line}" fill="none" stroke="#b0892f" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>${dots}</svg>`; }
-let chartExId=null, chartMuscle=null, measSel='chest', cmpA=0, cmpB=-1, cmpPick=null, barType='barbell', toolKind=null, calMonth=null, pickMuscle=null, animateIn=true, pickerOpen=false, rtShowAll=new Set();
+let chartExId=null, chartMuscle=null, measSel='chest', phPose='front', cmpSel={}, cmpPick=null, barType='barbell', toolKind=null, calMonth=null, pickMuscle=null, animateIn=true, pickerOpen=false, rtShowAll=new Set();
 let statsSub='grow';   // 分析タブ内の小タブ: grow=成長 / kiroku=記録 / karada=からだ
 let prMuscle=null;     // 自己ベスト（PR）の部位フィルタ（null=先頭部位を自動選択）
 let histSelDate=null;   // 履歴タブ：カレンダーで選択中の日付（下にその日の記録を表示）
@@ -1264,7 +1303,7 @@ const GUIDE=[
   {t:'② 「今日」タブで記録する',d:'今日やる分割を選び、種目ごとに「重さ × 回数」を入力して記録。記録すると休憩タイマーが自動で動き、前回超え・自己ベストを教えてくれます。「次の目標」も自動表示。'},
   {t:'③ 「分析」タブで振り返る',d:'今週のボリューム（部位別セット数）・筋力ランク・推定1RMの推移・体重・採寸がまとまっています。'},
   {t:'④ 「PL」タブで本格的に伸ばす',d:'ベンチ・スクワット・デッドを伸ばす定番プログラム（5/3/1）と、停滞したときの打開策・フォームのコツが入っています。'},
-  {t:'⑤ 「変化」タブで体の変化を見る',d:'進捗写真をビフォー／アフターで並べて比較。過去の写真は月ごとの一覧でも振り返れます。写真の追加もこの「変化」タブの「＋ 写真を追加」から。'},
+  {t:'⑤ 「変化」タブで体の変化を見る',d:'上のボタンで「前／後ろ／胸／背中／肩／腕／脚」を切り替え、同じ向き・同じポーズどうしでビフォー／アフターを比較します。ポーズの説明どおりに撮るのがコツ。写真の追加も各ボタンの下の「＋ 写真を追加」から。撮った写真の向きを間違えたら、写真をタップして下の名前を押せば移せます。'},
   {t:'⑥ 分割メニューの管理',d:'「設定」タブ →「分割メニュー」で、各日に種目を割り当て。PPLや上下分割などのテンプレからワンタップで作ることもできます。'},
   {t:'⑦ 困ったら',d:'設定タブからこのガイドを再表示。データは端末内に保存され、設定→データでバックアップ（書き出し／読み込み）できます。'},
 ];
@@ -1855,7 +1894,7 @@ function renderHistory(){
   const selRtId=rec.find(l=>l.rtId)?.rtId; const selRtName=selRtId&&rtObj(selRtId)?`${rtObj(selRtId).name}の日`:'';
   const selDm=sessionMinutes(histSelDate);
   const selItems=rec.map(l=>`<div class="item htap" data-hd="${histSelDate}" data-hid="${l.id}"><div class="row" style="justify-content:space-between"><span class="n">${exName(l.exId)} <span class="tag">${exMuscle(l.exId)}</span></span><span class="go">${IC.edit}</span></div>${setListHtml(l.sets,l.warm,l.rir)}</div>`).join('');
-  const selPh=photosOn(histSelDate); const selPhHtml=selPh.length?`<div class="photo-grid" style="grid-template-columns:repeat(4,1fr);margin-top:9px">${selPh.map(p=>`<div class="thumb" data-pid="${p.id}"><img src="${p.data}" loading="lazy" alt=""></div>`).join('')}</div>`:'';
+  const selPh=photosOn(histSelDate); const selPhHtml=selPh.length?`<div class="photo-grid" style="grid-template-columns:repeat(4,1fr);margin-top:9px">${selPh.map(p=>`<div class="thumb" data-pid="${p.id}"><img src="${p.data}" loading="lazy" alt=""><span class="th-badge">${POSE_N[poseOf(p)]}</span></div>`).join('')}</div>`:'';
   const summary=rec.length?`${rec.length}種目${selRtName?' ・ '+selRtName:''}${selDm!=null?' ・ '+fmtDur(selDm):''} ・ ${selVol.toLocaleString()}kg`:'';
   const panel=rec.length
     ? `<div class="hist-summary">${summary}</div>${dayInfoHtml(histSelDate)}${selItems}${selPhHtml}<button class="btn ghost sm" data-add="${histSelDate}" style="width:100%;margin-top:10px">＋ この日に種目を追加</button>`
@@ -2080,16 +2119,22 @@ function wireSplitPanel(root){
   root.querySelectorAll('[data-rtall]').forEach(b=>b.onclick=()=>{ const id=b.dataset.rtall; rtShowAll.has(id)?rtShowAll.delete(id):rtShowAll.add(id); renderMore(); });
 }
 
-/* ============ 変化（進捗写真：ビフォー→アフター） ============ */
+/* ============ 変化（進捗写真：向き・部位ごとのビフォー→アフター） ============ */
+function cmpS(){ return cmpSel[phPose]||(cmpSel[phPose]={a:0,b:-1}); }
 function renderPhotos(){
   const v=document.getElementById('view');
-  const parr=[...photoCache].sort((a,b)=>(a.date+(a.createdAt||'')).localeCompare(b.date+(b.createdAt||'')));
-  // ---- ビフォー／アフター比較 ----
+  const PO=POSES.find(o=>o.k===phPose)||POSES[0];
+  const parr=photoCache.filter(p=>poseOf(p)===phPose).sort((a,b)=>(a.date+(a.createdAt||'')).localeCompare(b.date+(b.createdAt||'')));
+  const cnt={}; photoCache.forEach(p=>{ const k=poseOf(p); cnt[k]=(cnt[k]||0)+1; });
+  const poseTabs=`<div class="pose-tabs">${POSES.map(o=>`<span class="pose-tab ${o.k===phPose?'on':''}" data-pose="${o.k}">${o.n}${cnt[o.k]?`<span class="pt-n">${cnt[o.k]}</span>`:''}</span>`).join('')}</div>`;
+  const poseGuide=`<div class="pose-guide"><b>${PO.n}のポーズ</b>：${PO.g}</div>`;
+  // ---- ビフォー／アフター比較（今の向き・部位の中だけで） ----
+  const S=cmpS();
   const cmpLatest=parr.length?new Date(parr[parr.length-1].date):null;
   const cmpFindAgo=days=>{ if(!parr.length)return 0; const target=cmpLatest-days*86400000; let best=0,bd=Infinity; parr.forEach((p,i)=>{ const dd=Math.abs(new Date(p.date)-target); if(dd<bd){bd=dd;best=i;} }); return best; };
   let cmpHtml, cmpUsed={a:null,b:null};
-  if(parr.length<2){ cmpPick=null; cmpHtml=`<div class="hint" style="border:none;padding:0">写真が2枚以上たまると、ビフォー／アフターを並べて比較できます。下の「＋ 写真を追加」から今日の姿を残しましょう。</div>`; }
-  else { const ai=Math.min(Math.max(0,cmpA),parr.length-1); const bi=cmpB<0?parr.length-1:Math.min(cmpB,parr.length-1);
+  if(parr.length<2){ cmpPick=null; cmpHtml=`<div class="hint" style="border:none;padding:0">「${PO.n}」の写真が2枚以上たまると、ビフォー／アフターを並べて比較できます。下の「＋ 「${PO.n}」の写真を追加」から今日の姿を残しましょう。${parr.length?'':'<br>すでにある写真をここへ移したい時は、写真をタップして下の「'+PO.n+'」を選びます。'}</div>`; }
+  else { const ai=Math.min(Math.max(0,S.a),parr.length-1); const bi=S.b<0?parr.length-1:Math.min(S.b,parr.length-1);
     const opt=(sel)=>parr.map((p,i)=>`<option value="${i}" ${i===sel?'selected':''}>${fmtDate(p.date)}</option>`).join('');
     const days=Math.abs(Math.round((new Date(parr[bi].date)-new Date(parr[ai].date))/86400000));
     const spanDays=Math.round((cmpLatest-new Date(parr[0].date))/86400000);
@@ -2110,25 +2155,29 @@ function renderPhotos(){
   const byMonth={}; [...parr].reverse().forEach(p=>{ const k=p.date.slice(0,7); (byMonth[k]=byMonth[k]||[]).push(p); });
   const monthKeys=Object.keys(byMonth).sort().reverse();
   const thBadge=id=>id===cmpUsed.a?'<span class="th-badge">ビフォー</span>':(id===cmpUsed.b?'<span class="th-badge">アフター</span>':'');
-  const galleryHtml=monthKeys.length?monthKeys.map(k=>{ const [y,m]=k.split('-');
+  const galleryHtml=monthKeys.length?monthKeys.map(k=>{ const [y,m]=k.split('-'); /* この向き・部位の写真だけ */
     return `<div class="ph-month">${+y}年${+m}月 <span class="ph-count">${byMonth[k].length}枚</span></div>
       <div class="photo-grid" style="grid-template-columns:repeat(4,1fr)">${byMonth[k].map(p=>`<div class="thumb ${cmpPick&&p.id===cmpUsed[cmpPick]?'pick-on':''}" data-pid="${p.id}"><img src="${p.data}" loading="lazy" alt="">${thBadge(p.id)}</div>`).join('')}</div>`; }).join('')
-    : `<div class="empty" style="padding:22px">${IC.photos.replace('<svg','<svg width=28 height=28')}まだ写真がありません。<br>「＋ 写真を追加」で今日の姿を残しましょう。</div>`;
+    : `<div class="empty" style="padding:22px">${IC.photos.replace('<svg','<svg width=28 height=28')}「${PO.n}」の写真はまだありません。<br>下の「＋ 「${PO.n}」の写真を追加」から残しましょう。</div>`;
 
   v.innerHTML=`<div class="fade-in">
     <div class="eyebrow">ビフォー → アフター</div>
-    <div class="card">${cmpHtml}</div>
+    ${poseTabs}
+    <div class="card">${poseGuide}${cmpHtml}</div>
     <div class="row" style="justify-content:space-between;align-items:center;margin:18px 4px 10px">
-      <div class="eyebrow" style="margin:0" id="phAllTop">すべての写真</div>
-      <button class="btn ghost sm" id="phAdd" style="width:auto;padding:0 14px">＋ 写真を追加</button>
+      <div class="eyebrow" style="margin:0" id="phAllTop">「${PO.n}」の写真</div>
+      <button class="btn ghost sm" id="phAdd" style="width:auto;padding:0 14px">＋ 「${PO.n}」の写真を追加</button>
       <input type="file" id="phInput" accept="image/*" multiple style="display:none">
     </div>
     ${cmpPick?`<div class="pickbar"><div class="pb-t">${cmpPick==='a'?'ビフォー':'アフター'}にする写真をタップ</div><button class="pb-x" id="pickCancel">やめる</button></div>`:''}
     ${galleryHtml}</div>`;
 
-  const ca=document.getElementById('cmpAsel'); if(ca)ca.onchange=e=>{ cmpA=+e.target.value; renderPhotos(); };
-  const cb=document.getElementById('cmpBsel'); if(cb)cb.onchange=e=>{ cmpB=+e.target.value; renderPhotos(); };
-  v.querySelectorAll('[data-pdays]').forEach(c=>c.onclick=()=>{ const d=+c.dataset.pdays; cmpPick=null; cmpB=parr.length-1; cmpA=(d===0?0:cmpFindAgo(d)); renderPhotos(); });
+  // 向き・部位の切替（比較の選択は部位ごとに覚えておく）
+  v.querySelectorAll('[data-pose]').forEach(c=>c.onclick=()=>{ phPose=c.dataset.pose; cmpPick=null; renderPhotos();
+    const t=document.querySelector('#view .fade-in'); if(t)t.scrollIntoView({behavior:'smooth',block:'start'}); });
+  const ca=document.getElementById('cmpAsel'); if(ca)ca.onchange=e=>{ S.a=+e.target.value; renderPhotos(); };
+  const cb=document.getElementById('cmpBsel'); if(cb)cb.onchange=e=>{ S.b=+e.target.value; renderPhotos(); };
+  v.querySelectorAll('[data-pdays]').forEach(c=>c.onclick=()=>{ const d=+c.dataset.pdays; cmpPick=null; S.b=parr.length-1; S.a=(d===0?0:cmpFindAgo(d)); renderPhotos(); });
   // 比較枠をタップ → 下の一覧から選ぶモードへ（もう一度タップで解除）
   v.querySelectorAll('[data-pickslot]').forEach(t=>t.onclick=()=>{ const s=t.dataset.pickslot;
     cmpPick=(cmpPick===s)?null:s; renderPhotos();
@@ -2138,16 +2187,16 @@ function renderPhotos(){
   v.querySelectorAll('[data-pid]').forEach(t=>t.onclick=()=>{ const id=t.dataset.pid;
     if(!cmpPick){ openPhoto(id); return; }
     const i=parr.findIndex(p=>p.id===id); if(i<0)return;
-    const other=cmpPick==='a'?(cmpB<0?parr.length-1:Math.min(cmpB,parr.length-1)):Math.min(Math.max(0,cmpA),parr.length-1);
-    if(i===other){ const cur=cmpPick==='a'?Math.min(Math.max(0,cmpA),parr.length-1):(cmpB<0?parr.length-1:Math.min(cmpB,parr.length-1));
-      if(cmpPick==='a'){ cmpB=cur; } else { cmpA=cur; } }   // 反対側の写真を選んだら入れ替え
-    if(cmpPick==='a') cmpA=i; else cmpB=i;
+    const other=cmpPick==='a'?(S.b<0?parr.length-1:Math.min(S.b,parr.length-1)):Math.min(Math.max(0,S.a),parr.length-1);
+    if(i===other){ const cur=cmpPick==='a'?Math.min(Math.max(0,S.a),parr.length-1):(S.b<0?parr.length-1:Math.min(S.b,parr.length-1));
+      if(cmpPick==='a'){ S.b=cur; } else { S.a=cur; } }   // 反対側の写真を選んだら入れ替え
+    if(cmpPick==='a') S.a=i; else S.b=i;
     cmpPick=null; renderPhotos();
     const top=document.querySelector('#view .cmp'); if(top)top.scrollIntoView({behavior:'smooth',block:'center'}); });
   const phAdd=document.getElementById('phAdd'); const phInput=document.getElementById('phInput');
   if(phAdd&&phInput){ phAdd.onclick=()=>phInput.click();
     phInput.onchange=async e=>{ const files=[...e.target.files]; if(!files.length)return; toast('写真を保存中…');
-      try{ await addPhotos(files,todayStr()); }catch(err){ toast('保存に失敗しました'); } e.target.value=''; renderPhotos(); toast('写真を追加しました'); }; }
+      try{ await addPhotos(files,todayStr(),phPose); }catch(err){ toast('保存に失敗しました'); } e.target.value=''; renderPhotos(); toast(`「${PO.n}」に追加しました`); }; }
 }
 
 /* ============ 設定（種目・タイマー・データ） ============ */
