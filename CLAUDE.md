@@ -4,9 +4,30 @@
 
 ## 構成
 - 本体：`index.html`（単一HTML完結アプリ・ビルド不要・localStorage＋IndexedDB保存）
+- 食事タブの計算コア：`keiryo-calc.js`（グローバル `KEIRYO`。`index.html` の inline script より先に読む）
 - 他：`sw.js`(Service Worker), `manifest.json`, `icon-192/512.png`
 - 公開URL：https://toshi5128.github.io/gym-app/ （GitHub Pages / repo: toshi5128/gym-app）
 - カラー仕様：`COLOR_PALETTE.md`
+
+## 食事タブ（減量機能）
+仕様書＝`C:\Users\st106\Downloads\KEIRYO-SPEC-v2.md`（v1 より **v2 が正**）。
+
+**設計思想：日単位の完璧主義を捨て、週単位で帳尻を合わせる。**
+外食は「失敗」ではなく「計画」として先に週予算へ織り込む。1日超えても警告を出さない。
+→ **UI文言に「オーバー」を使わない。** 週予算を超えた時だけ知らせる。
+
+- 計算は必ず `keiryo-calc.js` 経由。**係数（1.75 / 2.4 / 0.72 / 550）を index.html に書かない。**
+- テスト：`npm test`（108件）。**ブラウザが読むのと同じ1ファイルを検証している。コピーを作らないこと。**
+  数式を直したら必ず `npm test` を通してからデプロイ。
+- **集計は必ず `m.d`（その記録が属する1日）で行う。`m.at`（実時刻）は表示専用。**
+  深夜0:30の食事を `at` で集計すると前日と当日の両方が壊れる（境界は既定4:00・設定で変更可）。
+- **体重は ATLAS の `bw` を共用。**食事タブで二重に入力させない（`bw` は `{date,kg,bf?,ref?}`）。
+  `ref:true`＝参考値。7日移動平均から除外される。
+- **判断は生の体重で行わない。必ず7日移動平均**（`mealAvg`）。
+- **P と F はいかなるカロリー調整でも減らさない。** 調整はすべて C（下限100g）。
+- 下限ガードは「その日の目標」ではなく **週平均** で判定する（日次だと外食週に毎週誤警告が出る）。
+- データ：`meals` / `mealPresets` / `myFoods`（`collectPayload`・`applyPayload`・`saveAllLocal` に登録済み）。
+  設定は `settings.nutri`（bfPct/activity/deficit/targetBf/boundaryHour/eatOutDow/eatOutKcal/cond/overrideKcal）。
 
 ## デザイン指針（厳守）
 - **エメラルド×クリーム版（2026-07-08〜）**：金×緑×黒×白。**背景＝深いエメラルド**`--bg:#0e2c22`（glow`#153a2c`）／**カード＝金みの白（クリーム）**`--surface:#e9dfc2`（副`#e0d4b2`/チップ`#e5dabb`）／**カード内の文字＝濃いチャコール**`--txt:#1c1a17`（副`#5a5347`/薄`#8a7f6a`）／主役＝ゴールド`--blue:#a8842f`。トークンは `:root[data-theme="light"]` に定義（命名は名残・applyThemeが常にlight固定）。
@@ -17,13 +38,16 @@
 - 変遷：旧アイボリーライト固定 → エメラルド地×白文字 → **エメラルド地×クリームカード×濃い文字**（現行。下田さんの「カードは金みの白」希望）。ブラウザ実描画で今日/分析タブの可読性検証済。
 
 ## タブ構成
-`const TABS=[['log','今日'],['history','履歴'],['stats','分析'],['pl','PL'],['routine','分割'],['more','設定']]`
-主要関数（grepで都度確認・行番号は動く）：`renderLog renderHistory renderStats renderRoutine renderMore renderPL buildCalendar ringSVG spark bigChart suggestNext trainStreak`
+`const TABS=[['log','今日'],['meal','食事'],['history','履歴'],['stats','分析'],['pl','PL'],['photos','変化'],['more','設定']]`
+主要関数（grepで都度確認・行番号は動く）：`renderLog renderMeal renderHistory renderStats renderPhotos renderMore renderPL buildCalendar ringSVG spark bigChart suggestNext trainStreak`
+食事タブの主要関数：`nutriCfg nutriPlan mealLogDate mealAvg mealWeekPlan mealWeekIntakes mealDayTarget logMealPreset openManualMeal syncPresetSummary`
 
 ## 編集・デプロイ手順
 1. **編集前に必ずバックアップ**：`cp index.html backups/index_$(date +%Y%m%d_%H%M%S).html`
 2. **構文チェック**：`<script>`を抜いて `node --check`（Node: `C:\Users\st106\AppData\Local\Programs\nodejs\node.exe`）
-3. **デプロイ**：`bash deploy.sh "コミットメッセージ"`（sw.jsのatlas-vNを自動+1→commit→push）
+3. **テスト**：`npm test`（keiryo-calc.js を触ったら必須）
+4. **デプロイ**：`bash deploy.sh "コミットメッセージ"`（sw.jsのatlas-vNを自動+1→commit→push）
+   ※ `keiryo-calc.js` は `sw.js` の ASSETS に入っている。新規ファイルを足したら ASSETS にも追加すること。
 4. 反映確認：`curl https://toshi5128.github.io/gym-app/sw.js` に新vが出るまで。出なければユーザーに「末尾 `?v=N`」を案内。
 
 ## ルール
