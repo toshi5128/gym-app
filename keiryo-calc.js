@@ -534,8 +534,115 @@
   }
 
   // =========================================================================
+  // 水分とカフェイン
+  //
+  // ※ これは医学的な指示ではなく一般的な目安。持病・服薬がある場合は医師の指示を優先する。
+  // 目標は「飲み物として記録したぶん」で数える。食品に含まれる水分は勘定に入れない
+  // （そのぶん目標は少し多めに出るので、安全側）。
+  // =========================================================================
+
+  /** 体重1kgあたりの1日の目安 (ml)。一般的な成人の目安 */
+  var WATER_ML_PER_KG = 35
+  /** 運動1時間あたりの追加 (ml)。発汗ぶんの補給 */
+  var WATER_ML_PER_TRAINING_HOUR = 500
+  /** 1日のカフェイン上限 (mg)。健康な成人の一般的な目安 */
+  var CAFFEINE_DAILY_MAX_MG = 400
+  /** 1回あたりのカフェイン上限 (mg) */
+  var CAFFEINE_SINGLE_MAX_MG = 200
+  /** 就寝の何時間前からカフェインを避けたいか（半減期は5〜6時間） */
+  var CAFFEINE_CUTOFF_H = 6
+
+  /**
+   * 1日に必要な水分の目安 (ml)。50ml 単位に丸める。
+   * trainingMinutes を渡すと、その日の運動ぶんが上乗せされる。
+   */
+  function waterTargetMl(weightKg, opts) {
+    opts = opts || {}
+    var base = weightKg * WATER_ML_PER_KG
+    var train = ((+opts.trainingMinutes || 0) / 60) * WATER_ML_PER_TRAINING_HOUR
+    return Math.round((base + train) / 50) * 50
+  }
+
+  /** 飲み物の合計。drinks: [{ml, caffeineMg, kcal}] */
+  function sumDrinks(drinks) {
+    return (drinks || []).reduce(
+      function (a, d) {
+        return {
+          ml: a.ml + (+d.ml || 0),
+          caffeineMg: a.caffeineMg + (+d.caffeineMg || 0),
+          kcal: a.kcal + (+d.kcal || 0),
+        }
+      },
+      { ml: 0, caffeineMg: 0, kcal: 0 },
+    )
+  }
+
+  /** 水分の進み具合。足りない時だけ知らせる（飲みすぎ警告は出さない） */
+  function hydrationStatus(ml, targetMl) {
+    var remainingMl = Math.max(0, targetMl - ml)
+    var pct = targetMl > 0 ? Math.min(100, (ml / targetMl) * 100) : 0
+    var level = ml >= targetMl ? 'done' : (pct >= 60 ? 'ok' : 'low')
+    return {
+      ml: ml, targetMl: targetMl, remainingMl: remainingMl, pct: pct, level: level,
+      message: level === 'done'
+        ? '今日の目安に届きました'
+        : 'あと ' + remainingMl.toLocaleString() + 'ml',
+    }
+  }
+
+  /** その時刻から就寝までの残り時間 (h)。bedHour が翌日にまたがる場合も正しく出す */
+  function hoursUntilBed(atHour, bedHour) {
+    return (((bedHour - atHour) % 24) + 24) % 24
+  }
+
+  /**
+   * カフェインの状態。
+   * lastAtHour を渡すと、就寝前に近すぎないかも見る（睡眠の質のため）。
+   */
+  function caffeineStatus(mg, opts) {
+    opts = opts || {}
+    var out = { mg: mg, maxMg: CAFFEINE_DAILY_MAX_MG, level: 'ok', message: '' }
+    if (mg > CAFFEINE_DAILY_MAX_MG) {
+      out.level = 'over'
+      out.message = '1日の目安 ' + CAFFEINE_DAILY_MAX_MG + 'mg を超えています'
+      return out
+    }
+    if (opts.lastAtHour != null && mg > 0) {
+      var h = hoursUntilBed(opts.lastAtHour, opts.bedHour == null ? 2 : opts.bedHour)
+      if (h < CAFFEINE_CUTOFF_H) {
+        out.level = 'late'
+        out.message = '就寝まで約' + h + '時間。カフェインは' + CAFFEINE_CUTOFF_H + '時間前までが目安です'
+        return out
+      }
+    }
+    if (mg > CAFFEINE_DAILY_MAX_MG * 0.8) {
+      out.level = 'near'
+      out.message = '目安 ' + CAFFEINE_DAILY_MAX_MG + 'mg に近づいています'
+    }
+    return out
+  }
+
+  /** 初期の飲み物。各自が編集できる（ml / カフェイン / kcal） */
+  var DEFAULT_DRINKS = [
+    { id: 'water500',  name: '水',            ml: 500, caffeineMg: 0,  kcal: 0 },
+    { id: 'water250',  name: '水（コップ）',   ml: 250, caffeineMg: 0,  kcal: 0 },
+    { id: 'coffee',    name: 'コーヒー',       ml: 150, caffeineMg: 90, kcal: 4 },
+    { id: 'cafeaulait',name: 'カフェオレ',     ml: 200, caffeineMg: 60, kcal: 90 },
+    { id: 'greentea',  name: '緑茶',          ml: 200, caffeineMg: 40, kcal: 0 },
+    { id: 'mugicha',   name: '麦茶',          ml: 500, caffeineMg: 0,  kcal: 0 },
+    // プロテインは粉のぶんを食事側で記録済みなので、ここでは水分だけ数える（kcal は 0）
+    { id: 'proteinw',  name: 'プロテインの水', ml: 250, caffeineMg: 0,  kcal: 0 },
+  ]
+
+  // =========================================================================
 
   return {
+    // 水分・カフェイン
+    WATER_ML_PER_KG: WATER_ML_PER_KG, WATER_ML_PER_TRAINING_HOUR: WATER_ML_PER_TRAINING_HOUR,
+    CAFFEINE_DAILY_MAX_MG: CAFFEINE_DAILY_MAX_MG, CAFFEINE_SINGLE_MAX_MG: CAFFEINE_SINGLE_MAX_MG,
+    CAFFEINE_CUTOFF_H: CAFFEINE_CUTOFF_H, DEFAULT_DRINKS: DEFAULT_DRINKS,
+    waterTargetMl: waterTargetMl, sumDrinks: sumDrinks, hydrationStatus: hydrationStatus,
+    hoursUntilBed: hoursUntilBed, caffeineStatus: caffeineStatus,
     // 係数
     SMM_TO_LBM: SMM_TO_LBM, PROTEIN_PER_LBM: PROTEIN_PER_LBM,
     FAT_PER_BODYWEIGHT: FAT_PER_BODYWEIGHT, FAT_FLOOR_PER_BODYWEIGHT: FAT_FLOOR_PER_BODYWEIGHT,
