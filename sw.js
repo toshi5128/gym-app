@@ -1,10 +1,11 @@
 /* ATLAS service worker
    HTMLは「ネットワーク優先」（常に最新を取得、オフライン時のみキャッシュ）、
    アイコン等の静的アセットは「キャッシュ優先」。更新したら CACHE のバージョンを上げる。 */
-const CACHE = 'atlas-v66';
+const CACHE = 'atlas-v67';
 const ASSETS = [
   './',
   './index.html',
+  './keiryo-calc.js',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',

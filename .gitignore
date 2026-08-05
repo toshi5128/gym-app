@@ -5,3 +5,6 @@ backups/
 *.bak_*
 .DS_Store
 Thumbs.db
+
+# テスト用（本体はビルド不要のまま）
+node_modules/

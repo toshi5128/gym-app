@@ -1,0 +1,13 @@
+{
+  "name": "atlas-gym-app",
+  "private": true,
+  "version": "1.0.0",
+  "description": "ATLAS（筋トレ記録アプリ）。本体は index.html（ビルド不要）。ここは keiryo-calc.js のテスト専用。",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "vitest": "^2.0.5"
+  }
+}

@@ -742,6 +742,48 @@
   nav button svg{width:20px; height:20px; stroke:currentColor; fill:none; stroke-width:1.7;}
   nav button.active{color:#fff; background:linear-gradient(160deg,var(--blue),var(--blue2)); box-shadow:0 6px 16px -8px rgba(168,132,47,.7);}
 
+  /* ===== 食事タブ ===== */
+  /* 定型セット：ホーム最上部に常時表示・1タップで即記録（確認ダイアログなし） */
+  .mpresets{display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-bottom:15px;}
+  .mpreset{background:var(--surface); border:1px solid var(--hair); border-radius:17px; padding:13px 13px 11px;
+    text-align:left; cursor:pointer; display:flex; flex-direction:column; gap:3px; min-height:92px; transition:transform .08s;}
+  .mpreset:active{transform:scale(.97);}
+  .mpreset .mp-n{font-size:15px; font-weight:700; color:var(--txt); font-family:var(--font-jp);}
+  .mpreset .mp-s{font-size:10.5px; color:var(--txt-3); line-height:1.5; overflow:hidden;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;}
+  .mpreset .mp-k{font-size:11.5px; font-weight:700; color:var(--blue); margin-top:auto; font-family:var(--font-disp);}
+
+  /* 残りカロリー */
+  .m-rest{display:flex; align-items:baseline; gap:9px;}
+  .m-rest .big{font-size:36px; font-weight:700; font-family:var(--font-disp); color:var(--txt); line-height:1;}
+  .m-rest .u{font-size:12px; color:var(--txt-3);}
+  .m-bar{height:8px; background:var(--surface-3); border-radius:99px; overflow:hidden; margin-top:11px;}
+  .m-bar>span{display:block; height:100%; border-radius:99px; background:var(--blue); transition:width .3s ease;}
+  .m-macro{margin-top:13px;}
+  .m-macro .r{display:flex; justify-content:space-between; font-size:11.5px; margin-bottom:4px; color:var(--txt-2);}
+  .m-macro .r b{font-family:var(--font-disp); font-weight:700; color:var(--txt);}
+  .m-macro+.m-macro{margin-top:10px;}
+
+  /* 今日の記録 */
+  .m-list{list-style:none; margin:0; padding:0;}
+  .m-list li{display:flex; align-items:center; gap:9px; padding:10px 0; border-bottom:1px solid var(--hair-2); font-size:14px; color:var(--txt);}
+  .m-list li:last-child{border-bottom:none;}
+  .m-list .t{font-size:11px; color:var(--txt-3); min-width:40px; font-family:var(--font-disp);}
+  .m-list .n{flex:1;}
+  .m-list .k{font-size:12.5px; color:var(--txt-2); font-family:var(--font-disp);}
+  .m-list .x{background:none; border:none; color:var(--txt-3); cursor:pointer; padding:3px 4px; line-height:1;}
+  .m-list .x svg{width:15px; height:15px; stroke-width:2;}
+  .m-list .x:active{color:var(--danger);}
+
+  /* 取り消しバー（5秒） */
+  .mundo{position:fixed; left:16px; right:16px; bottom:calc(92px + env(safe-area-inset-bottom)); max-width:528px;
+    margin:0 auto; z-index:46; background:var(--surface-2); border:1px solid var(--hair); border-radius:18px;
+    box-shadow:0 18px 40px -16px rgba(0,0,0,.85); padding:11px 13px 11px 15px; display:none; align-items:center; gap:12px;}
+  .mundo.show{display:flex; animation:slideUp .25s ease;}
+  .mundo .mu-t{flex:1; font-size:13px; color:var(--txt);}
+  .mundo button{background:none; border:none; color:var(--blue); font-weight:800; font-size:13px; cursor:pointer;
+    padding:5px 9px; white-space:nowrap; font-family:var(--font-jp);}
+
   /* rest timer bar */
   .restbar{position:fixed; left:16px; right:16px; bottom:calc(92px + env(safe-area-inset-bottom)); max-width:528px;
     margin:0 auto; z-index:45; background:var(--surface-2); border:1px solid var(--hair); border-radius:18px;
@@ -892,6 +934,10 @@
   </div>
 </div>
 
+<!-- 食事タブの計算コア。仕様書=KEIRYO-SPEC-v2.md／テストは tests/（npm test）。
+     この inline script より先に読み込むこと（グローバル KEIRYO を使うため）。 -->
+<script src="keiryo-calc.js"></script>
+
 <script>
 /* ============ アイコン ============ */
 const IC={
@@ -907,6 +953,7 @@ const IC={
   award:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="9" r="6"/><path d="M9 14.5L8 22l4-2.2L16 22l-1-7.5"/></svg>',
   edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19.5 8.5l-4-4L4 16v4z"/><path d="M14 6l4 4"/></svg>',
   pl:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M6.5 7v10M3.5 9.5v5M17.5 7v10M20.5 9.5v5M6.5 12h11"/></svg>',
+  meal:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v7a2.5 2.5 0 005 0V3M8.5 12v9"/><path d="M17 3c-1.6 1.2-2.5 3.2-2.5 5.5S15.4 12.6 17 13v8"/></svg>',
 };
 
 /* ============ データ層 ============ */
@@ -932,6 +979,7 @@ const DEFAULT_ROUTINES=[
 const MUSCLES=['胸','背中','脚','肩','腕','腹','その他'];
 const RT_MUS={'胸':'胸','背中':'背中','肩':'肩','足':'脚','脚':'脚','腕':'腕','腹':'腹','腹筋':'腹','お腹':'腹'};  // 分割の日名 → 部位
 const KEY_EX='gym_exercises_v2',KEY_LOG='gym_logs_v2',KEY_RT='gym_routines_v3',KEY_BW='gym_bw_v1',KEY_SET='gym_settings_v1',KEY_PROG='gym_program_v1',KEY_MEAS='gym_meas_v1',KEY_DAY='gym_dayinfo_v1';
+const KEY_MEAL='gym_meals_v1',KEY_MPRESET='gym_mealpresets_v1',KEY_MFOOD='gym_myfoods_v1';
 function load(k,def){ try{return JSON.parse(localStorage.getItem(k)) ?? def;}catch(e){return def;} }
 function save(k,v){ localStorage.setItem(k,JSON.stringify(v)); }
 
@@ -945,7 +993,15 @@ applyTheme();
 let prog=load(KEY_PROG,{program:'531', week:1, cycle:1, tm:{bench:null,squat:null,dead:null}});  // パワーリフティングプログラム
 let dayInfo=load(KEY_DAY,{});   // {date:{cond:1-5, sleep:number|null, memo:string}} その日の体調・メモ
 
-function saveAllLocal(){ save(KEY_EX,exercises); save(KEY_LOG,logs); save(KEY_RT,routines); save(KEY_BW,bw); save(KEY_MEAS,meas); save(KEY_SET,settings); save(KEY_PROG,prog); save(KEY_DAY,dayInfo); }
+/* ---- 食事タブ（仕様書 KEIRYO-SPEC-v2.md）----
+   meals は「実時刻(at)」と「その記録が属する1日(d)」を別に持つ。
+   ★集計は必ず d（logDate）で行う。at は表示専用。
+   夜24時にトレが終わり0:30に食べる人だと、at で集計すると前日と当日の両方が壊れる。 */
+let meals=load(KEY_MEAL,[]);                    // [{id, d:'YYYY-MM-DD', at:ISO, n:名前, k:kcal, p, f, c, items?}]
+let mealPresets=load(KEY_MPRESET,null);         // null = 未設定（初回に既定セットを入れる）
+let myFoods=load(KEY_MFOOD,[]);                 // 各自が追加した食品
+
+function saveAllLocal(){ save(KEY_EX,exercises); save(KEY_LOG,logs); save(KEY_RT,routines); save(KEY_BW,bw); save(KEY_MEAS,meas); save(KEY_SET,settings); save(KEY_PROG,prog); save(KEY_DAY,dayInfo); save(KEY_MEAL,meals); save(KEY_MPRESET,mealPresets); save(KEY_MFOOD,myFoods); }
 function saveAll(){ saveAllLocal(); scheduleSync(); }
 
 /* ============================================================
@@ -971,7 +1027,7 @@ function setSyncMeta(patch){ const m=Object.assign(syncMeta(),patch); save(SYNC_
 const _ms=s=>{ const t=Date.parse(s||''); return isNaN(t)?0:t; };
 
 // 同期対象データを1つのpayloadに（写真は含めない）
-function collectPayload(){ return {exercises,logs,routines,bw,meas,settings,prog,dayInfo}; }
+function collectPayload(){ return {exercises,logs,routines,bw,meas,settings,prog,dayInfo,meals,mealPresets,myFoods}; }
 // クラウド由来payloadをローカル変数＆localStorageへ反映（※クラウドへは書き戻さない=ループ防止）
 function applyPayload(p){
   if(!p||typeof p!=='object') return false;
@@ -983,6 +1039,9 @@ function applyPayload(p){
   if(p.settings&&typeof p.settings==='object') settings=Object.assign(settings,p.settings);
   if(p.prog&&typeof p.prog==='object')         prog=p.prog;
   if(p.dayInfo&&typeof p.dayInfo==='object')   dayInfo=p.dayInfo;
+  if(Array.isArray(p.meals))       meals=p.meals;
+  if(Array.isArray(p.mealPresets)) mealPresets=p.mealPresets;
+  if(Array.isArray(p.myFoods))     myFoods=p.myFoods;
   saveAllLocal();
   return true;
 }
@@ -1414,7 +1473,7 @@ function openExPicker(){
 })();
 
 /* ============ ナビ ============ */
-const TABS=[['log','今日',IC.today],['history','履歴',IC.history],['stats','分析',IC.stats],['pl','PL',IC.pl],['photos','変化',IC.photos],['more','設定',IC.more]];
+const TABS=[['log','今日',IC.today],['meal','食事',IC.meal],['history','履歴',IC.history],['stats','分析',IC.stats],['pl','PL',IC.pl],['photos','変化',IC.photos],['more','設定',IC.more]];
 let tab='log';
 document.getElementById('nav').innerHTML=TABS.map(([id,label,ic])=>`<button data-tab="${id}" class="${id==='log'?'active':''}">${ic}${label}</button>`).join('');
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>setTab(b.dataset.tab));
@@ -2528,9 +2587,137 @@ function renderPL(){
 }
 
 /* ============ ルーター ============ */
+/* ============ 食事（仕様書 KEIRYO-SPEC-v2.md）============
+   設計思想：日単位の完璧主義を捨て、週単位で帳尻を合わせる。
+   1日オーバーしても赤警告は出さない。週予算を超えた時だけ警告する。
+   ★集計は必ず m.d（その記録が属する1日）で行う。m.at（実時刻）は表示専用。
+     深夜0:30の食事を at で集計すると、前日と当日の両方の数字が壊れる。
+   計算は必ず keiryo-calc.js（グローバル KEIRYO）を通す。係数をここに書かない。 */
+const _me=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function nutriCfg(){
+  if(!settings.nutri||typeof settings.nutri!=='object') settings.nutri={};
+  const n=settings.nutri;
+  if(n.activity==null)     n.activity=KEIRYO.DEFAULT_ACTIVITY;
+  if(n.deficit==null)      n.deficit=KEIRYO.DEFAULT_DEFICIT;
+  if(n.targetBf==null)     n.targetBf=10;
+  if(n.boundaryHour==null) n.boundaryHour=KEIRYO.DEFAULT_BOUNDARY_HOUR;
+  if(n.eatOutKcal==null)   n.eatOutKcal=KEIRYO.DEFAULT_EAT_OUT_KCAL;
+  return n;
+}
+function mealBoundary(){ return nutriCfg().boundaryHour; }
+function mealLogDate(dt){ return KEIRYO.toLogDate(dt||new Date(), mealBoundary()); }
+function mealPresetList(){
+  if(!Array.isArray(mealPresets)){ mealPresets=JSON.parse(JSON.stringify(KEIRYO.DEFAULT_PRESETS)); saveAllLocal(); }
+  return mealPresets;
+}
+/** 体重は ATLAS の記録（bw）を使う。食事タブで二重に入力させない */
+function latestBw(){ if(!bw||!bw.length) return null; return [...bw].sort((a,b)=>a.date<b.date?1:-1)[0]; }
+/** 目標一式。体重か体脂肪率が欠けていれば null を返す（推定で誤魔化さない） */
+function nutriPlan(){
+  const b=latestBw(), n=nutriCfg();
+  if(!b||!(+b.kg>0)) return null;
+  const bf=(b.bf!=null?+b.bf:(n.bfPct!=null?+n.bfPct:null));
+  if(!(bf>0)) return null;
+  return KEIRYO.buildPlan({ body:{weightKg:+b.kg, bodyFatPct:bf}, activity:+n.activity, deficit:+n.deficit,
+    overrideKcal:(n.overrideKcal!=null?+n.overrideKcal:undefined) });
+}
+function mealsOn(d){ return meals.filter(m=>m.d===d).sort((a,b)=>((a.at||'')<(b.at||'')?-1:1)); }
+function mealBar(label,now,target){
+  const pct=target>0?Math.min(100,now/target*100):0;
+  return `<div class="m-macro"><div class="r"><span>${label}</span><span><b>${Math.round(now)}</b> / ${target} g</span></div>
+    <div class="m-bar"><span style="width:${pct}%"></span></div></div>`;
+}
+
+/* 取り消しバー（5秒）。誤タップ対策はこれで行う＝記録時に確認ダイアログを出さない */
+let _mealUndoT=null;
+function mealUndoBar(){
+  let el=document.getElementById('mealUndo');
+  if(!el){ el=document.createElement('div'); el.id='mealUndo'; el.className='mundo'; document.body.appendChild(el); }
+  return el;
+}
+function showMealUndo(m){
+  const el=mealUndoBar();
+  el.innerHTML=`<span class="mu-t">${_me(m.n)} を記録しました</span><button id="mealUndoBtn">取り消す</button>`;
+  el.classList.add('show');
+  document.getElementById('mealUndoBtn').onclick=()=>{ delMeal(m.id); hideMealUndo(); };
+  clearTimeout(_mealUndoT); _mealUndoT=setTimeout(hideMealUndo,5000);
+}
+function hideMealUndo(){ const el=document.getElementById('mealUndo'); if(el)el.classList.remove('show'); clearTimeout(_mealUndoT); }
+
+function logMealPreset(p){
+  let n; try{ n=KEIRYO.nutritionOfPreset(p,myFoods); }catch(e){ toast('この定型セットに未登録の食品があります'); return; }
+  const now=new Date();
+  const m={ id:'m'+Date.now()+Math.random().toString(36).slice(2,6), d:mealLogDate(now), at:now.toISOString(),
+    n:p.name, k:Math.round(n.kcal*10)/10, p:Math.round(n.proteinG*10)/10, f:Math.round(n.fatG*10)/10, c:Math.round(n.carbG*10)/10,
+    items:p.items };
+  meals.push(m); saveAll(); renderMeal(); showMealUndo(m);
+}
+function delMeal(id){ meals=meals.filter(x=>x.id!==id); saveAll(); if(tab==='meal')renderMeal(); }
+
+function renderMeal(){
+  const v=document.getElementById('view');
+  const d=mealLogDate(), plan=nutriPlan(), list=mealPresetList(), today=mealsOn(d);
+  const eaten=KEIRYO.sumNutrition(today.map(m=>({kcal:m.k,proteinG:m.p,fatG:m.f,carbG:m.c})));
+  const hasBw=!!latestBw();
+
+  const presets=list.map((p,i)=>{
+    let n; try{ n=KEIRYO.nutritionOfPreset(p,myFoods); }catch(e){ n=KEIRYO.EMPTY_NUTRITION; }
+    return `<button class="mpreset" data-mp="${i}"><span class="mp-n">${_me(p.name)}</span>
+      <span class="mp-s">${_me(p.summary||'')}</span>
+      <span class="mp-k">${Math.round(n.kcal).toLocaleString()} kcal ・ P${Math.round(n.proteinG)}</span></button>`;
+  }).join('');
+
+  const setup=plan?'':`<div class="card">
+    <div class="lbl">目標を出すのに、あと1つ</div>
+    <div class="hint" style="margin:8px 0 13px">${hasBw
+      ?'体組成計に出る<b>体脂肪率</b>を入れると、目標カロリーとPFCが自動で決まります。体重は「分析」タブの記録をそのまま使うので、入れ直す必要はありません。'
+      :'まず「分析」タブで<b>体重</b>を記録してください。そのあとここで体脂肪率を入れると目標が出ます。'}</div>
+    ${hasBw?`<div class="field"><label class="lbl">体脂肪率</label><input type="number" inputmode="decimal" step="0.1" id="nBf" value="${nutriCfg().bfPct??''}" placeholder="15.7"><span class="unit">%</span></div>
+    <button class="btn" id="nSave" style="width:100%;margin-top:11px">目標を計算する</button>`:''}
+  </div>`;
+
+  const goal=plan?`<div class="card">
+    <div class="lbl">今日の残り</div>
+    <div class="m-rest"><span class="big">${Math.round(plan.kcal-eaten.kcal).toLocaleString()}</span><span class="u">kcal ／ 目標 ${plan.kcal.toLocaleString()}</span></div>
+    <div class="m-bar"><span style="width:${plan.kcal>0?Math.min(100,eaten.kcal/plan.kcal*100):0}%"></span></div>
+    <div style="margin-top:15px">
+      ${mealBar('タンパク質',eaten.proteinG,plan.proteinG)}
+      ${mealBar('脂質',eaten.fatG,plan.fatG)}
+      ${mealBar('炭水化物',eaten.carbG,plan.carbG)}
+    </div></div>`:'';
+
+  const rows=today.length?`<ul class="m-list">${today.map(m=>`<li>
+      <span class="t">${m.at?new Date(m.at).toTimeString().slice(0,5):''}</span>
+      <span class="n">${_me(m.n)}</span>
+      <span class="k">${Math.round(m.k).toLocaleString()} kcal</span>
+      <button class="x" data-mdel="${m.id}" aria-label="削除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </li>`).join('')}</ul>`
+    :`<div class="hint" style="border:none;padding:6px 0">まだ記録がありません。上のボタンを1回押すだけで記録されます。</div>`;
+
+  v.innerHTML=`<div class="fade-in">
+    <div class="eyebrow">食事</div>
+    <div class="hint" style="border:none;padding:0 0 13px;margin:0">${KEIRYO.logDateLabel(new Date(),mealBoundary())}</div>
+    <div class="mpresets">${presets}</div>
+    ${setup}${goal}
+    <div class="card"><div class="lbl">今日の記録</div><div style="margin-top:11px">${rows}</div></div>
+  </div>`;
+
+  v.querySelectorAll('[data-mp]').forEach(b=>{ b.onclick=()=>logMealPreset(list[+b.dataset.mp]); });
+  v.querySelectorAll('[data-mdel]').forEach(b=>{ b.onclick=()=>delMeal(b.dataset.mdel); });
+  const ns=document.getElementById('nSave');
+  if(ns)ns.onclick=()=>{
+    const val=parseFloat(document.getElementById('nBf').value);
+    if(!(val>0&&val<70)){ toast('体脂肪率を正しく入れてください'); return; }
+    nutriCfg().bfPct=val; saveAll(); renderMeal(); toast('目標を計算しました');
+  };
+}
+
 function render(){
+  if(tab!=='meal') hideMealUndo();
   if(tab!=='photos'){ cmpPick=null; phSel=null; }   // 別タブへ移ったら「写真を選ぶモード」は解除
   if(tab==='log') renderLog();
+  else if(tab==='meal') renderMeal();
   else if(tab==='history') renderHistory();
   else if(tab==='stats') renderStats();
   else if(tab==='pl') renderPL();
