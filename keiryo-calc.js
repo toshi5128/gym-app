@@ -435,6 +435,9 @@
     { id:'chicken-thigh-skin',     name:'鶏もも肉（皮つき・生）', unit:'100g',     g:100, kcal:190, p:16.6, f:14.2, c:0,    cat:'meat' },
     { id:'chicken-breast',         name:'鶏むね肉（皮なし・生）', unit:'100g',     g:100, kcal:105, p:23.3, f:1.9,  c:0.1,  cat:'meat' },
     { id:'salmon',                 name:'鮭（生）',              unit:'1切れ80g',  g:80,  kcal:133, p:22.3, f:4.1,  c:0.1,  cat:'fish' },
+    // 焼き鮭。1切れ(生80g)を焼くと水分が抜けて約64gになるが、タンパク質の量は変わらない。
+    // 減るのは水と、網に落ちる脂ぶんだけ。
+    { id:'salmon-grilled',         name:'焼き鮭',                unit:'1切れ',     g:64,  kcal:128, p:22.3, f:3.6,  c:0.1,  cat:'fish' },
     { id:'egg-m',                  name:'卵（Mサイズ）',          unit:'1個',      g:50,  kcal:76,  p:6.2,  f:5.2,  c:0.2,  cat:'egg' },
     { id:'natto',                  name:'納豆',                  unit:'1パック45g', g:45, kcal:90,  p:7.4,  f:4.5,  c:5.4,  cat:'soy' },
     { id:'tofu-momen',             name:'木綿豆腐',              unit:'半丁150g',  g:150, kcal:110, p:10.5, f:6.3,  c:2.4,  cat:'soy' },
@@ -504,14 +507,29 @@
 
   /** 新規ユーザー向けの初期セット。各自が中身を編集できる */
   var DEFAULT_PRESETS = [
-    { id:'meal-1',  name:'1食目',     summary:'卵3・納豆・白米150g・キムチ・プロテイン', hour:9, ml:250,
+    // 1食目（起床後）
+    { id:'meal-1',  name:'1食目',     summary:'', hour:9, ml:250,
       items:[{foodId:'egg-m',qty:3},{foodId:'natto',qty:1},{foodId:'rice',qty:1.5},{foodId:'kimchi',qty:1},{foodId:'whey',qty:1}] },
     { id:'protein', name:'プロテイン', summary:'ホエイ1杯（30g）', hour:14, ml:250,
       items:[{foodId:'whey',qty:1}] },
-    { id:'meal-2',  name:'2食目',     summary:'鶏もも250g・白米200g・野菜150g', hour:19, ml:0,
-      items:[{foodId:'chicken-thigh-skinless',qty:2.5},{foodId:'rice',qty:2},{foodId:'broccoli',qty:1.5}] },
-    { id:'meal-3',  name:'3食目',     summary:'鶏もも200g・鮭・豆腐半丁・白米150g・味噌汁', hour:0, ml:200,
-      items:[{foodId:'chicken-thigh-skinless',qty:2},{foodId:'salmon',qty:1},{foodId:'tofu-momen',qty:1},{foodId:'rice',qty:1.5},{foodId:'misoshiru',qty:1}] }
+    // 2食目（仕事から帰ってきた時）＝1日のメイン。ここが一番しっかり食べる
+    { id:'meal-2',  name:'2食目',     summary:'', hour:19, ml:200,
+      items:[{foodId:'chicken-thigh-skinless',qty:2},{foodId:'salmon-grilled',qty:1},{foodId:'greek-yogurt',qty:1},{foodId:'rice',qty:1.5},{foodId:'misoshiru',qty:1}] },
+    // 3食目（筋トレ後・深夜）＝トレ後の補給。炭水化物とタンパク質をシンプルに
+    { id:'meal-3',  name:'3食目',     summary:'', hour:0, ml:0,
+      items:[{foodId:'chicken-thigh-skinless',qty:2.5},{foodId:'rice',qty:2},{foodId:'broccoli',qty:1.5}] }
+  ]
+
+  /**
+   * サプリメント。カロリーはほぼ無いので、記録の目的は「今日飲んだかどうか」だけ。
+   * ※ 医学的な指示ではない。持病・服薬がある場合は医師や薬剤師に相談すること。
+   */
+  var DEFAULT_SUPPS = [
+    { id:'multivit', name:'マルチビタミン',   note:'食事で不足しがちなビタミン・ミネラルの底上げ' },
+    { id:'fishoil',  name:'フィッシュオイル', note:'EPA/DHA。魚を食べない日の補い' },
+    { id:'creatine', name:'クレアチン 5g',    note:'筋力と除脂肪体重の維持。毎日同じ量を続けるのがコツ' },
+    { id:'vitd',     name:'ビタミンD',        note:'日光に当たらない生活だと不足しやすい' },
+    { id:'zinc',     name:'亜鉛・マグネシウム', note:'汗で失われやすい。就寝前に飲む人が多い' }
   ]
 
   /**
@@ -524,9 +542,7 @@
   function itemAmountLabel(food, qty) {
     var unit = String(food.unit || '')
     var grams = Math.round((+food.g || 0) * qty)
-    // 「100g」のような純粋な重さ単位は、そのままグラムで出す
     if (/^\d+(\.\d+)?\s*g$/.test(unit)) return grams + 'g'
-    // 「1個」「1パック45g」のような個数単位は、個数＋（グラム）で出す
     var m = unit.match(/^(\d+(?:\.\d+)?)\s*([^\d]+?)(?:\d+(?:\.\d+)?\s*g)?$/)
     if (!m) return grams + 'g'
     var count = Math.round(parseFloat(m[1]) * qty * 100) / 100
@@ -718,7 +734,7 @@
     proteinStatusFor: proteinStatusFor, weeklyAvgDailyKcal: weeklyAvgDailyKcal,
     eatOutDateForWeek: eatOutDateForWeek,
     // 食品・定型セット
-    FOODS: FOODS, getFood: getFood, DEFAULT_PRESETS: DEFAULT_PRESETS,
+    FOODS: FOODS, getFood: getFood, DEFAULT_PRESETS: DEFAULT_PRESETS, DEFAULT_SUPPS: DEFAULT_SUPPS,
     EMPTY_NUTRITION: EMPTY_NUTRITION, addNutrition: addNutrition,
     nutritionOfItem: nutritionOfItem, nutritionOfItems: nutritionOfItems,
     itemAmountLabel: itemAmountLabel, itemUnitHint: itemUnitHint,

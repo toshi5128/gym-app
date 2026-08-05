@@ -140,6 +140,24 @@ describe('カフェインと就寝時刻（就寝2:00の生活）', () => {
   })
 })
 
+describe('サプリメント', () => {
+  it('初期の5種類が登録されている', () => {
+    expect(K.DEFAULT_SUPPS.length).toBe(5)
+  })
+
+  it('id の重複がない', () => {
+    expect(new Set(K.DEFAULT_SUPPS.map((s) => s.id)).size).toBe(K.DEFAULT_SUPPS.length)
+  })
+
+  it('全部に名前がある', () => {
+    for (const s of K.DEFAULT_SUPPS) expect(s.name, s.id).toBeTruthy()
+  })
+
+  it('カロリーは持たない（サプリはほぼ0kcalなので数えない方針）', () => {
+    for (const s of K.DEFAULT_SUPPS) expect(s.kcal, s.name).toBeUndefined()
+  })
+})
+
 describe('初期の飲み物', () => {
   it('8種類そろっている', () => {
     expect(K.DEFAULT_DRINKS.length).toBe(8)
@@ -242,12 +260,16 @@ describe('食事にも水分がひもづく（プロテインを飲めば自動�
     expect(K.DEFAULT_PRESETS.find((p) => p.id === 'meal-1').ml).toBe(250)
   })
 
-  it('3食目は味噌汁ぶんの 200ml', () => {
-    expect(K.DEFAULT_PRESETS.find((p) => p.id === 'meal-3').ml).toBe(200)
+  it('2食目（メイン）は味噌汁ぶんの 200ml', () => {
+    expect(K.DEFAULT_PRESETS.find((p) => p.id === 'meal-2').ml).toBe(200)
   })
 
-  it('2食目は飲み物なしなので 0', () => {
-    expect(K.DEFAULT_PRESETS.find((p) => p.id === 'meal-2').ml).toBe(0)
+  it('3食目（トレ後）は飲み物なしなので 0', () => {
+    expect(K.DEFAULT_PRESETS.find((p) => p.id === 'meal-3').ml).toBe(0)
+  })
+
+  it('1日の食事から自動で入る水分は 700ml', () => {
+    expect(K.DEFAULT_PRESETS.reduce((a, p) => a + p.ml, 0)).toBe(700)
   })
 
   it('プロテインを2回飲めば、それだけで500ml入る', () => {

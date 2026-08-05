@@ -837,6 +837,25 @@
   .m-warn{margin-top:11px; padding:10px 12px; border-radius:11px; background:rgba(201,118,47,.14);
     border:1px solid rgba(201,118,47,.42); color:#8a4f16; font-size:12.5px; line-height:1.7;}
 
+  /* サプリ：飲んだかどうかだけ */
+  .m-sups{display:flex; flex-direction:column; gap:7px; margin-top:12px;}
+  .m-sup{display:flex; align-items:center; gap:10px; text-align:left; cursor:pointer;
+    background:var(--surface-2); border:1px solid var(--hair); border-radius:11px; padding:9px 11px;}
+  .m-sup:active{transform:scale(.98);}
+  .m-sup-c{width:20px; height:20px; flex-shrink:0; border-radius:6px; border:1.5px solid var(--hair);
+    background:var(--surface); display:flex; align-items:center; justify-content:center; color:#fff;}
+  .m-sup-c svg{width:13px; height:13px;}
+  .m-sup.on .m-sup-c{background:var(--pos); border-color:var(--pos);}
+  .m-sup-t{display:flex; flex-direction:column; line-height:1.4; min-width:0;}
+  .m-sup-t b{font-size:13px; color:var(--txt); font-family:var(--font-jp);}
+  .m-sup-t small{font-size:10px; color:var(--txt-3);}
+  .m-sup.on .m-sup-t b{color:var(--pos);}
+  /* 記録の時刻（押すと直せる） */
+  .m-t{min-width:52px; width:52px; flex-shrink:0; padding:3px 4px; font-size:11.5px; text-align:center;
+    border:1px solid transparent; border-radius:7px; background:transparent; color:var(--txt-3);
+    font-family:var(--font-disp); cursor:pointer;}
+  .m-t:focus{outline:none; border-color:var(--blue); color:var(--txt); background:var(--surface-2);}
+
   /* 水分：飲み物のワンタップ */
   .m-drs{display:flex; flex-wrap:wrap; gap:7px; margin-top:13px;}
   .m-dr{flex:1 1 calc(33.333% - 5px); min-width:88px; border:1px solid var(--hair); background:var(--surface-2);
@@ -1089,7 +1108,7 @@ const DEFAULT_ROUTINES=[
 const MUSCLES=['胸','背中','脚','肩','腕','腹','その他'];
 const RT_MUS={'胸':'胸','背中':'背中','肩':'肩','足':'脚','脚':'脚','腕':'腕','腹':'腹','腹筋':'腹','お腹':'腹'};  // 分割の日名 → 部位
 const KEY_EX='gym_exercises_v2',KEY_LOG='gym_logs_v2',KEY_RT='gym_routines_v3',KEY_BW='gym_bw_v1',KEY_SET='gym_settings_v1',KEY_PROG='gym_program_v1',KEY_MEAS='gym_meas_v1',KEY_DAY='gym_dayinfo_v1';
-const KEY_MEAL='gym_meals_v1',KEY_MPRESET='gym_mealpresets_v1',KEY_MFOOD='gym_myfoods_v1',KEY_DRINK='gym_drinks_v1',KEY_DPRESET='gym_drinkpresets_v1';
+const KEY_MEAL='gym_meals_v1',KEY_MPRESET='gym_mealpresets_v1',KEY_MFOOD='gym_myfoods_v1',KEY_DRINK='gym_drinks_v1',KEY_DPRESET='gym_drinkpresets_v1',KEY_SUPP='gym_supps_v1',KEY_SPRESET='gym_supppresets_v1';
 function load(k,def){ try{return JSON.parse(localStorage.getItem(k)) ?? def;}catch(e){return def;} }
 function save(k,v){ localStorage.setItem(k,JSON.stringify(v)); }
 
@@ -1112,8 +1131,10 @@ let mealPresets=load(KEY_MPRESET,null);         // null = 未設定（初回に�
 let myFoods=load(KEY_MFOOD,[]);                 // 各自が追加した食品
 let drinks=load(KEY_DRINK,[]);                  // [{id, d, at, n, ml, caf, k}] 飲み物。d は meals と同じ日付境界
 let drinkPresets=load(KEY_DPRESET,null);        // null = 未設定（初回に既定の飲み物を入れる）
+let supps=load(KEY_SUPP,{});                    // {'YYYY-MM-DD': ['multivit','creatine']} その日に飲んだサプリ
+let suppPresets=load(KEY_SPRESET,null);         // null = 未設定（初回に既定のサプリを入れる）
 
-function saveAllLocal(){ save(KEY_EX,exercises); save(KEY_LOG,logs); save(KEY_RT,routines); save(KEY_BW,bw); save(KEY_MEAS,meas); save(KEY_SET,settings); save(KEY_PROG,prog); save(KEY_DAY,dayInfo); save(KEY_MEAL,meals); save(KEY_MPRESET,mealPresets); save(KEY_MFOOD,myFoods); save(KEY_DRINK,drinks); save(KEY_DPRESET,drinkPresets); }
+function saveAllLocal(){ save(KEY_EX,exercises); save(KEY_LOG,logs); save(KEY_RT,routines); save(KEY_BW,bw); save(KEY_MEAS,meas); save(KEY_SET,settings); save(KEY_PROG,prog); save(KEY_DAY,dayInfo); save(KEY_MEAL,meals); save(KEY_MPRESET,mealPresets); save(KEY_MFOOD,myFoods); save(KEY_DRINK,drinks); save(KEY_DPRESET,drinkPresets); save(KEY_SUPP,supps); save(KEY_SPRESET,suppPresets); }
 function saveAll(){ saveAllLocal(); scheduleSync(); }
 
 /* ============================================================
@@ -1139,7 +1160,7 @@ function setSyncMeta(patch){ const m=Object.assign(syncMeta(),patch); save(SYNC_
 const _ms=s=>{ const t=Date.parse(s||''); return isNaN(t)?0:t; };
 
 // 同期対象データを1つのpayloadに（写真は含めない）
-function collectPayload(){ return {exercises,logs,routines,bw,meas,settings,prog,dayInfo,meals,mealPresets,myFoods,drinks,drinkPresets}; }
+function collectPayload(){ return {exercises,logs,routines,bw,meas,settings,prog,dayInfo,meals,mealPresets,myFoods,drinks,drinkPresets,supps,suppPresets}; }
 // クラウド由来payloadをローカル変数＆localStorageへ反映（※クラウドへは書き戻さない=ループ防止）
 function applyPayload(p){
   if(!p||typeof p!=='object') return false;
@@ -1156,6 +1177,8 @@ function applyPayload(p){
   if(Array.isArray(p.myFoods))     myFoods=p.myFoods;
   if(Array.isArray(p.drinks))       drinks=p.drinks;
   if(Array.isArray(p.drinkPresets)) drinkPresets=p.drinkPresets;
+  if(p.supps&&typeof p.supps==='object') supps=p.supps;
+  if(Array.isArray(p.suppPresets))  suppPresets=p.suppPresets;
   saveAllLocal();
   return true;
 }
@@ -2722,7 +2745,29 @@ function mealBoundary(){ return nutriCfg().boundaryHour; }
 function mealLogDate(dt){ return KEIRYO.toLogDate(dt||new Date(), mealBoundary()); }
 function mealPresetList(){
   if(!Array.isArray(mealPresets)){ mealPresets=JSON.parse(JSON.stringify(KEIRYO.DEFAULT_PRESETS)); saveAllLocal(); }
+  migratePresets();
   return mealPresets;
+}
+/* 既に保存済みの人向けの1回だけの直し（2食目をメインに・鮭は焼き・豆腐→ヨーグルト）。
+   中身をまだ触っていないセットだけ入れ替える。自分で編集した人は上書きしない。 */
+function migratePresets(){
+  const n=nutriCfg(); if(n.presetMig1) return;
+  const sig=p=>p.items.map(i=>i.foodId+':'+i.qty).join(',');
+  const oldSig={
+    'meal-2':'chicken-thigh-skinless:2.5,rice:2,broccoli:1.5',
+    'meal-3':'chicken-thigh-skinless:2,salmon:1,tofu-momen:1,rice:1.5,misoshiru:1'
+  };
+  const untouched=['meal-2','meal-3'].every(id=>{
+    const p=mealPresets.find(x=>x.id===id); return p && sig(p)===oldSig[id];
+  });
+  if(untouched){
+    ['meal-2','meal-3'].forEach(id=>{
+      const cur=mealPresets.find(x=>x.id===id), def=KEIRYO.DEFAULT_PRESETS.find(x=>x.id===id);
+      if(cur&&def){ cur.items=JSON.parse(JSON.stringify(def.items)); cur.ml=def.ml; cur.hour=def.hour; syncPresetSummary(cur); }
+    });
+  }
+  mealPresets.forEach(p=>{ if(!p.summary) syncPresetSummary(p); });
+  n.presetMig1=1; saveAllLocal();
 }
 /** 体重は ATLAS の記録（bw）を使う。食事タブで二重に入力させない */
 function latestBw(){ if(!bw||!bw.length) return null; return [...bw].sort((a,b)=>a.date<b.date?1:-1)[0]; }
@@ -2766,6 +2811,34 @@ function waterTargetFor(d){
   const n=nutriCfg();
   if(n.waterOverride!=null) return +n.waterOverride;
   return KEIRYO.waterTargetMl(+b.kg, {trainingMinutes: mealTrainMin(d)});
+}
+
+/* ---- サプリメント ----
+   カロリーはほぼ無いので「今日飲んだかどうか」だけを記録する。押すたびに 飲んだ↔まだ が切り替わる。 */
+function suppPresetList(){
+  if(!Array.isArray(suppPresets)){ suppPresets=JSON.parse(JSON.stringify(KEIRYO.DEFAULT_SUPPS)); saveAllLocal(); }
+  return suppPresets;
+}
+function suppsOn(d){ return Array.isArray(supps[d])?supps[d]:[]; }
+function toggleSupp(d,sid){
+  const cur=suppsOn(d).slice(), i=cur.indexOf(sid);
+  if(i>=0)cur.splice(i,1); else cur.push(sid);
+  if(cur.length)supps[d]=cur; else delete supps[d];
+  saveAll(); renderMeal();
+}
+
+/* ---- 記録した時刻をあとから直す ----
+   「食べたのは19時だけど記録したのは21時」がふつうに起きる。
+   日付(d)は動かさず、時刻だけを付け替える（境界より前の時刻なら実日付は翌日側になる）。 */
+function setRecordTime(id,isDrink,hhmm){
+  const arr=isDrink?drinks:meals, rec=arr.find(x=>x.id===id);
+  if(!rec||!/^\d{2}:\d{2}$/.test(hhmm)) return;
+  const [h,mi]=hhmm.split(':').map(Number);
+  const base=new Date(rec.d+'T00:00:00');
+  base.setHours(h,mi,0,0);
+  if(h<mealBoundary()) base.setDate(base.getDate()+1);
+  rec.at=base.toISOString();
+  saveAll(); renderMeal();
 }
 
 /* ---- 見ている日（過去にさかのぼって記録・修正できる）----
@@ -2968,14 +3041,29 @@ function renderMeal(){
     .concat(E.dOn.map(x=>({at:x.at,n:x.n,r:x.ml+'ml'+(x.caf>0?' ・ '+x.caf+'mg':''),id:x.id,d:1})))
     .sort((a,b)=>((a.at||'')<(b.at||'')?-1:1));
   const rows=items.length?`<ul class="m-list">${items.map(m=>`<li>
-      <span class="t">${m.at?new Date(m.at).toTimeString().slice(0,5):''}</span>
+      <input class="m-t" type="time" value="${m.at?new Date(m.at).toTimeString().slice(0,5):''}" data-tset="${m.id}" data-tdr="${m.d}" aria-label="時刻">
       <span class="n">${_me(m.n)}</span>
       <span class="k">${_me(m.r)}</span>
       <button class="x" data-${m.d?'drdel':'mdel'}="${m.id}" aria-label="削除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-    </li>`).join('')}</ul>`
+    </li>`).join('')}
+    <div class="hint" style="border:none;padding:8px 0 0">時刻を押すと、食べた時間に直せます。</div></ul>`
     :`<div class="hint" style="border:none;padding:6px 0">${isToday
         ?'まだ記録がありません。上のボタンを1回押すだけで記録されます。'
         :'この日の記録はありません。上のボタンを押すと、この日のぶんとして入ります。'}</div>`;
+
+  /* --- サプリ：飲んだかどうかだけ。押すと 飲んだ↔まだ が切り替わる --- */
+  const slist=suppPresetList(), taken=suppsOn(vd);
+  const suppCard=`<div class="card">
+    <div class="m-wk-top"><span class="lbl" style="margin:0">サプリ</span>
+      <span class="m-wk-n">${taken.length}<small> / ${slist.length}</small></span></div>
+    <div class="m-sups">${slist.map(sp=>{
+      const on=taken.indexOf(sp.id)>=0;
+      return `<button class="m-sup${on?' on':''}" data-sup="${_me(sp.id)}">
+        <span class="m-sup-c">${on?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5 11-11"/></svg>':''}</span>
+        <span class="m-sup-t"><b>${_me(sp.name)}</b><small>${_me(sp.note||'')}</small></span></button>`;
+    }).join('')||'<div class="hint" style="border:none;padding:2px 0">サプリが登録されていません。設定から追加できます。</div>'}</div>
+    <div class="hint" style="margin-top:9px">押すと「飲んだ」になります。カロリーは数えません（サプリはほぼ0kcalのため）。</div>
+  </div>`;
 
   /* --- 今週の予算（外食日をその都度きめる） --- */
   let weekCard='';
@@ -3006,6 +3094,7 @@ function renderMeal(){
     <div class="mpresets">${presets}</div>
     ${setup}${goal}${waterCard}
     <div class="card"><div class="lbl">${isToday?'今日':mealMD(vd)+'（'+mealDow(vd)+'）'}の記録</div><div style="margin-top:11px">${rows}</div></div>
+    ${suppCard}
     ${weekCard}
     <div class="m-where">
       <button class="m-where-b" data-go="stats"><b>変化を見る</b><span>分析 › からだ</span></button>
@@ -3022,6 +3111,8 @@ function renderMeal(){
   v.querySelectorAll('[data-eo]').forEach(b=>{ b.onclick=()=>toggleEatOut(b.dataset.eo); });
   const mm=v.querySelector('[data-mmanual]'); if(mm) mm.onclick=()=>openManualMeal();
   const dm=v.querySelector('[data-drmanual]'); if(dm) dm.onclick=()=>openManualDrink();
+  v.querySelectorAll('[data-sup]').forEach(b=>{ b.onclick=()=>toggleSupp(vd,b.dataset.sup); });
+  v.querySelectorAll('[data-tset]').forEach(inp=>{ inp.onchange=()=>setRecordTime(inp.dataset.tset, inp.dataset.tdr==='1', inp.value); });
   v.querySelectorAll('[data-go]').forEach(b=>{ b.onclick=()=>{
     if(b.dataset.go==='stats') statsSub='karada';
     setTab(b.dataset.go); window.scrollTo(0,0); }; });
@@ -3199,11 +3290,24 @@ function mealSettingsHtml(acc){
     `<button class="btn" id="sPeNew" style="width:100%;margin-top:11px">セットを新しく作る</button>
      <button class="btn ghost" id="sPeReset" style="width:100%;margin-top:8px">最初のセットに戻す</button>`;
 
+  const slist=suppPresetList();
+  const suppSet=`<div class="hint" style="margin-bottom:11px">飲んでいるサプリを登録すると、食事タブでワンタップの「飲んだ」チェックが出ます。
+    カロリーは数えません。<b>これは医学的な指示ではありません。</b>持病がある方や薬を飲んでいる方は、医師や薬剤師に相談してください。</div>
+    <div>${slist.map((sp,i)=>`<div class="m-de" style="flex-wrap:wrap">
+      <input type="text" class="m-de-n" data-sn="${i}" value="${_me(sp.name)}" placeholder="名前">
+      <button class="m-link" data-sdel="${i}">×</button>
+      <input type="text" class="m-de-n" data-snote="${i}" value="${_me(sp.note||'')}" placeholder="メモ（任意）" style="flex:1 1 100%">
+    </div>`).join('')}</div>
+    <button class="btn" id="sSupNew" style="width:100%;margin-top:11px">サプリを追加する</button>
+    <button class="btn ghost" id="sSupReset" style="width:100%;margin-top:8px">最初のサプリに戻す</button>
+    <button class="btn primary" id="sSaveSupp" style="width:100%;margin-top:11px">保存する</button>`;
+
   return `<div class="eyebrow">食事・減量</div>
     ${acc('mgoal','目標の設定',goalSet)}
     ${acc('mweek','外食日・1日の区切り・就寝時刻',weekSet)}
     ${acc('mwater','水分と飲み物',waterSet)}
-    ${acc('mpre','定型セットの中身',presetSet)}`;
+    ${acc('mpre','定型セットの中身',presetSet)}
+    ${acc('msup','サプリメント',suppSet)}`;
 }
 
 function bindMealSettings(v, rerender){
@@ -3293,6 +3397,21 @@ function bindMealSettings(v, rerender){
   if(pn)pn.onclick=()=>{ list.push({id:'p'+Date.now(), name:'新しいセット', summary:'', hour:12, ml:0, items:[]}); saveAll(); rerender(); };
   const pr=v.querySelector('#sPeReset');
   if(pr)pr.onclick=()=>{ mealPresets=JSON.parse(JSON.stringify(KEIRYO.DEFAULT_PRESETS)); saveAll(); rerender(); toast('最初のセットに戻しました'); };
+
+  const ss=v.querySelector('#sSaveSupp');
+  if(ss)ss.onclick=()=>{
+    const sl=suppPresetList();
+    sl.forEach((sp,i)=>{ const nm=v.querySelector('[data-sn="'+i+'"]'); if(!nm)return;
+      sp.name=nm.value.trim()||'サプリ';
+      sp.note=v.querySelector('[data-snote="'+i+'"]').value.trim(); });
+    saveAll(); rerender(); toast('保存しました');
+  };
+  v.querySelectorAll('[data-sdel]').forEach(b=>{ b.onclick=()=>{ const sl=suppPresetList();
+    sl.splice(+b.dataset.sdel,1); saveAll(); rerender(); }; });
+  const sn=v.querySelector('#sSupNew');
+  if(sn)sn.onclick=()=>{ suppPresetList().push({id:'s'+Date.now(), name:'新しいサプリ', note:''}); saveAll(); rerender(); };
+  const sr=v.querySelector('#sSupReset');
+  if(sr)sr.onclick=()=>{ suppPresets=JSON.parse(JSON.stringify(KEIRYO.DEFAULT_SUPPS)); saveAll(); rerender(); toast('最初のサプリに戻しました'); };
 }
 
 /** ボタンの説明文を中身から作り直す。
@@ -3315,6 +3434,7 @@ function openManualDrink(){
   el.innerHTML=`<div class="auth-card" style="max-width:420px">
     <div class="lbl">飲み物を手で入力（${mealMD(mealViewD())}（${mealDow(mealViewD())}）のぶん）</div>
     <div class="hint" style="margin:8px 0 13px">カフェインとカロリーは分かる範囲でかまいません。</div>
+    <div class="field"><label class="lbl">時刻</label><input type="time" id="mdT"><span class="unit"></span></div>
     <div class="field"><label class="lbl">名前</label><input type="text" id="mdN" value="飲み物"></div>
     <div class="field" style="margin-top:9px"><label class="lbl">量</label><input type="number" inputmode="numeric" id="mdMl" placeholder="500"><span class="unit">ml</span></div>
     <div class="field" style="margin-top:9px"><label class="lbl">カフェイン</label><input type="number" inputmode="numeric" id="mdCaf" placeholder="0"><span class="unit">mg</span></div>
@@ -3322,6 +3442,7 @@ function openManualDrink(){
     <button class="btn primary" id="mdOk" style="width:100%;margin-top:14px">記録する</button>
     <button class="btn ghost" id="mdNg" style="width:100%;margin-top:8px">やめる</button>
   </div>`;
+  document.getElementById('mdT').value=new Date().toTimeString().slice(0,5);
   const close=()=>{ el.style.display='none'; };
   document.getElementById('mdNg').onclick=close;
   document.getElementById('mdOk').onclick=()=>{
@@ -3329,7 +3450,8 @@ function openManualDrink(){
     if(!(ml>0)){ toast('量を入れてください'); return; }
     const num=id=>{ const x=parseFloat(document.getElementById(id).value); return x>0?x:0; };
     close();
-    logDrink({name:document.getElementById('mdN').value.trim()||'飲み物', ml, caffeineMg:num('mdCaf'), kcal:num('mdK')});
+    const rec=logDrink({name:document.getElementById('mdN').value.trim()||'飲み物', ml, caffeineMg:num('mdCaf'), kcal:num('mdK')});
+    setRecordTime(rec.id, true, document.getElementById('mdT').value);
   };
 }
 
@@ -3341,6 +3463,7 @@ function openManualMeal(){
   el.innerHTML=`<div class="auth-card" style="max-width:420px">
     <div class="lbl">手で入力（${mealMD(mealViewD())}（${mealDow(mealViewD())}）のぶん）</div>
     <div class="hint" style="margin:8px 0 13px">外食など。だいたいの値でかまいません。カロリーだけでも記録できます。</div>
+    <div class="field"><label class="lbl">時刻</label><input type="time" id="mmT"><span class="unit"></span></div>
     <div class="field"><label class="lbl">名前</label><input type="text" id="mmN" value="外食"></div>
     <div class="field" style="margin-top:9px"><label class="lbl">カロリー</label><input type="number" inputmode="numeric" id="mmK" placeholder="3000"><span class="unit">kcal</span></div>
     <div class="field" style="margin-top:9px"><label class="lbl">タンパク質</label><input type="number" inputmode="decimal" id="mmP" placeholder="0"><span class="unit">g</span></div>
@@ -3349,6 +3472,7 @@ function openManualMeal(){
     <button class="btn primary" id="mmOk" style="width:100%;margin-top:14px">記録する</button>
     <button class="btn ghost" id="mmNg" style="width:100%;margin-top:8px">やめる</button>
   </div>`;
+  document.getElementById('mmT').value=new Date().toTimeString().slice(0,5);
   const close=()=>{ el.style.display='none'; };
   document.getElementById('mmNg').onclick=close;
   document.getElementById('mmOk').onclick=()=>{
@@ -3356,8 +3480,10 @@ function openManualMeal(){
     if(!(k>0)){ toast('カロリーを入れてください'); return; }
     const num=id=>{ const x=parseFloat(document.getElementById(id).value); return x>0?x:0; };
     close();
-    pushMeal(document.getElementById('mmN').value.trim()||'外食',
+    const t=document.getElementById('mmT').value;
+    const rec=pushMeal(document.getElementById('mmN').value.trim()||'外食',
       {kcal:k, proteinG:num('mmP'), fatG:num('mmF'), carbG:num('mmC')}, [], 0);
+    setRecordTime(rec.id, false, t);
   };
 }
 

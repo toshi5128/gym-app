@@ -2,8 +2,17 @@ import { describe, it, expect } from 'vitest'
 import K from '../keiryo-calc.js'
 
 describe('§5 食品シード', () => {
-  it('27品が登録されている', () => {
-    expect(K.FOODS.length).toBe(27)
+  it('28品が登録されている', () => {
+    expect(K.FOODS.length).toBe(28)
+  })
+
+  it('鮭は生と焼きの両方がある。焼いてもタンパク質は変わらない', () => {
+    const raw = K.FOODS.find((f) => f.id === 'salmon')
+    const grilled = K.FOODS.find((f) => f.id === 'salmon-grilled')
+    expect(grilled).toBeTruthy()
+    expect(grilled.p).toBe(raw.p)          // 焼いても中のタンパク質量は変わらない
+    expect(grilled.f).toBeLessThan(raw.f)  // 脂は少し落ちる
+    expect(grilled.g).toBeLessThan(raw.g)  // 水が抜けて軽くなる
   })
 
   it('id の重複がない', () => {
@@ -41,8 +50,8 @@ describe('§4-3 定型セット', () => {
   it.each([
     ['meal-1', 695],
     ['protein', 120],
-    ['meal-2', 639.5],
-    ['meal-3', 743],
+    ['meal-2', 687],
+    ['meal-3', 639.5],
   ])('%s のカロリー', (id, kcal) => {
     const p = K.DEFAULT_PRESETS.find((x) => x.id === id)
     expect(K.nutritionOfPreset(p).kcal).toBeCloseTo(kcal, 1)
@@ -51,36 +60,54 @@ describe('§4-3 定型セット', () => {
   it('3食目は深夜（0時台）を想定している', () => {
     expect(K.DEFAULT_PRESETS.find((p) => p.id === 'meal-3').hour).toBe(0)
   })
+
+  it('★2食目（仕事終わり）が1日のメイン＝3食目より多い', () => {
+    const k = (id) => K.nutritionOfPreset(K.DEFAULT_PRESETS.find((p) => p.id === id)).kcal
+    expect(k('meal-2')).toBeGreaterThan(k('meal-3'))
+  })
+
+  it('2食目の鮭は「焼き」・豆腐は入れない（本人が食べないため）', () => {
+    const ids = K.DEFAULT_PRESETS.find((p) => p.id === 'meal-2').items.map((i) => i.foodId)
+    expect(ids).toContain('salmon-grilled')
+    expect(ids).not.toContain('salmon')
+    expect(ids).not.toContain('tofu-momen')
+  })
+
+  it('豆腐の代わりにギリシャヨーグルトを入れ、タンパク質を落としていない', () => {
+    const tofu = K.FOODS.find((f) => f.id === 'tofu-momen')
+    const yog = K.FOODS.find((f) => f.id === 'greek-yogurt')
+    expect(K.DEFAULT_PRESETS.find((p) => p.id === 'meal-2').items.map((i) => i.foodId)).toContain('greek-yogurt')
+    expect(Math.abs(yog.p - tofu.p)).toBeLessThan(1)   // P はほぼ同じ
+    expect(yog.f).toBeLessThan(tofu.f)                 // 脂質は大幅に少ない
+  })
+
+  it('3食目の野菜は「ブロッコリー」と具体名で入っている', () => {
+    expect(K.DEFAULT_PRESETS.find((p) => p.id === 'meal-3').items.map((i) => i.foodId)).toContain('broccoli')
+  })
 })
 
 describe('★指摘③: 定型セット4つの合計と目標のズレ', () => {
   const total = K.nutritionOfAllPresets()
   const plan = K.buildPlan({ body: { weightKg: 83.3, bodyFatPct: 15.7 } })
 
-  it('合計 2,197.5 kcal — 目標 2,200 とほぼ一致する', () => {
-    expect(total.kcal).toBeCloseTo(2197.5, 1)
-    expect(Math.abs(total.kcal - plan.kcal)).toBeLessThan(10)
+  it('合計 2,142 kcal — 目標 2,200 より少し少ない', () => {
+    expect(total.kcal).toBeCloseTo(2141.5, 0)
+    expect(plan.kcal - total.kcal).toBeLessThan(100)
   })
 
-  it('脂質 59.8g — 目標 60g とほぼ一致する', () => {
-    expect(total.fatG).toBeCloseTo(59.8, 1)
-    expect(Math.abs(total.fatG - plan.fatG)).toBeLessThan(1)
+  it('脂質 53g — 目標 60g を下回る（豆腐を抜いたぶん軽くなった）', () => {
+    expect(total.fatG).toBeCloseTo(53.4, 1)
+    expect(total.fatG).toBeLessThan(plan.fatG)
   })
 
-  it('タンパク質 209g — 目標 170g を約39g 上回る', () => {
-    expect(total.proteinG).toBeCloseTo(208.95, 1)
+  it('タンパク質 208g — 目標 170g を約38g 上回る', () => {
+    expect(total.proteinG).toBeCloseTo(208.45, 1)
     expect(total.proteinG - plan.proteinG).toBeGreaterThan(35)
   })
 
-  it('炭水化物 214g — 目標 245g を約31g 下回る', () => {
-    expect(total.carbG).toBeCloseTo(214.35, 1)
-    expect(plan.carbG - total.carbG).toBeGreaterThan(25)
-  })
-
-  it('P超過ぶんのカロリーが C不足ぶんをほぼ相殺している', () => {
-    const proteinExcessKcal = (total.proteinG - plan.proteinG) * 4
-    const carbShortKcal = (plan.carbG - total.carbG) * 4
-    expect(Math.abs(proteinExcessKcal - carbShortKcal)).toBeLessThan(50)
+  it('炭水化物 216g — 目標 245g を約29g 下回る', () => {
+    expect(total.carbG).toBeCloseTo(215.85, 1)
+    expect(plan.carbG - total.carbG).toBeGreaterThan(20)
   })
 })
 
