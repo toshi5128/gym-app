@@ -17,7 +17,7 @@
 → **UI文言に「オーバー」を使わない。** 週予算を超えた時だけ知らせる。
 
 - 計算は必ず `keiryo-calc.js` 経由。**係数（1.75 / 2.4 / 0.72 / 550）を index.html に書かない。**
-- テスト：`npm test`（108件）。**ブラウザが読むのと同じ1ファイルを検証している。コピーを作らないこと。**
+- テスト：`npm test`（139件）。**ブラウザが読むのと同じ1ファイルを検証している。コピーを作らないこと。**
   数式を直したら必ず `npm test` を通してからデプロイ。
 - **集計は必ず `m.d`（その記録が属する1日）で行う。`m.at`（実時刻）は表示専用。**
   深夜0:30の食事を `at` で集計すると前日と当日の両方が壊れる（境界は既定4:00・設定で変更可）。
@@ -26,7 +26,11 @@
 - **判断は生の体重で行わない。必ず7日移動平均**（`mealAvg`）。
 - **P と F はいかなるカロリー調整でも減らさない。** 調整はすべて C（下限100g）。
 - 下限ガードは「その日の目標」ではなく **週平均** で判定する（日次だと外食週に毎週誤警告が出る）。
-- データ：`meals` / `mealPresets` / `myFoods`（`collectPayload`・`applyPayload`・`saveAllLocal` に登録済み）。
+- **水分**：`drinks` / `drinkPresets`。目安は `体重×35ml ＋ トレ時間×500ml/h`（ATLAS の `sessionMinutes` を流用）。
+  飲み物の kcal はその日の合計に入れる（カフェオレ等）。プロテインの水は kcal 0＝粉は食事側で記録済み（二重計上を避ける）。
+  カフェインは1日400mg目安＋就寝6時間前チェック（`settings.nutri.bedHour`、既定2時）。
+  **医学的助言ではなく目安**である旨を画面に明記している。消さないこと。
+- データ：`meals` / `mealPresets` / `myFoods` / `drinks` / `drinkPresets`（`collectPayload`・`applyPayload`・`saveAllLocal` に登録済み）。
   設定は `settings.nutri`（bfPct/activity/deficit/targetBf/boundaryHour/eatOutDow/eatOutKcal/cond/overrideKcal）。
 
 ## デザイン指針（厳守）
