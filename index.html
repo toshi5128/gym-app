@@ -790,6 +790,14 @@
   .m-nav-now{margin-left:auto;}
   .m-late{font-size:12px; color:#d8bd7a; margin:-6px 0 13px;}
 
+  /* 「変化はここ」「設定はここ」への案内ボタン */
+  .m-where{display:flex; gap:9px; margin-top:16px;}
+  .m-where-b{flex:1; background:rgba(255,255,255,.06); border:1px solid var(--hair-2); border-radius:13px;
+    padding:11px 10px; cursor:pointer; display:flex; flex-direction:column; gap:3px; align-items:flex-start;}
+  .m-where-b:active{transform:scale(.97);}
+  .m-where-b b{font-size:13px; color:#e8f0ea; font-family:var(--font-jp);}
+  .m-where-b span{font-size:10.5px; color:#a7c3b4; font-family:var(--font-disp);}
+
   /* 手入力ボタン（定型セットの最後） */
   .mpreset.mp-manual{background:var(--surface-2); border-style:dashed;}
 
@@ -2254,8 +2262,8 @@ function renderStats(){
     <div class="card">${volRows}
       <div class="hint" style="margin-top:4px">今週の<b>セット数</b>（${fmtDate(weekRange().start)}〜）。白い帯が成長の目安（週<b>10〜20セット</b>前後・個人差あり）。</div></div>`;
 
-  const bwSec=`<div class="eyebrow">体重</div>
-    ${bwCard}`;
+  const bwSec=`<div class="eyebrow">からだの変化</div>
+    ${mealChangeHtml()}`;
 
   const measSec=`<div class="eyebrow">採寸（部位サイズ）</div>
     ${measCard}`;
@@ -2268,10 +2276,7 @@ function renderStats(){
 
   v.querySelectorAll('[data-sub]').forEach(t=>t.onclick=()=>{ statsSub=t.dataset.sub; renderStats(); });
   v.querySelectorAll('[data-prm]').forEach(c=>c.onclick=()=>{ prMuscle=c.dataset.prm; renderStats(); });
-  const _bwSave=document.getElementById('bwSave'); if(_bwSave) _bwSave.onclick=()=>{
-    const val=parseFloat(document.getElementById('bwIn').value); if(!val||val<=0){ toast('体重を入力してください'); return; }
-    const i=bw.findIndex(x=>x.date===todayStr()); if(i>=0)bw[i].kg=val; else bw.push({date:todayStr(),kg:val});
-    saveAll(); toast('体重を記録しました'); renderStats(); };
+  bindMealChange(v, ()=>renderStats());   // 体重・体脂肪率の入力口はここ1箇所だけ
   const _measSave=document.getElementById('measSave'); if(_measSave) _measSave.onclick=()=>{
     const val=parseFloat(document.getElementById('measIn').value); if(!val||val<=0){ toast('数値を入力してください'); return; }
     const i=meas.findIndex(x=>x.date===todayStr()&&x.key===measSel); if(i>=0)meas[i].v=val; else meas.push({date:todayStr(),key:measSel,v:val});
@@ -2458,6 +2463,7 @@ function renderMore(){
 
     ${acc('split','分割メニュー（テンプレ・種目の割り当て）',splitPanelHtml())}
 
+    ${mealSettingsHtml(acc)}
     ${acc('data','データ（バックアップ）',`
       <div style="font-size:13px;color:var(--txt-2);line-height:1.7;margin-bottom:13px">全記録（写真も含む）はこの端末内に保存されます。機種変や万一の消失に備え、ときどき書き出しておくと安心です。<br><span style="color:var(--txt-3);font-size:12px">※写真が多いとファイルが大きくなります。</span></div>
       <div class="bk-status">最終バックアップ：<b>${settings.lastBackupAt?fmtDate(settings.lastBackupAt.slice(0,10))+`（${Math.floor(daysSince(settings.lastBackupAt))}日前）`:'まだありません'}</b></div>
@@ -2473,6 +2479,7 @@ function renderMore(){
   </div>`;
 
   v.querySelectorAll('[data-acc]').forEach(h=>h.onclick=()=>{ const k=h.dataset.acc, box=h.closest('.acc'); const open=box.classList.toggle('open'); if(open)accOpen.add(k); else accOpen.delete(k); });
+  bindMealSettings(v, ()=>renderMore());
   { const logoutBtn=document.getElementById('logoutBtn'); if(logoutBtn) logoutBtn.onclick=()=>{ if(confirm('ログアウトしますか？\nこの端末の記録はクラウドに保存済みなので、次に同じIDでログインすれば戻ります。')) logoutCloud(); };
     const adminBtn=document.getElementById('adminBtn'); if(adminBtn) adminBtn.onclick=()=>openAdmin(); }
   document.getElementById('redoOb').onclick=()=>showOnboard();
@@ -2729,52 +2736,6 @@ function nutriPlan(){
     overrideKcal:(n.overrideKcal!=null?+n.overrideKcal:undefined) });
 }
 function mealsOn(d){ return meals.filter(m=>m.d===d).sort((a,b)=>((a.at||'')<(b.at||'')?-1:1)); }
-/* ---- 見ている日（過去にさかのぼって記録・修正できる）----
-   記録の入れ忘れは必ず起きる。後から埋められないと週予算も7日平均も狂うため、
-   食事タブは常に「見ている日」を持ち、記録も体重もその日に入る。 */
-let mealViewDate=null;                       // null = 今日
-function mealViewD(){ const t=mealLogDate(); return (mealViewDate&&mealViewDate<t)?mealViewDate:t; }
-function isMealToday(){ return mealViewD()===mealLogDate(); }
-function moveMealDate(days){
-  const t=mealLogDate(), next=KEIRYO.addLogDays(mealViewD(),days);
-  if(next>t){ mealViewDate=null; } else { mealViewDate=(next===t?null:next); }
-  renderMeal();
-}
-
-/* ---- 集計のもと ---- */
-/** ATLAS の体重記録を、判定用の形に変換。ref=参考値（測定条件が違う）は移動平均から除く */
-function mealWeighIns(){ return (bw||[]).map(b=>({logDate:b.date, weightKg:+b.kg, isReference:!!b.ref})); }
-/** 7日移動平均。判断は生の体重では絶対に行わない（仕様書 §7） */
-function mealAvg(endLogDate){ return KEIRYO.movingAverage(mealWeighIns(), endLogDate, 7); }
-/** その週の日別カロリー（週予算の消化ぶん） */
-function mealWeekIntakes(vd){
-  const dates=KEIRYO.weekDates(vd), map={};
-  meals.forEach(m=>{ if(dates.indexOf(m.d)>=0){
-    if(!map[m.d]) map[m.d]={logDate:m.d, kcal:0, proteinG:0};
-    map[m.d].kcal+=(+m.k||0); map[m.d].proteinG+=(+m.p||0); } });
-  return Object.keys(map).map(k=>map[k]);
-}
-/* 外食日：既定は「毎週◯曜」。週ごとにその都度上書きできる（仕様書 §4-2）*/
-function eatOutOv(){ const c=nutriCfg(); if(!c.eatOutOv||typeof c.eatOutOv!=='object') c.eatOutOv={}; return c.eatOutOv; }
-function weekEatOutDates(weekStartD){
-  const ov=eatOutOv();
-  if(Object.prototype.hasOwnProperty.call(ov,weekStartD)) return (ov[weekStartD]||[]).slice();
-  const n=nutriCfg();
-  return (n.eatOutDow!=null&&n.eatOutDow!=='')?[KEIRYO.eatOutDateForWeek(weekStartD,+n.eatOutDow)]:[];
-}
-function toggleEatOut(dt){
-  const ws=KEIRYO.weekStart(dt), cur=weekEatOutDates(ws), i=cur.indexOf(dt);
-  if(i>=0)cur.splice(i,1); else cur.push(dt);
-  cur.sort(); eatOutOv()[ws]=cur; saveAll(); renderMeal();
-}
-function mealWeekPlan(plan,vd){
-  return KEIRYO.planWeek({dailyTargetKcal:plan.kcal, eatOutDates:weekEatOutDates(KEIRYO.weekStart(vd)),
-    eatOutKcal:+nutriCfg().eatOutKcal});
-}
-/** その日の目標。P と F は日次で不変、C だけがその日の枠に合わせて動く（仕様書 §7） */
-function mealDayTarget(plan,wplan,vd){
-  return KEIRYO.macrosForCalories(KEIRYO.dailyTargetFor(wplan,vd), plan.lbmKg, +latestBw().kg);
-}
 /* ---- 水分とカフェイン ----
    目標は「飲み物として記録したぶん」で数える。食品の水分は勘定に入れない（そのぶん目標は安全側）。
    筋トレした日は ATLAS のトレ時間から自動で目標が増える。 */
@@ -2806,20 +2767,67 @@ function waterTargetFor(d){
   if(n.waterOverride!=null) return +n.waterOverride;
   return KEIRYO.waterTargetMl(+b.kg, {trainingMinutes: mealTrainMin(d)});
 }
-function logDrink(p){
-  const d=mealViewD();
-  const rec={ id:'w'+Date.now()+Math.random().toString(36).slice(2,6), d, at:mealStampAt(d),
-    n:p.name, ml:+p.ml||0, caf:+p.caffeineMg||0, k:+p.kcal||0 };
-  drinks.push(rec); saveAll(); renderMeal();
-  showMealUndo({id:rec.id, n:rec.n+' '+rec.ml+'ml', _drink:true});
-  return rec;
-}
-function delDrink(id){ drinks=drinks.filter(x=>x.id!==id); saveAll(); if(tab==='meal')renderMeal(); }
 
+/* ---- 見ている日（過去にさかのぼって記録・修正できる）----
+   記録の入れ忘れは必ず起きる。後から埋められないと週予算も7日平均も狂うため、
+   食事タブは常に「見ている日」を持ち、記録も体重もその日に入る。 */
+let mealViewDate=null;                       // null = 今日
+function mealViewD(){ const t=mealLogDate(); return (mealViewDate&&mealViewDate<t)?mealViewDate:t; }
+function isMealToday(){ return mealViewD()===mealLogDate(); }
+function moveMealDate(days){
+  const t=mealLogDate(), next=KEIRYO.addLogDays(mealViewD(),days);
+  if(next>t){ mealViewDate=null; } else { mealViewDate=(next===t?null:next); }
+  renderMeal();
+}
+
+/* ---- 集計のもと ---- */
+function mealWeighIns(){ return (bw||[]).map(b=>({logDate:b.date, weightKg:+b.kg, isReference:!!b.ref})); }
+/** 7日移動平均。判断は生の体重では絶対に行わない（仕様書 §7） */
+function mealAvg(endLogDate){ return KEIRYO.movingAverage(mealWeighIns(), endLogDate, 7); }
+function mealWeekIntakes(vd){
+  const dates=KEIRYO.weekDates(vd), map={};
+  meals.forEach(m=>{ if(dates.indexOf(m.d)>=0){
+    if(!map[m.d]) map[m.d]={logDate:m.d, kcal:0, proteinG:0};
+    map[m.d].kcal+=(+m.k||0); map[m.d].proteinG+=(+m.p||0); } });
+  drinks.forEach(x=>{ if(dates.indexOf(x.d)>=0){
+    if(!map[x.d]) map[x.d]={logDate:x.d, kcal:0, proteinG:0};
+    map[x.d].kcal+=(+x.k||0); } });
+  return Object.keys(map).map(k=>map[k]);
+}
+/* 外食日：既定は「毎週◯曜」。週ごとにその都度上書きできる（仕様書 §4-2）*/
+function eatOutOv(){ const c=nutriCfg(); if(!c.eatOutOv||typeof c.eatOutOv!=='object') c.eatOutOv={}; return c.eatOutOv; }
+function weekEatOutDates(weekStartD){
+  const ov=eatOutOv();
+  if(Object.prototype.hasOwnProperty.call(ov,weekStartD)) return (ov[weekStartD]||[]).slice();
+  const n=nutriCfg();
+  return (n.eatOutDow!=null&&n.eatOutDow!=='')?[KEIRYO.eatOutDateForWeek(weekStartD,+n.eatOutDow)]:[];
+}
+function toggleEatOut(dt){
+  const ws=KEIRYO.weekStart(dt), cur=weekEatOutDates(ws), i=cur.indexOf(dt);
+  if(i>=0)cur.splice(i,1); else cur.push(dt);
+  cur.sort(); eatOutOv()[ws]=cur; saveAll(); renderMeal();
+}
+function mealWeekPlan(plan,vd){
+  return KEIRYO.planWeek({dailyTargetKcal:plan.kcal, eatOutDates:weekEatOutDates(KEIRYO.weekStart(vd)),
+    eatOutKcal:+nutriCfg().eatOutKcal});
+}
+/** その日の目標。P と F は日次で不変、C だけがその日の枠に合わせて動く（仕様書 §7） */
+function mealDayTarget(plan,wplan,vd){
+  return KEIRYO.macrosForCalories(KEIRYO.dailyTargetFor(wplan,vd), plan.lbmKg, +latestBw().kg);
+}
 function mealBar(label,now,target,color){
   const pct=target>0?Math.min(100,now/target*100):0;
   return `<div class="m-macro"><div class="r"><span>${label}</span><span><b>${Math.round(now)}</b> / ${target} g</span></div>
     <div class="m-bar"><span style="width:${pct}%${color?';background:'+color:''}"></span></div></div>`;
+}
+/** その日の摂取合計（食事＋飲み物）。飲み物のカロリーも1日の合計に入れる */
+function mealEatenOn(vd){
+  const rowsOn=mealsOn(vd), dOn=drinksOn(vd);
+  const dSum=KEIRYO.sumDrinks(dOn.map(x=>({ml:x.ml,caffeineMg:x.caf,kcal:x.k})));
+  const f=KEIRYO.sumNutrition(rowsOn.map(m=>({kcal:m.k,proteinG:m.p,fatG:m.f,carbG:m.c})));
+  const mealMl=rowsOn.reduce((a,m)=>a+(+m.ml||0),0);
+  return { rowsOn, dOn, dSum, mealMl, totalMl:dSum.ml+mealMl,
+    kcal:f.kcal+dSum.kcal, proteinG:f.proteinG, fatG:f.fatG, carbG:f.carbG, drinkKcal:dSum.kcal };
 }
 
 /* 取り消しバー（5秒）。誤タップ対策はこれで行う＝記録時に確認ダイアログを出さない */
@@ -2839,13 +2847,12 @@ function showMealUndo(m){
 function hideMealUndo(){ const el=document.getElementById('mealUndo'); if(el)el.classList.remove('show'); clearTimeout(_mealUndoT); }
 
 /* ---- 記録 ---- */
-/** 見ている日に記録する。過去日なら「その日の今と同じ時刻」として入れる */
 function mealStampAt(d){
   const now=new Date();
   if(d===mealLogDate()) return now.toISOString();
   const base=new Date(d+'T00:00:00');
   base.setHours(now.getHours(), now.getMinutes(), 0, 0);
-  if(now.getHours()<mealBoundary()) base.setDate(base.getDate()+1);   // 深夜ぶんは翌日の実時刻＝その日の記録
+  if(now.getHours()<mealBoundary()) base.setDate(base.getDate()+1);
   return base.toISOString();
 }
 function pushMeal(name,n,items,ml){
@@ -2860,28 +2867,30 @@ function logMealPreset(p){
   pushMeal(p.name,n,p.items,p.ml);
 }
 function delMeal(id){ meals=meals.filter(x=>x.id!==id); saveAll(); if(tab==='meal')renderMeal(); }
+function logDrink(p){
+  const d=mealViewD();
+  const rec={ id:'w'+Date.now()+Math.random().toString(36).slice(2,6), d, at:mealStampAt(d),
+    n:p.name, ml:+p.ml||0, caf:+p.caffeineMg||0, k:+p.kcal||0 };
+  drinks.push(rec); saveAll(); renderMeal();
+  showMealUndo({id:rec.id, n:rec.n, _drink:true});
+  return rec;
+}
+function delDrink(id){ drinks=drinks.filter(x=>x.id!==id); saveAll(); if(tab==='meal')renderMeal(); }
 
-/* ---- 画面 ---- */
 const MEAL_WK=['日','月','火','水','木','金','土'];
 const mealDow=d=>MEAL_WK[new Date(d+'T00:00:00').getDay()];
 const mealMD=d=>{ const p=d.split('-'); return (+p[1])+'/'+(+p[2]); };
 
+/* =========================================================================
+   食事タブ ＝ 「記録するところ」だけ。
+   変化を見るのは分析タブ、設定は設定タブ。1つのタブに1つの役割。
+   ========================================================================= */
 function renderMeal(){
   const v=document.getElementById('view');
-  const vd=mealViewD(), today=mealLogDate(), isToday=isMealToday();
-  const plan=nutriPlan(), list=mealPresetList(), rowsOn=mealsOn(vd);
-  // 飲み物のカロリー（カフェオレ等）も、その日の合計に含める
-  const dOn=drinksOn(vd), dSum=KEIRYO.sumDrinks(dOn.map(x=>({ml:x.ml,caffeineMg:x.caf,kcal:x.k})));
-  // 食事にひもづく水分（プロテインの水・味噌汁など）も水分に数える。ボタンを2回押させない
-  const mealMl=rowsOn.reduce((a,m)=>a+(+m.ml||0),0);
-  const totalMl=dSum.ml+mealMl;
-  const eatenFood=KEIRYO.sumNutrition(rowsOn.map(m=>({kcal:m.k,proteinG:m.p,fatG:m.f,carbG:m.c})));
-  const eaten=Object.assign({},eatenFood,{kcal:eatenFood.kcal+dSum.kcal});
-  const hasBw=!!latestBw(), n=nutriCfg();
-  const CHEVM='<svg class="acc-x" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
-  const accM=(key,title,body)=>`<div class="acc${accOpen.has(key)?' open':''}"><button class="acc-h" data-acc="${key}"><span>${title}</span>${CHEVM}</button><div class="acc-body">${body}</div></div>`;
+  const vd=mealViewD(), isToday=isMealToday();
+  const plan=nutriPlan(), list=mealPresetList(), n=nutriCfg();
+  const E=mealEatenOn(vd);
 
-  /* --- 日付ナビ：入れ忘れた日にさかのぼって記録できる --- */
   const nav=`<div class="m-nav">
     <button class="m-nav-b" data-mnav="-1" aria-label="前の日"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
     <div class="m-nav-d"><b>${mealMD(vd)}（${mealDow(vd)}）</b>${isToday?'<span class="m-nav-t">今日</span>':''}</div>
@@ -2891,7 +2900,7 @@ function renderMeal(){
   ${(isToday&&KEIRYO.isLateNight(new Date(),mealBoundary()))
     ?`<div class="m-late">いまは深夜なので、${KEIRYO.logDateLabel(new Date(),mealBoundary())}</div>`:''}`;
 
-  /* --- 定型セット：1タップで即記録 --- */
+  /* --- 食べる：1タップで即記録 --- */
   const presets=list.map((p,i)=>{
     let nu; try{ nu=KEIRYO.nutritionOfPreset(p,myFoods); }catch(e){ nu=KEIRYO.EMPTY_NUTRITION; }
     return `<button class="mpreset" data-mp="${i}"><span class="mp-n">${_me(p.name)}</span>
@@ -2900,135 +2909,135 @@ function renderMeal(){
   }).join('')+`<button class="mpreset mp-manual" data-mmanual="1"><span class="mp-n">手で入力</span>
       <span class="mp-s">外食など。だいたいの値でかまいません</span><span class="mp-k">＋ 追加</span></button>`;
 
-  /* --- 目標が出せない時の案内 --- */
+  /* --- 目標がまだ出せない時 --- */
   const setup=plan?'':`<div class="card">
     <div class="lbl">目標を出すのに、あと1つ</div>
-    <div class="hint" style="margin:8px 0 13px">${hasBw
-      ?'体組成計に出る<b>体脂肪率</b>を入れると、目標カロリーとPFCが自動で決まります。体重は「分析」タブの記録をそのまま使うので、入れ直す必要はありません。'
-      :'まず下の「からだ」から<b>体重</b>を入れてください。そのあと体脂肪率を入れると目標が出ます。'}</div>
-    ${hasBw?`<div class="field"><label class="lbl">体脂肪率</label><input type="number" inputmode="decimal" step="0.1" id="nBf" value="${n.bfPct??''}" placeholder="15.7"><span class="unit">%</span></div>
-    <button class="btn" id="nSave" style="width:100%;margin-top:11px">目標を計算する</button>`:''}
+    <div class="hint" style="margin:8px 0 0">「分析」タブで<b>体重と体脂肪率</b>を記録すると、ここに目標カロリーとPFCが出ます。</div>
   </div>`;
 
   let wplan=null, dayT=null, isEatOut=false;
   if(plan){ wplan=mealWeekPlan(plan,vd); dayT=mealDayTarget(plan,wplan,vd); isEatOut=wplan.eatOutDates.indexOf(vd)>=0; }
 
-  /* --- その日の残り（毎日見るもの。いちばん上に置く）--- */
+  /* --- その日の残り --- */
   const goal=plan?`<div class="card">
     <div class="lbl">${isToday?'今日':mealMD(vd)}の残り${isEatOut?'（外食日）':''}</div>
-    <div class="m-rest"><span class="big">${Math.round(dayT.kcal-eaten.kcal).toLocaleString()}</span><span class="u">kcal ／ 目標 ${dayT.kcal.toLocaleString()}</span></div>
-    <div class="m-bar"><span style="width:${dayT.kcal>0?Math.min(100,eaten.kcal/dayT.kcal*100):0}%"></span></div>
+    <div class="m-rest"><span class="big">${Math.round(dayT.kcal-E.kcal).toLocaleString()}</span><span class="u">kcal ／ 目標 ${dayT.kcal.toLocaleString()}</span></div>
+    <div class="m-bar"><span style="width:${dayT.kcal>0?Math.min(100,E.kcal/dayT.kcal*100):0}%"></span></div>
     <div style="margin-top:15px">
-      ${mealBar('タンパク質',eaten.proteinG,plan.proteinG,eaten.proteinG>=plan.proteinG?'var(--pos)':null)}
-      ${mealBar('脂質',eaten.fatG,dayT.fatG)}
-      ${mealBar('炭水化物',eaten.carbG,dayT.carbG)}
+      ${mealBar('タンパク質',E.proteinG,plan.proteinG,E.proteinG>=plan.proteinG?'var(--pos)':null)}
+      ${mealBar('脂質',E.fatG,dayT.fatG)}
+      ${mealBar('炭水化物',E.carbG,dayT.carbG)}
     </div>
-    ${dSum.kcal>0?`<div class="hint" style="margin-top:11px">うち飲み物 ${Math.round(dSum.kcal).toLocaleString()}kcal（カフェオレなど）を含みます。</div>`:''}
   </div>`:'';
 
-  /* --- 水分（毎日見るもの。トレした日は目標が自動で増える）--- */
-  let waterCard='';
-  {
-    const dlist=drinkPresetList();
-    const wt=waterTargetFor(vd);
-    const train=mealTrainMin(vd);
-    const lastCaf=dOn.filter(x=>x.caf>0).slice(-1)[0];
-    const caf=KEIRYO.caffeineStatus(dSum.caffeineMg,
-      lastCaf?{lastAtHour:new Date(lastCaf.at).getHours(), bedHour:(n.bedHour==null?2:+n.bedHour)}:{});
-    const cafCol={ok:'var(--txt-2)', near:'#c9962f', late:'#c9762f', over:'var(--danger)'}[caf.level];
-    const chips=dlist.map((p,i)=>`<button class="m-dr" data-dr="${i}">
-      <span class="m-dr-n">${_me(p.name)}</span><span class="m-dr-m">${p.ml}ml${p.caffeineMg>0?' ・'+p.caffeineMg+'mg':''}</span></button>`).join('')
-      +`<button class="m-dr m-dr-add" data-drmanual="1"><span class="m-dr-n">その他</span><span class="m-dr-m">手で入力</span></button>`;
-    const rowsD=dOn.length?`<ul class="m-list m-dlist">${dOn.map(x=>`<li>
-        <span class="t">${x.at?new Date(x.at).toTimeString().slice(0,5):''}</span>
-        <span class="n">${_me(x.n)}</span>
-        <span class="k">${x.ml}ml${x.caf>0?' ・ '+x.caf+'mg':''}</span>
-        <button class="x" data-drdel="${x.id}" aria-label="削除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
-      </li>`).join('')}</ul>`:'';
+  /* --- 飲む：水分 --- */
+  const dlist=drinkPresetList();
+  const wt=waterTargetFor(vd), train=mealTrainMin(vd);
+  const lastCaf=E.dOn.filter(x=>x.caf>0).slice(-1)[0];
+  const caf=KEIRYO.caffeineStatus(E.dSum.caffeineMg,
+    lastCaf?{lastAtHour:new Date(lastCaf.at).getHours(), bedHour:(n.bedHour==null?2:+n.bedHour)}:{});
+  const cafCol={ok:'var(--txt-2)', near:'#c9962f', late:'#c9762f', over:'var(--danger)'}[caf.level];
+  const chips=dlist.map((p,i)=>`<button class="m-dr" data-dr="${i}">
+    <span class="m-dr-n">${_me(p.name)}</span><span class="m-dr-m">${p.ml}ml${p.caffeineMg>0?' ・'+p.caffeineMg+'mg':''}</span></button>`).join('')
+    +`<button class="m-dr m-dr-add" data-drmanual="1"><span class="m-dr-n">その他</span><span class="m-dr-m">手で入力</span></button>`;
 
-    if(wt==null){
-      waterCard=`<div class="card"><div class="lbl">水分</div>
-        <div class="hint" style="margin-top:8px">体重を記録すると、1日に何本ぶん飲めばいいかが出ます。</div>
-        <div class="m-drs">${chips}</div>${rowsD}</div>`;
-    }else{
-      const cup=(n.cupMl>0?+n.cupMl:500);
-      const cu=KEIRYO.waterCups(totalMl, wt, cup);
-      const hs=KEIRYO.hydrationStatus(totalMl, wt);
-      const col=hs.level==='done'?'var(--pos)':'#3f8fb0';
-      // 「あと3,100ml」ではなく「あと6本」。ml のままだと何をすればいいか分からない
-      const pips=Array.from({length:cu.total},(_,i)=>`<span class="m-pip${i<cu.done?' on':''}"></span>`).join('');
-      const headline=cu.remaining===0?'今日のぶんは飲みきりました':`あと <b>${cu.remaining}</b> 本`;
-      waterCard=`<div class="card">
-        <div class="m-wk-top"><span class="lbl" style="margin:0">水分</span>
-          <span class="m-wk-n">${totalMl.toLocaleString()}<small> / ${wt.toLocaleString()} ml</small></span></div>
-        <div class="m-water-h" style="color:${col}">${headline}<span class="m-water-u">${cup}ml を1本として</span></div>
-        <div class="m-pips">${pips}</div>
-        <div class="m-wk-msg">1日の目安 ${wt.toLocaleString()}ml ＝ ${cup}ml で <b>${cu.total}本</b>。体重${(+latestBw().kg).toFixed(1)}kg${train>0?` ＋ 筋トレ${fmtDur(train)}ぶん`:''}から計算しています。</div>
-        ${mealMl>0?`<div class="m-wk-msg" style="margin-top:5px">うち ${mealMl.toLocaleString()}ml は食事ぶん（プロテインの水・味噌汁など）を自動で数えています。</div>`:''}
-        ${dSum.caffeineMg>0?`<div class="m-caf" style="color:${cafCol}">カフェイン ${dSum.caffeineMg}mg / 目安 ${KEIRYO.CAFFEINE_DAILY_MAX_MG}mg${caf.message?'　'+_me(caf.message):''}</div>`:''}
-        <div class="m-drs">${chips}</div>
-        ${rowsD}
-        <div class="hint" style="margin-top:9px">目安は体重×35ml＋運動ぶん（一般的な計算です。持病や薬がある方は医師の指示を優先してください）。</div>
-      </div>`;
-    }
+  let waterCard;
+  if(wt==null){
+    waterCard=`<div class="card"><div class="lbl">水分</div>
+      <div class="hint" style="margin-top:8px">「分析」タブで体重を記録すると、1日に何本ぶん飲めばいいかが出ます。</div>
+      <div class="m-drs">${chips}</div></div>`;
+  }else{
+    const cup=(n.cupMl>0?+n.cupMl:500);
+    const cu=KEIRYO.waterCups(E.totalMl, wt, cup);
+    const hs=KEIRYO.hydrationStatus(E.totalMl, wt);
+    const col=hs.level==='done'?'var(--pos)':'#3f8fb0';
+    const pips=Array.from({length:cu.total},(_,i)=>`<span class="m-pip${i<cu.done?' on':''}"></span>`).join('');
+    waterCard=`<div class="card">
+      <div class="m-wk-top"><span class="lbl" style="margin:0">水分</span>
+        <span class="m-wk-n">${E.totalMl.toLocaleString()}<small> / ${wt.toLocaleString()} ml</small></span></div>
+      <div class="m-water-h" style="color:${col}">${cu.remaining===0?'今日のぶんは飲みきりました':`あと <b>${cu.remaining}</b> 本`}<span class="m-water-u">${cup}ml を1本として</span></div>
+      <div class="m-pips">${pips}</div>
+      ${E.mealMl>0?`<div class="m-wk-msg">うち ${E.mealMl.toLocaleString()}ml は食事ぶん（プロテインの水・味噌汁など）を自動で数えています。</div>`:''}
+      ${E.dSum.caffeineMg>0?`<div class="m-caf" style="color:${cafCol}">カフェイン ${E.dSum.caffeineMg}mg / 目安 ${KEIRYO.CAFFEINE_DAILY_MAX_MG}mg${caf.message?'　'+_me(caf.message):''}</div>`:''}
+      <div class="m-drs">${chips}</div>
+    </div>`;
   }
 
-  /* --- その日の記録 --- */
-  const rows=rowsOn.length?`<ul class="m-list">${rowsOn.map(m=>`<li>
+  /* --- その日の記録（食べたもの・飲んだものを1つの並びに） --- */
+  const items=E.rowsOn.map(m=>({at:m.at,n:m.n,r:Math.round(m.k).toLocaleString()+' kcal',id:m.id,d:0}))
+    .concat(E.dOn.map(x=>({at:x.at,n:x.n,r:x.ml+'ml'+(x.caf>0?' ・ '+x.caf+'mg':''),id:x.id,d:1})))
+    .sort((a,b)=>((a.at||'')<(b.at||'')?-1:1));
+  const rows=items.length?`<ul class="m-list">${items.map(m=>`<li>
       <span class="t">${m.at?new Date(m.at).toTimeString().slice(0,5):''}</span>
       <span class="n">${_me(m.n)}</span>
-      <span class="k">${Math.round(m.k).toLocaleString()} kcal</span>
-      <button class="x" data-mdel="${m.id}" aria-label="削除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      <span class="k">${_me(m.r)}</span>
+      <button class="x" data-${m.d?'drdel':'mdel'}="${m.id}" aria-label="削除"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </li>`).join('')}</ul>`
     :`<div class="hint" style="border:none;padding:6px 0">${isToday
         ?'まだ記録がありません。上のボタンを1回押すだけで記録されます。'
         :'この日の記録はありません。上のボタンを押すと、この日のぶんとして入ります。'}</div>`;
-  const rowsCard=`<div class="card"><div class="lbl">${isToday?'今日':mealMD(vd)+'（'+mealDow(vd)+'）'}の記録</div><div style="margin-top:11px">${rows}</div></div>`;
 
-  /* --- 週予算（コンパクト）。外食日はその都度チップで切り替えられる --- */
+  /* --- 今週の予算（外食日をその都度きめる） --- */
   let weekCard='';
   if(plan){
     const wp=KEIRYO.weekProgress(wplan, mealWeekIntakes(vd), vd);
     const used=wp.weeklyBudgetKcal-wp.remainingKcal;
     const pct=Math.min(100, Math.max(0, used/wp.weeklyBudgetKcal*100));
     const col=wp.status==='over'?'var(--danger)':(wp.status==='tight'?'#c9962f':'var(--pos)');
-    const chips=KEIRYO.weekDates(vd).map(dt=>{
+    const eoChips=KEIRYO.weekDates(vd).map(dt=>{
       const on=wplan.eatOutDates.indexOf(dt)>=0;
       return `<button class="m-eo${on?' on':''}${dt===vd?' cur':''}" data-eo="${dt}" title="${dt}">${mealDow(dt)}</button>`;
     }).join('');
-    weekCard=`<div class="card m-wkcard">
+    weekCard=`<div class="card">
       <div class="m-wk-top"><span class="lbl" style="margin:0">今週の予算</span>
         <span class="m-wk-n">${Math.round(wp.remainingKcal).toLocaleString()}<small> / ${wp.weeklyBudgetKcal.toLocaleString()}</small></span></div>
       <div class="m-bar" style="margin-top:9px"><span style="width:${pct}%;background:${col}"></span></div>
       <div class="m-wk-msg">${wp.message}</div>
-      <div class="m-eo-row"><span class="m-eo-l">外食する日</span>${chips}</div>
+      <div class="m-eo-row"><span class="m-eo-l">外食する日</span>${eoChips}</div>
       <div class="hint" style="margin-top:8px">${wplan.eatOutDates.length
         ? `外食日は ${wplan.eatOutDates.map(x=>mealMD(x)+'（'+mealDow(x)+'）').join('・')}。先に ${(+n.eatOutKcal).toLocaleString()}kcal ずつ取り置いて、残り${wplan.normalDays}日は1日 <b>${wplan.normalTargetKcal.toLocaleString()}kcal</b> です。`
         : '曜日を押すと、その日を外食日にできます。先に取り置いて残りの日に配り直します。'}</div>
     </div>`;
   }
 
-  /* --- 週次レビュー（仕様書 §7：毎週日曜）。手を打つべき時は曜日を問わず出す --- */
-  const avgNow=mealAvg(vd), avgPrev=mealAvg(KEIRYO.addLogDays(vd,-7));
-  let reviewCard='', rev=null;
-  if(plan&&avgNow!=null&&avgPrev!=null){
-    rev=KEIRYO.reviewWeek({thisWeekAvgKg:avgNow, lastWeekAvgKg:avgPrev, stalledLastWeek:!!n.stalledLastWeek});
-    const isSunday=new Date(vd+'T00:00:00').getDay()===0;
-    if(isSunday||rev.kcalAdjustment!==0){
-      const col={too_fast:'#c9762f', on_track:'var(--pos)', slowing:'var(--txt-2)', stalled:'#c9962f'}[rev.verdict];
-      reviewCard=`<div class="card">
-        <div class="lbl">今週の判定${isSunday?'':'（要チェック）'}</div>
-        <div class="m-rev"><span class="m-rev-d" style="color:${col}">${rev.deltaKg>0?'+':''}${rev.deltaKg.toFixed(2)} kg</span>
-          <span class="m-rev-t">${_me(rev.message)}</span></div>
-        ${rev.kcalAdjustment!==0?`<button class="btn" id="mRevApply" style="width:100%;margin-top:11px">目標を ${rev.kcalAdjustment>0?'+':''}${rev.kcalAdjustment}kcal にする</button>
-        <div class="hint" style="margin-top:9px">変えるのは炭水化物だけです。タンパク質 ${plan.proteinG}g と脂質 ${plan.fatG}g は減らしません。</div>`:''}
-        <div class="hint" style="margin-top:9px">外食の翌日は塩分と糖質で1〜1.5kg増えますが、これは水分です。7日平均が吸収するので気にしないでください。</div>
-      </div>`;
-    }
-  }
+  v.innerHTML=`<div class="fade-in">
+    <div class="eyebrow">食事</div>
+    ${nav}
+    <div class="mpresets">${presets}</div>
+    ${setup}${goal}${waterCard}
+    <div class="card"><div class="lbl">${isToday?'今日':mealMD(vd)+'（'+mealDow(vd)+'）'}の記録</div><div style="margin-top:11px">${rows}</div></div>
+    ${weekCard}
+    <div class="m-where">
+      <button class="m-where-b" data-go="stats"><b>変化を見る</b><span>分析 › からだ</span></button>
+      <button class="m-where-b" data-go="more"><b>設定を変える</b><span>設定 › 食事・減量</span></button>
+    </div>
+  </div>`;
 
-  /* --- からだ（週1回見れば十分なので畳んでおく）--- */
-  const series=[]; for(let i=27;i>=0;i--){ const a=mealAvg(KEIRYO.addLogDays(vd,-i)); if(a!=null)series.push(a); }
+  v.querySelectorAll('[data-mnav]').forEach(b=>{ b.onclick=()=>moveMealDate(+b.dataset.mnav); });
+  const nw=document.getElementById('mNavNow'); if(nw)nw.onclick=()=>{ mealViewDate=null; renderMeal(); };
+  v.querySelectorAll('[data-mp]').forEach(b=>{ b.onclick=()=>logMealPreset(list[+b.dataset.mp]); });
+  v.querySelectorAll('[data-mdel]').forEach(b=>{ b.onclick=()=>delMeal(b.dataset.mdel); });
+  v.querySelectorAll('[data-dr]').forEach(b=>{ b.onclick=()=>logDrink(drinkPresetList()[+b.dataset.dr]); });
+  v.querySelectorAll('[data-drdel]').forEach(b=>{ b.onclick=()=>delDrink(b.dataset.drdel); });
+  v.querySelectorAll('[data-eo]').forEach(b=>{ b.onclick=()=>toggleEatOut(b.dataset.eo); });
+  const mm=v.querySelector('[data-mmanual]'); if(mm) mm.onclick=()=>openManualMeal();
+  const dm=v.querySelector('[data-drmanual]'); if(dm) dm.onclick=()=>openManualDrink();
+  v.querySelectorAll('[data-go]').forEach(b=>{ b.onclick=()=>{
+    if(b.dataset.go==='stats') statsSub='karada';
+    setTab(b.dataset.go); window.scrollTo(0,0); }; });
+}
+
+/* =========================================================================
+   分析タブに置く「からだの変化」。体重の入力口はここ1箇所だけ。
+   ========================================================================= */
+function mealChangeHtml(){
+  const d=mealLogDate(), n=nutriCfg(), plan=nutriPlan();
+  const avgNow=mealAvg(d), avgPrev=mealAvg(KEIRYO.addLogDays(d,-7));
+  const series=[]; for(let i=27;i>=0;i--){ const a=mealAvg(KEIRYO.addLogDays(d,-i)); if(a!=null)series.push(a); }
+  const today=(bw||[]).find(x=>x.date===d);
+  const raw=[...(bw||[])].sort((a,b)=>a.date.localeCompare(b.date));
+  const cur=raw[raw.length-1];
+
   let goalLine='';
   if(plan&&avgNow!=null){
     const g=KEIRYO.goalFromTargetBodyFat(plan.lbmKg, avgNow, +n.targetBf);
@@ -3037,39 +3046,95 @@ function renderMeal(){
     goalLine=`<div class="m-goal">
       <div class="m-goal-r"><span>目標体重（体脂肪 ${n.targetBf}%）</span><b>${g.goalWeightKg.toFixed(1)} kg</b></div>
       <div class="m-goal-r"><span>目標まで</span><b>${g.fatToLoseKg>0?g.fatToLoseKg.toFixed(1)+' kg':'達成'}</b></div>
-      <div class="m-goal-r"><span>着地予定</span><b>${land?`${land.date.getFullYear()}年${land.date.getMonth()+1}月${land.date.getDate()}日ごろ`:(g.fatToLoseKg<=0?'—':'ペース待ち')}</b></div>
+      <div class="m-goal-r"><span>着地予定</span><b>${land?`${land.date.getFullYear()}年${land.date.getMonth()+1}月ごろ`:(g.fatToLoseKg<=0?'—':'ペース待ち')}</b></div>
     </div>`;
   }
-  const bwOnDay=(bw||[]).find(x=>x.date===vd);
-  const bodyBody=`
-    <div class="m-rest" style="margin-top:2px"><span class="big">${avgNow!=null?avgNow.toFixed(2):'--'}</span><span class="u">kg ／ 7日平均${
-      (avgNow!=null&&avgPrev!=null)?` ・ 先週比 <b style="color:${avgNow-avgPrev<0?'var(--pos)':'#c9762f'}">${avgNow-avgPrev>0?'+':''}${(avgNow-avgPrev).toFixed(2)}kg</b>`:''}</span></div>
-    ${series.length>1?spark(series):'<div class="hint" style="border:none;padding:8px 0">体重を2日ぶん記録すると、7日平均の推移が出ます。</div>'}
-    ${goalLine}
-    <div class="bw-input" style="margin-top:12px">
-      <div class="field"><input id="mBwIn" type="number" inputmode="decimal" step="0.1" placeholder="${mealMD(vd)}の体重" value="${bwOnDay?bwOnDay.kg:''}"><span class="unit">kg</span></div>
-      <button class="btn primary" style="width:auto;padding:0 18px" id="mBwSave">記録</button></div>
-    <div class="bw-input" style="margin-top:8px">
-      <div class="field"><input id="mBfIn" type="number" inputmode="decimal" step="0.1" placeholder="体脂肪率（任意）" value="${bwOnDay&&bwOnDay.bf?bwOnDay.bf:''}"><span class="unit">%</span></div>
-      <label class="m-ref"><input type="checkbox" id="mRefIn"${bwOnDay&&bwOnDay.ref?' checked':''}><span>参考値</span></label></div>
-    <div class="hint" style="margin-top:9px">条件をそろえて測るのがコツ：<b>${_me(n.cond||'起床後・トイレ後・食前・下着のみ')}</b>。
-      条件から外れた日は「参考値」にすると、7日平均から外れて判断がぶれません。</div>`;
 
-  /* --- 設定 --- */
+  let reviewLine='';
+  if(plan&&avgNow!=null&&avgPrev!=null){
+    const r=KEIRYO.reviewWeek({thisWeekAvgKg:avgNow, lastWeekAvgKg:avgPrev, stalledLastWeek:!!n.stalledLastWeek});
+    const col={too_fast:'#c9762f', on_track:'var(--pos)', slowing:'var(--txt-2)', stalled:'#c9962f'}[r.verdict];
+    const isSunday=new Date(d+'T00:00:00').getDay()===0;
+    if(isSunday||r.kcalAdjustment!==0){
+      reviewLine=`<div class="card"><div class="lbl">今週の判定</div>
+        <div class="m-rev"><span class="m-rev-d" style="color:${col}">${r.deltaKg>0?'+':''}${r.deltaKg.toFixed(2)} kg</span>
+          <span class="m-rev-t">${_me(r.message)}</span></div>
+        ${r.kcalAdjustment!==0?`<button class="btn" id="mRevApply" style="width:100%;margin-top:11px">目標を ${r.kcalAdjustment>0?'+':''}${r.kcalAdjustment}kcal にする</button>
+        <div class="hint" style="margin-top:9px">変えるのは炭水化物だけです。タンパク質と脂質は減らしません。</div>`:''}
+        <div class="hint" style="margin-top:9px">外食の翌日は塩分と糖質で1〜1.5kg増えますが、これは水分です。7日平均が吸収します。</div>
+      </div>`;
+    }
+  }
+
+  return `<div class="card">
+      <div class="bw-head"><div class="big">${cur?(+cur.kg).toFixed(1):'--'}<small> kg</small></div>
+        ${(avgNow!=null&&avgPrev!=null)?`<span class="delta" style="color:${avgNow-avgPrev<0?'#6ad1a0':'#ff9a6a'}">${avgNow-avgPrev>0?'+':''}${(avgNow-avgPrev).toFixed(2)}kg</span>`:''}
+        <span style="margin-left:auto;font-size:11px;color:var(--txt-3)">${avgNow!=null?'7日平均 '+avgNow.toFixed(2)+'kg':'記録待ち'}</span></div>
+      ${series.length>1?spark(series):'<div class="spark-empty">体重を2日ぶん記録すると、7日平均の推移が出ます</div>'}
+      <div class="hint" style="margin-top:8px">グラフは<b>7日平均</b>です。日々の増減は水分でぶれるので、平均だけを見て判断します。</div>
+      ${goalLine}
+      <div class="bw-input" style="margin-top:13px">
+        <div class="field"><input id="mBwIn" type="number" inputmode="decimal" step="0.1" placeholder="今日の体重" value="${today?today.kg:''}"><span class="unit">kg</span></div>
+        <button class="btn primary" style="width:auto;padding:0 18px" id="mBwSave">記録</button></div>
+      <div class="bw-input" style="margin-top:8px">
+        <div class="field"><input id="mBfIn" type="number" inputmode="decimal" step="0.1" placeholder="体脂肪率（任意）" value="${today&&today.bf?today.bf:(n.bfPct??'')}"><span class="unit">%</span></div>
+        <label class="m-ref"><input type="checkbox" id="mRefIn"${today&&today.ref?' checked':''}><span>参考値</span></label></div>
+      <div class="hint" style="margin-top:9px">条件をそろえて測るのがコツ：<b>${_me(n.cond||'起床後・トイレ後・食前・下着のみ')}</b>。
+        条件から外れた日は「参考値」にすると、7日平均から外れて判断がぶれません。</div>
+    </div>${reviewLine}`;
+}
+
+function bindMealChange(v, rerender){
+  const d=mealLogDate();
+  const bs=v.querySelector('#mBwSave');
+  if(bs)bs.onclick=()=>{
+    const kg=parseFloat(v.querySelector('#mBwIn').value);
+    if(!(kg>0)){ toast('体重を入力してください'); return; }
+    const bf=parseFloat(v.querySelector('#mBfIn').value);
+    const ref=v.querySelector('#mRefIn').checked;
+    const ex=bw.find(x=>x.date===d);
+    const rec={date:d, kg}; if(bf>0)rec.bf=bf; if(ref)rec.ref=true;
+    if(ex){ delete ex.bf; delete ex.ref; Object.assign(ex,rec); } else bw.push(rec);
+    if(bf>0)nutriCfg().bfPct=bf;
+    saveAll(); rerender(); toast('記録しました');
+  };
+  const ra=v.querySelector('#mRevApply');
+  if(ra)ra.onclick=()=>{
+    const plan=nutriPlan(); if(!plan)return;
+    const avgNow=mealAvg(d), avgPrev=mealAvg(KEIRYO.addLogDays(d,-7));
+    const r=KEIRYO.reviewWeek({thisWeekAvgKg:avgNow, lastWeekAvgKg:avgPrev, stalledLastWeek:!!nutriCfg().stalledLastWeek});
+    const next=plan.kcal+r.kcalAdjustment;
+    const wtest=KEIRYO.planWeek({dailyTargetKcal:next, eatOutDates:weekEatOutDates(KEIRYO.weekStart(d)), eatOutKcal:+nutriCfg().eatOutKcal});
+    const s=KEIRYO.evaluateCalorieSafety(KEIRYO.weeklyAvgDailyKcal(wtest), plan.bmr);
+    if(s.level==='blocked'){ toast(s.message); return; }
+    nutriCfg().overrideKcal=next; nutriCfg().stalledLastWeek=(r.verdict==='stalled');
+    saveAll(); rerender(); toast(`目標を ${next.toLocaleString()}kcal にしました`);
+  };
+}
+
+/* =========================================================================
+   設定タブに置く「食事の設定」。acc は呼び出し側のアコーディオン生成関数。
+   ========================================================================= */
+function mealSettingsHtml(acc){
+  const n=nutriCfg(), plan=nutriPlan(), list=mealPresetList(), dlist=drinkPresetList();
+  const d=mealLogDate();
+
   let safetyHtml='';
   if(plan){
+    const wplan=mealWeekPlan(plan,d);
     const s=KEIRYO.evaluateCalorieSafety(KEIRYO.weeklyAvgDailyKcal(wplan), plan.bmr);
     safetyHtml=(s.level!=='ok')?`<div class="m-warn">${_me(s.message)}</div>`
-      :`<div class="hint" style="margin-top:9px">週平均 ${Math.round(KEIRYO.weeklyAvgDailyKcal(wplan)).toLocaleString()}kcal。安全の下限（${Math.round(s.warnThreshold).toLocaleString()}kcal）を上回っています。</div>`;
+      :`<div class="hint" style="margin-top:9px">いまの目標は 1日 <b>${plan.kcal.toLocaleString()}kcal</b>（P${plan.proteinG} / F${plan.fatG} / C${plan.carbG}）。安全の下限（${Math.round(s.warnThreshold).toLocaleString()}kcal）を上回っています。</div>`;
   }
   const goalSet=`
+    <div class="hint" style="margin-bottom:11px">体脂肪率は「分析」タブで体重と一緒に記録できます。ここは目標と計算の設定です。</div>
     <div class="field"><label class="lbl">体脂肪率（いま）</label><input type="number" inputmode="decimal" step="0.1" id="sBf" value="${n.bfPct??''}"><span class="unit">%</span></div>
     <div class="field" style="margin-top:9px"><label class="lbl">目標の体脂肪率</label><input type="number" inputmode="decimal" step="0.5" id="sTbf" value="${n.targetBf}"><span class="unit">%</span></div>
-    <div class="hint" style="margin-top:7px">目標体重は入力しません。除脂肪体重から自動で決まります（体重＝筋肉や骨の重さ ÷（1−目標体脂肪率））。</div>
+    <div class="hint" style="margin-top:7px">目標体重は入力しません。除脂肪体重から自動で決まります。</div>
     <label class="lbl" style="display:block;margin-top:13px">1日の動き方</label>
     <select id="sAct" class="m-sel">${KEIRYO.ACTIVITY_LEVELS.map(a=>`<option value="${a.value}"${Math.abs(a.value-(+n.activity))<0.001?' selected':''}>${a.label}</option>`).join('')}</select>
     <div class="field" style="margin-top:11px"><label class="lbl">1日の赤字</label><input type="number" inputmode="numeric" step="50" id="sDef" value="${n.deficit}"><span class="unit">kcal</span></div>
-    ${n.overrideKcal!=null?`<div class="hint" style="margin-top:9px">いま目標カロリーを <b>${(+n.overrideKcal).toLocaleString()}kcal</b> に手で固定しています。<button class="m-link" id="sClearOv">自動計算に戻す</button></div>`:''}
+    ${n.overrideKcal!=null?`<div class="hint" style="margin-top:9px">目標カロリーを <b>${(+n.overrideKcal).toLocaleString()}kcal</b> に手で固定しています。<button class="m-link" id="sClearOv">自動計算に戻す</button></div>`:''}
     ${safetyHtml}
     <button class="btn primary" id="sSaveGoal" style="width:100%;margin-top:13px">保存する</button>`;
 
@@ -3077,28 +3142,25 @@ function renderMeal(){
     <label class="lbl" style="display:block">ふだん外食する曜日</label>
     <select id="sEod" class="m-sel"><option value=""${(n.eatOutDow==null||n.eatOutDow==='')?' selected':''}>決めない</option>
       ${MEAL_WK.map((w,i)=>`<option value="${i}"${(n.eatOutDow!=null&&n.eatOutDow!==''&&+n.eatOutDow===i)?' selected':''}>${w}曜日</option>`).join('')}</select>
-    <div class="hint" style="margin-top:7px">これは初期値です。実際の外食日は、上の「今週の予算」の曜日ボタンで週ごとに変えられます。</div>
+    <div class="hint" style="margin-top:7px">これは初期値です。実際の外食日は「食事」タブの曜日ボタンで週ごとに変えられます。</div>
     <div class="field" style="margin-top:11px"><label class="lbl">外食日の想定</label><input type="number" inputmode="numeric" step="100" id="sEok" value="${n.eatOutKcal}"><span class="unit">kcal</span></div>
     <div class="field" style="margin-top:13px"><label class="lbl">1日の区切り</label><input type="number" inputmode="numeric" min="0" max="12" id="sBh" value="${n.boundaryHour}"><span class="unit">時</span></div>
-    <div class="hint" style="margin-top:7px">夜中に食べる人向けの設定です。朝${n.boundaryHour}時までに記録したものは、前の日のぶんとして数えます。</div>
+    <div class="hint" style="margin-top:7px">夜中に食べる人向け。朝${n.boundaryHour}時までの記録は、前の日のぶんとして数えます。</div>
     <div class="field" style="margin-top:13px"><label class="lbl">就寝する時刻</label><input type="number" inputmode="numeric" min="0" max="23" id="sBed" value="${n.bedHour==null?2:n.bedHour}"><span class="unit">時</span></div>
-    <div class="hint" style="margin-top:7px">カフェインは就寝の${KEIRYO.CAFFEINE_CUTOFF_H}時間前までが目安です。それより遅い時間に飲むと、水分カードで知らせます。</div>
     <div class="field" style="margin-top:13px"><label class="lbl">測定条件</label><input type="text" id="sCond" value="${_me(n.cond||'起床後・トイレ後・食前・下着のみ')}"></div>
     <button class="btn primary" id="sSaveWeek" style="width:100%;margin-top:13px">保存する</button>`;
 
-  /* 水分の設定（飲み物の編集・目標の手動指定） */
-  const dlist2=drinkPresetList();
-  const autoW=(()=>{ const b=latestBw(); return b?KEIRYO.waterTargetMl(+b.kg,{trainingMinutes:mealTrainMin(vd)}):null; })();
+  const autoW=(()=>{ const b=latestBw(); return b?KEIRYO.waterTargetMl(+b.kg,{trainingMinutes:mealTrainMin(d)}):null; })();
   const waterSet=`
     <div class="hint" style="margin-bottom:11px">${autoW!=null
-      ? `いまの自動計算は <b>${autoW.toLocaleString()}ml</b>（体重×35ml${mealTrainMin(vd)>0?` ＋ 筋トレ${fmtDur(mealTrainMin(vd))}ぶん`:''}）。手で決めたい時だけ下に入れてください。`
+      ? `いまの自動計算は <b>${autoW.toLocaleString()}ml</b>（体重×35ml${mealTrainMin(d)>0?` ＋ 筋トレ${fmtDur(mealTrainMin(d))}ぶん`:''}）。`
       : '体重を記録すると自動で目安が出ます。'}</div>
     <div class="field"><label class="lbl">1本（1杯）の大きさ</label><input type="number" inputmode="numeric" step="50" id="sCup" value="${n.cupMl??500}"><span class="unit">ml</span></div>
-    <div class="hint" style="margin-top:7px">いつも使っているペットボトルやコップの大きさ。これで「あと何本」を数えます。</div>
+    <div class="hint" style="margin-top:7px">いつも使うペットボトルやコップの大きさ。これで「あと何本」を数えます。</div>
     <div class="field" style="margin-top:11px"><label class="lbl">目標を手で決める</label><input type="number" inputmode="numeric" step="100" id="sWat" value="${n.waterOverride??''}" placeholder="空欄＝自動"><span class="unit">ml</span></div>
     ${n.waterOverride!=null?`<button class="m-link" id="sWatClear" style="margin-top:7px">自動に戻す</button>`:''}
     <div class="lbl" style="margin-top:15px">飲み物のボタン</div>
-    <div style="margin-top:9px">${dlist2.map((p,i)=>`<div class="m-de">
+    <div style="margin-top:9px">${dlist.map((p,i)=>`<div class="m-de">
       <input type="text" class="m-de-n" data-dn="${i}" value="${_me(p.name)}">
       <input type="number" inputmode="numeric" class="m-de-v" data-dml="${i}" value="${p.ml}" title="ml"><span class="m-de-u">ml</span>
       <input type="number" inputmode="numeric" class="m-de-v" data-dcaf="${i}" value="${p.caffeineMg}" title="カフェイン"><span class="m-de-u">mg</span>
@@ -3107,10 +3169,16 @@ function renderMeal(){
     <button class="btn" id="sDrNew" style="width:100%;margin-top:11px">飲み物を追加する</button>
     <button class="btn ghost" id="sDrReset" style="width:100%;margin-top:8px">最初の飲み物に戻す</button>
     <button class="btn primary" id="sSaveWater" style="width:100%;margin-top:11px">保存する</button>
-    <div class="hint" style="margin-top:9px">目安は一般的な計算です（体重×35ml＋運動1時間あたり500ml）。持病がある方や薬を飲んでいる方は、医師の指示を優先してください。</div>`;
+    <div class="hint" style="margin-top:9px">目安は一般的な計算（体重×35ml＋運動1時間500ml）です。持病がある方や薬を飲んでいる方は、医師の指示を優先してください。</div>`;
 
-  const presetSet=`<div class="hint" style="margin-bottom:11px">まん中の数字は「単位いくつぶん」です。右に<b>実際の量</b>が出ます。
-    キムチなら 1＝50g なので、100g 食べる日は 2 にします。</div>`+list.map((p,i)=>`<div class="m-pe">
+  let presetTotalHtml='';
+  if(plan){ try{
+    const t=KEIRYO.nutritionOfAllPresets(list,myFoods);
+    presetTotalHtml=`<div class="hint" style="margin-bottom:11px">いまのセットを全部食べると <b>${Math.round(t.kcal).toLocaleString()}kcal</b>（P${Math.round(t.proteinG)} / F${Math.round(t.fatG)} / C${Math.round(t.carbG)}）。目標は ${plan.kcal.toLocaleString()}kcal です。</div>`;
+  }catch(e){} }
+  const presetSet=presetTotalHtml+
+    `<div class="hint" style="margin-bottom:11px">まん中の数字は「単位いくつぶん」です。右に<b>実際の量</b>が出ます。キムチなら 1＝50g なので、100g 食べる日は 2 にします。</div>`+
+    list.map((p,i)=>`<div class="m-pe">
       <div class="m-pe-h"><input type="text" class="m-pe-n" data-pen="${i}" value="${_me(p.name)}">
         <button class="m-link" data-pedel="${i}">削除</button></div>
       <div class="m-pe-items">${p.items.map((it,j)=>{
@@ -3131,158 +3199,100 @@ function renderMeal(){
     `<button class="btn" id="sPeNew" style="width:100%;margin-top:11px">セットを新しく作る</button>
      <button class="btn ghost" id="sPeReset" style="width:100%;margin-top:8px">最初のセットに戻す</button>`;
 
-  let presetTotalHtml='';
-  if(plan){ try{
-    const t=KEIRYO.nutritionOfAllPresets(list,myFoods);
-    presetTotalHtml=`<div class="hint" style="margin-bottom:11px">いまのセットを全部食べると <b>${Math.round(t.kcal).toLocaleString()}kcal</b>（P${Math.round(t.proteinG)} / F${Math.round(t.fatG)} / C${Math.round(t.carbG)}）。
-      目標は ${plan.kcal.toLocaleString()}kcal（P${plan.proteinG} / F${plan.fatG} / C${plan.carbG}）です。</div>`;
-  }catch(e){} }
+  return `<div class="eyebrow">食事・減量</div>
+    ${acc('mgoal','目標の設定',goalSet)}
+    ${acc('mweek','外食日・1日の区切り・就寝時刻',weekSet)}
+    ${acc('mwater','水分と飲み物',waterSet)}
+    ${acc('mpre','定型セットの中身',presetSet)}`;
+}
 
-  v.innerHTML=`<div class="fade-in">
-    <div class="eyebrow">食事</div>
-    ${nav}
-    <div class="mpresets">${presets}</div>
-    ${setup}${goal}${rowsCard}${waterCard}${weekCard}${reviewCard}
-    <div style="margin-top:4px">
-      ${accM('mbody','からだ（7日平均・目標までの残り）',bodyBody)}
-      ${accM('mgoal','目標の設定',goalSet)}
-      ${accM('mweek','外食日と1日の区切り',weekSet)}
-      ${accM('mwater','水分と飲み物',waterSet)}
-      ${accM('mpre','定型セットの中身',presetTotalHtml+presetSet)}
-    </div>
-  </div>`;
-
-  /* ---- 結線 ---- */
-  v.querySelectorAll('[data-mnav]').forEach(b=>{ b.onclick=()=>moveMealDate(+b.dataset.mnav); });
-  const nw=document.getElementById('mNavNow'); if(nw)nw.onclick=()=>{ mealViewDate=null; renderMeal(); };
-  v.querySelectorAll('[data-mp]').forEach(b=>{ b.onclick=()=>logMealPreset(list[+b.dataset.mp]); });
-  v.querySelectorAll('[data-mdel]').forEach(b=>{ b.onclick=()=>delMeal(b.dataset.mdel); });
-  v.querySelectorAll('[data-eo]').forEach(b=>{ b.onclick=()=>toggleEatOut(b.dataset.eo); });
-  v.querySelectorAll('[data-acc]').forEach(h=>h.onclick=()=>{ const k=h.dataset.acc, box=h.closest('.acc');
-    const open=box.classList.toggle('open'); if(open)accOpen.add(k); else accOpen.delete(k); });
-  const mm=v.querySelector('[data-mmanual]'); if(mm) mm.onclick=()=>openManualMeal();
-  v.querySelectorAll('[data-dr]').forEach(b=>{ b.onclick=()=>logDrink(drinkPresetList()[+b.dataset.dr]); });
-  v.querySelectorAll('[data-drdel]').forEach(b=>{ b.onclick=()=>delDrink(b.dataset.drdel); });
-  const dm=v.querySelector('[data-drmanual]'); if(dm) dm.onclick=()=>openManualDrink();
-
-  const ns=document.getElementById('nSave');
-  if(ns)ns.onclick=()=>{ const val=parseFloat(document.getElementById('nBf').value);
-    if(!(val>0&&val<70)){ toast('体脂肪率を正しく入れてください'); return; }
-    nutriCfg().bfPct=val; saveAll(); renderMeal(); toast('目標を計算しました'); };
-
-  const bs=document.getElementById('mBwSave');
-  if(bs)bs.onclick=()=>{
-    const kg=parseFloat(document.getElementById('mBwIn').value);
-    if(!(kg>0)){ toast('体重を入力してください'); return; }
-    const bf=parseFloat(document.getElementById('mBfIn').value);
-    const ref=document.getElementById('mRefIn').checked;
-    const ex=bw.find(x=>x.date===vd);
-    const rec={date:vd, kg}; if(bf>0)rec.bf=bf; if(ref)rec.ref=true;
-    if(ex){ delete ex.bf; delete ex.ref; Object.assign(ex,rec); } else bw.push(rec);
-    if(bf>0&&vd===today)nutriCfg().bfPct=bf;
-    saveAll(); renderMeal(); toast(`${mealMD(vd)}の体重を記録しました`);
-  };
-
-  const ra=document.getElementById('mRevApply');
-  if(ra)ra.onclick=()=>{
-    const next=plan.kcal+rev.kcalAdjustment;
-    const wtest=KEIRYO.planWeek({dailyTargetKcal:next, eatOutDates:wplan.eatOutDates, eatOutKcal:wplan.eatOutKcal});
-    const s=KEIRYO.evaluateCalorieSafety(KEIRYO.weeklyAvgDailyKcal(wtest), plan.bmr);
-    if(s.level==='blocked'){ toast(s.message); return; }
-    nutriCfg().overrideKcal=next;
-    nutriCfg().stalledLastWeek=(rev.verdict==='stalled');
-    saveAll(); renderMeal(); toast(`目標を ${next.toLocaleString()}kcal にしました`);
-  };
-
-  const sg=document.getElementById('sSaveGoal');
+function bindMealSettings(v, rerender){
+  const list=mealPresetList();
+  const sg=v.querySelector('#sSaveGoal');
   if(sg)sg.onclick=()=>{
     const c=nutriCfg();
-    const bf=parseFloat(document.getElementById('sBf').value);
-    const tbf=parseFloat(document.getElementById('sTbf').value);
-    const def=parseFloat(document.getElementById('sDef').value);
+    const bf=parseFloat(v.querySelector('#sBf').value), tbf=parseFloat(v.querySelector('#sTbf').value);
+    const def=parseFloat(v.querySelector('#sDef').value);
     if(!(bf>0&&bf<70)){ toast('体脂肪率を正しく入れてください'); return; }
     if(!(tbf>0&&tbf<70)){ toast('目標の体脂肪率を正しく入れてください'); return; }
     if(tbf>bf){ toast('目標の体脂肪率が、いまの値より高くなっています'); return; }
     if(!(def>=0&&def<=1500)){ toast('1日の赤字は 0〜1500kcal で入れてください'); return; }
-    c.bfPct=bf; c.targetBf=tbf; c.activity=parseFloat(document.getElementById('sAct').value); c.deficit=def;
+    c.bfPct=bf; c.targetBf=tbf; c.activity=parseFloat(v.querySelector('#sAct').value); c.deficit=def;
     const p2=nutriPlan();
-    if(p2){ const w2=mealWeekPlan(p2,vd);
+    if(p2){ const w2=mealWeekPlan(p2,mealLogDate());
       const s=KEIRYO.evaluateCalorieSafety(KEIRYO.weeklyAvgDailyKcal(w2), p2.bmr);
       if(s.level==='blocked'){ toast(s.message); return; } }
-    saveAll(); renderMeal(); toast('保存しました');
+    saveAll(); rerender(); toast('保存しました');
   };
-  const sco=document.getElementById('sClearOv');
-  if(sco)sco.onclick=()=>{ delete nutriCfg().overrideKcal; saveAll(); renderMeal(); toast('自動計算に戻しました'); };
+  const sco=v.querySelector('#sClearOv');
+  if(sco)sco.onclick=()=>{ delete nutriCfg().overrideKcal; saveAll(); rerender(); toast('自動計算に戻しました'); };
 
-  const sw=document.getElementById('sSaveWeek');
+  const sw=v.querySelector('#sSaveWeek');
   if(sw)sw.onclick=()=>{
     const c=nutriCfg();
-    const dow=document.getElementById('sEod').value;
-    const eok=parseFloat(document.getElementById('sEok').value);
-    const bh=parseInt(document.getElementById('sBh').value,10);
+    const dow=v.querySelector('#sEod').value;
+    const eok=parseFloat(v.querySelector('#sEok').value);
+    const bh=parseInt(v.querySelector('#sBh').value,10);
+    const bed=parseInt(v.querySelector('#sBed').value,10);
     if(!(eok>0&&eok<=8000)){ toast('外食日の想定カロリーを正しく入れてください'); return; }
     if(!(bh>=0&&bh<=12)){ toast('1日の区切りは 0〜12時で入れてください'); return; }
-    const bed=parseInt(document.getElementById('sBed').value,10);
     if(!(bed>=0&&bed<=23)){ toast('就寝時刻は 0〜23時で入れてください'); return; }
     c.eatOutDow=(dow===''?null:+dow); c.eatOutKcal=eok; c.boundaryHour=bh; c.bedHour=bed;
-    c.cond=document.getElementById('sCond').value.trim()||'起床後・トイレ後・食前・下着のみ';
-    saveAll(); renderMeal(); toast('保存しました');
+    c.cond=v.querySelector('#sCond').value.trim()||'起床後・トイレ後・食前・下着のみ';
+    saveAll(); rerender(); toast('保存しました');
   };
 
-  /* 水分の設定 */
-  const swat=document.getElementById('sSaveWater');
+  const swat=v.querySelector('#sSaveWater');
   if(swat)swat.onclick=()=>{
     const c=nutriCfg(), dl=drinkPresetList();
-    const cupv=parseFloat(document.getElementById('sCup').value);
+    const cupv=parseFloat(v.querySelector('#sCup').value);
     if(!(cupv>=50&&cupv<=2000)){ toast('1本の大きさは 50〜2000ml で入れてください'); return; }
     c.cupMl=cupv;
-    const wv=document.getElementById('sWat').value.trim();
+    const wv=v.querySelector('#sWat').value.trim();
     if(wv===''){ delete c.waterOverride; }
     else { const w=parseFloat(wv); if(!(w>=300&&w<=8000)){ toast('目標は 300〜8000ml で入れてください'); return; } c.waterOverride=w; }
     let bad=false;
     dl.forEach((p,i)=>{
-      const nm=v.querySelector('[data-dn="'+i+'"]'), ml=v.querySelector('[data-dml="'+i+'"]');
-      const cf=v.querySelector('[data-dcaf="'+i+'"]'), kk=v.querySelector('[data-dk="'+i+'"]');
-      if(!nm)return;
-      const mlv=parseFloat(ml.value);
+      const nm=v.querySelector('[data-dn="'+i+'"]'); if(!nm)return;
+      const mlv=parseFloat(v.querySelector('[data-dml="'+i+'"]').value);
       if(!(mlv>0&&mlv<=3000)){ bad=true; return; }
       p.name=nm.value.trim()||'飲み物'; p.ml=mlv;
-      p.caffeineMg=Math.max(0,parseFloat(cf.value)||0); p.kcal=Math.max(0,parseFloat(kk.value)||0);
+      p.caffeineMg=Math.max(0,parseFloat(v.querySelector('[data-dcaf="'+i+'"]').value)||0);
+      p.kcal=Math.max(0,parseFloat(v.querySelector('[data-dk="'+i+'"]').value)||0);
     });
     if(bad){ toast('量は 1〜3000ml で入れてください'); return; }
-    saveAll(); renderMeal(); toast('保存しました');
+    saveAll(); rerender(); toast('保存しました');
   };
-  const swc=document.getElementById('sWatClear');
-  if(swc)swc.onclick=()=>{ delete nutriCfg().waterOverride; saveAll(); renderMeal(); toast('自動に戻しました'); };
+  const swc=v.querySelector('#sWatClear');
+  if(swc)swc.onclick=()=>{ delete nutriCfg().waterOverride; saveAll(); rerender(); toast('自動に戻しました'); };
   v.querySelectorAll('[data-ddel]').forEach(b=>{ b.onclick=()=>{ const dl=drinkPresetList();
     if(dl.length<=1){ toast('飲み物は1つ以上必要です'); return; }
-    dl.splice(+b.dataset.ddel,1); saveAll(); renderMeal(); }; });
-  const dn2=document.getElementById('sDrNew');
-  if(dn2)dn2.onclick=()=>{ drinkPresetList().push({id:'d'+Date.now(), name:'新しい飲み物', ml:200, caffeineMg:0, kcal:0}); saveAll(); renderMeal(); };
-  const dr2=document.getElementById('sDrReset');
-  if(dr2)dr2.onclick=()=>{ drinkPresets=JSON.parse(JSON.stringify(KEIRYO.DEFAULT_DRINKS)); saveAll(); renderMeal(); toast('最初の飲み物に戻しました'); };
+    dl.splice(+b.dataset.ddel,1); saveAll(); rerender(); }; });
+  const dn2=v.querySelector('#sDrNew');
+  if(dn2)dn2.onclick=()=>{ drinkPresetList().push({id:'d'+Date.now(), name:'新しい飲み物', ml:200, caffeineMg:0, kcal:0}); saveAll(); rerender(); };
+  const dr2=v.querySelector('#sDrReset');
+  if(dr2)dr2.onclick=()=>{ drinkPresets=JSON.parse(JSON.stringify(KEIRYO.DEFAULT_DRINKS)); saveAll(); rerender(); toast('最初の飲み物に戻しました'); };
 
-  /* 定型セットの編集 */
   v.querySelectorAll('[data-pen]').forEach(inp=>{ inp.onchange=()=>{ const p=list[+inp.dataset.pen];
-    p.name=inp.value.trim()||'セット'; syncPresetSummary(p); saveAll(); renderMeal(); }; });
+    p.name=inp.value.trim()||'セット'; syncPresetSummary(p); saveAll(); rerender(); }; });
   v.querySelectorAll('[data-peq]').forEach(inp=>{ inp.onchange=()=>{ const a=inp.dataset.peq.split('.'), i=+a[0], j=+a[1];
-    const q=parseFloat(inp.value); if(!(q>0)){ toast('数量は0より大きい値で'); renderMeal(); return; }
-    list[i].items[j].qty=q; syncPresetSummary(list[i]); saveAll(); renderMeal(); }; });
+    const q=parseFloat(inp.value); if(!(q>0)){ toast('数量は0より大きい値で'); rerender(); return; }
+    list[i].items[j].qty=q; syncPresetSummary(list[i]); saveAll(); rerender(); }; });
   v.querySelectorAll('[data-peml]').forEach(inp=>{ inp.onchange=()=>{ const i=+inp.dataset.peml;
-    const q=parseFloat(inp.value); if(!(q>=0&&q<=3000)){ toast('水分は 0〜3000ml で'); renderMeal(); return; }
-    list[i].ml=q; saveAll(); renderMeal(); }; });
+    const q=parseFloat(inp.value); if(!(q>=0&&q<=3000)){ toast('水分は 0〜3000ml で'); rerender(); return; }
+    list[i].ml=q; saveAll(); rerender(); }; });
   v.querySelectorAll('[data-peidel]').forEach(b=>{ b.onclick=()=>{ const a=b.dataset.peidel.split('.'), i=+a[0], j=+a[1];
-    list[i].items.splice(j,1); syncPresetSummary(list[i]); saveAll(); renderMeal(); }; });
+    list[i].items.splice(j,1); syncPresetSummary(list[i]); saveAll(); rerender(); }; });
   v.querySelectorAll('[data-peadd]').forEach(b=>{ b.onclick=()=>{ const i=+b.dataset.peadd;
-    const sel=v.querySelector('[data-pesel="'+i+'"]'); list[i].items.push({foodId:sel.value, qty:1});
-    syncPresetSummary(list[i]); saveAll(); renderMeal(); }; });
+    list[i].items.push({foodId:v.querySelector('[data-pesel="'+i+'"]').value, qty:1});
+    syncPresetSummary(list[i]); saveAll(); rerender(); }; });
   v.querySelectorAll('[data-pedel]').forEach(b=>{ b.onclick=()=>{ const i=+b.dataset.pedel;
     if(list.length<=1){ toast('セットは1つ以上必要です'); return; }
-    list.splice(i,1); saveAll(); renderMeal(); }; });
-  const pn=document.getElementById('sPeNew');
-  if(pn)pn.onclick=()=>{ list.push({id:'p'+Date.now(), name:'新しいセット', summary:'', hour:12, items:[]}); saveAll(); renderMeal(); };
-  const pr=document.getElementById('sPeReset');
-  if(pr)pr.onclick=()=>{ mealPresets=JSON.parse(JSON.stringify(KEIRYO.DEFAULT_PRESETS)); saveAll(); renderMeal(); toast('最初のセットに戻しました'); };
+    list.splice(i,1); saveAll(); rerender(); }; });
+  const pn=v.querySelector('#sPeNew');
+  if(pn)pn.onclick=()=>{ list.push({id:'p'+Date.now(), name:'新しいセット', summary:'', hour:12, ml:0, items:[]}); saveAll(); rerender(); };
+  const pr=v.querySelector('#sPeReset');
+  if(pr)pr.onclick=()=>{ mealPresets=JSON.parse(JSON.stringify(KEIRYO.DEFAULT_PRESETS)); saveAll(); rerender(); toast('最初のセットに戻しました'); };
 }
 
 /** ボタンの説明文を中身から作り直す。
@@ -3304,7 +3314,7 @@ function openManualDrink(){
   el.style.display='flex';
   el.innerHTML=`<div class="auth-card" style="max-width:420px">
     <div class="lbl">飲み物を手で入力（${mealMD(mealViewD())}（${mealDow(mealViewD())}）のぶん）</div>
-    <div class="hint" style="margin:8px 0 13px">カフェインとカロリーは分かる範囲でかまいません。空でも記録できます。</div>
+    <div class="hint" style="margin:8px 0 13px">カフェインとカロリーは分かる範囲でかまいません。</div>
     <div class="field"><label class="lbl">名前</label><input type="text" id="mdN" value="飲み物"></div>
     <div class="field" style="margin-top:9px"><label class="lbl">量</label><input type="number" inputmode="numeric" id="mdMl" placeholder="500"><span class="unit">ml</span></div>
     <div class="field" style="margin-top:9px"><label class="lbl">カフェイン</label><input type="number" inputmode="numeric" id="mdCaf" placeholder="0"><span class="unit">mg</span></div>
@@ -3319,8 +3329,7 @@ function openManualDrink(){
     if(!(ml>0)){ toast('量を入れてください'); return; }
     const num=id=>{ const x=parseFloat(document.getElementById(id).value); return x>0?x:0; };
     close();
-    logDrink({name:document.getElementById('mdN').value.trim()||'飲み物', ml,
-      caffeineMg:num('mdCaf'), kcal:num('mdK')});
+    logDrink({name:document.getElementById('mdN').value.trim()||'飲み物', ml, caffeineMg:num('mdCaf'), kcal:num('mdK')});
   };
 }
 
@@ -3348,7 +3357,7 @@ function openManualMeal(){
     const num=id=>{ const x=parseFloat(document.getElementById(id).value); return x>0?x:0; };
     close();
     pushMeal(document.getElementById('mmN').value.trim()||'外食',
-      {kcal:k, proteinG:num('mmP'), fatG:num('mmF'), carbG:num('mmC')}, []);
+      {kcal:k, proteinG:num('mmP'), fatG:num('mmF'), carbG:num('mmC')}, [], 0);
   };
 }
 
