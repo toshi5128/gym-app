@@ -504,13 +504,13 @@
 
   /** 新規ユーザー向けの初期セット。各自が中身を編集できる */
   var DEFAULT_PRESETS = [
-    { id:'meal-1',  name:'1食目',     summary:'卵3・納豆・白米150g・キムチ・プロテイン', hour:9,
+    { id:'meal-1',  name:'1食目',     summary:'卵3・納豆・白米150g・キムチ・プロテイン', hour:9, ml:250,
       items:[{foodId:'egg-m',qty:3},{foodId:'natto',qty:1},{foodId:'rice',qty:1.5},{foodId:'kimchi',qty:1},{foodId:'whey',qty:1}] },
-    { id:'protein', name:'プロテイン', summary:'ホエイ1杯（30g）', hour:14,
+    { id:'protein', name:'プロテイン', summary:'ホエイ1杯（30g）', hour:14, ml:250,
       items:[{foodId:'whey',qty:1}] },
-    { id:'meal-2',  name:'2食目',     summary:'鶏もも250g・白米200g・野菜150g', hour:19,
+    { id:'meal-2',  name:'2食目',     summary:'鶏もも250g・白米200g・野菜150g', hour:19, ml:0,
       items:[{foodId:'chicken-thigh-skinless',qty:2.5},{foodId:'rice',qty:2},{foodId:'broccoli',qty:1.5}] },
-    { id:'meal-3',  name:'3食目',     summary:'鶏もも200g・鮭・豆腐半丁・白米150g・味噌汁', hour:0,
+    { id:'meal-3',  name:'3食目',     summary:'鶏もも200g・鮭・豆腐半丁・白米150g・味噌汁', hour:0, ml:200,
       items:[{foodId:'chicken-thigh-skinless',qty:2},{foodId:'salmon',qty:1},{foodId:'tofu-momen',qty:1},{foodId:'rice',qty:1.5},{foodId:'misoshiru',qty:1}] }
   ]
 
@@ -577,6 +577,25 @@
     )
   }
 
+  /**
+   * 「あと何本」に言い換える。
+   * ml という単位は日常の行動に結びつかない（3,100ml と言われても何をすればいいか分からない）。
+   * いつも飲んでいる容器の大きさ（既定500ml）で割って「あと◯本」に直す。
+   */
+  function waterCups(ml, targetMl, cupMl) {
+    var cup = cupMl > 0 ? cupMl : 500
+    var total = Math.max(1, Math.ceil(targetMl / cup))
+    var done = Math.max(0, Math.min(total, Math.floor(ml / cup)))
+    var remainingMl = Math.max(0, targetMl - ml)
+    return {
+      cupMl: cup,
+      total: total,                                   // 目標を本数に直すと何本か
+      done: done,                                     // もう飲んだ本数
+      remaining: Math.ceil(remainingMl / cup),        // あと何本
+      remainingMl: remainingMl,
+    }
+  }
+
   /** 水分の進み具合。足りない時だけ知らせる（飲みすぎ警告は出さない） */
   function hydrationStatus(ml, targetMl) {
     var remainingMl = Math.max(0, targetMl - ml)
@@ -622,11 +641,15 @@
     return out
   }
 
-  /** 初期の飲み物。各自が編集できる（ml / カフェイン / kcal） */
+  /** 初期の飲み物。各自が編集できる（ml / カフェイン / kcal）。
+      「ml」は実際に口に入る量。氷は溶ければ水になるので、氷入りでも量は変えない。 */
   var DEFAULT_DRINKS = [
     { id: 'water500',  name: '水',            ml: 500, caffeineMg: 0,  kcal: 0 },
     { id: 'water250',  name: '水（コップ）',   ml: 250, caffeineMg: 0,  kcal: 0 },
     { id: 'coffee',    name: 'コーヒー',       ml: 150, caffeineMg: 90, kcal: 4 },
+    // ネスプレッソ ヴァーチュオ（マグ 230ml のカプセル想定）。氷入りのアイスでも量は同じ。
+    // カプセルのサイズで量もカフェインも変わるので、設定から自分のサイズに直せる。
+    { id: 'vertuo',    name: 'ヴァーチュオ',   ml: 230, caffeineMg: 170, kcal: 2 },
     { id: 'cafeaulait',name: 'カフェオレ',     ml: 200, caffeineMg: 60, kcal: 90 },
     { id: 'greentea',  name: '緑茶',          ml: 200, caffeineMg: 40, kcal: 0 },
     { id: 'mugicha',   name: '麦茶',          ml: 500, caffeineMg: 0,  kcal: 0 },
@@ -641,7 +664,7 @@
     WATER_ML_PER_KG: WATER_ML_PER_KG, WATER_ML_PER_TRAINING_HOUR: WATER_ML_PER_TRAINING_HOUR,
     CAFFEINE_DAILY_MAX_MG: CAFFEINE_DAILY_MAX_MG, CAFFEINE_SINGLE_MAX_MG: CAFFEINE_SINGLE_MAX_MG,
     CAFFEINE_CUTOFF_H: CAFFEINE_CUTOFF_H, DEFAULT_DRINKS: DEFAULT_DRINKS,
-    waterTargetMl: waterTargetMl, sumDrinks: sumDrinks, hydrationStatus: hydrationStatus,
+    waterTargetMl: waterTargetMl, waterCups: waterCups, sumDrinks: sumDrinks, hydrationStatus: hydrationStatus,
     hoursUntilBed: hoursUntilBed, caffeineStatus: caffeineStatus,
     // 係数
     SMM_TO_LBM: SMM_TO_LBM, PROTEIN_PER_LBM: PROTEIN_PER_LBM,

@@ -839,6 +839,18 @@
   .m-dr-m{font-size:10px; color:var(--txt-3); font-family:var(--font-disp);}
   .m-dr-add{border-style:dashed;}
   .m-caf{font-size:11.5px; margin-top:7px; font-weight:600;}
+  /* 「あと何本」— ml のままだと行動に結びつかないので本数で見せる */
+  .m-water-h{font-size:22px; font-weight:700; font-family:var(--font-disp); margin-top:11px;
+    display:flex; align-items:baseline; gap:9px; flex-wrap:wrap;}
+  .m-water-h b{font-size:32px; line-height:1;}
+  .m-water-u{font-size:11px; font-weight:600; color:var(--txt-3); font-family:var(--font-jp);}
+  .m-pips{display:flex; gap:5px; flex-wrap:wrap; margin-top:10px;}
+  .m-pip{width:26px; height:34px; border-radius:5px 5px 8px 8px; border:1.5px solid var(--hair);
+    background:var(--surface-3); position:relative;}
+  .m-pip.on{background:#3f8fb0; border-color:#3f8fb0;}
+  .m-pip::before{content:''; position:absolute; left:50%; top:-4px; transform:translateX(-50%);
+    width:10px; height:4px; border-radius:2px 2px 0 0; background:var(--hair);}
+  .m-pip.on::before{background:#3f8fb0;}
   .m-dlist{margin-top:12px; border-top:1px solid var(--hair-2); padding-top:4px;}
   /* 飲み物の編集 */
   .m-de{display:flex; align-items:center; gap:5px; margin-bottom:7px;}
@@ -856,6 +868,9 @@
   .m-pe-it{display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--txt-2); padding:4px 0;}
   .m-pe-it span{flex:1;}
   .m-pe-q{width:66px; padding:6px 8px; border-radius:8px; border:1px solid var(--hair); background:var(--surface); color:var(--txt); font-size:13px; text-align:right; font-family:var(--font-disp);}
+  .m-pe-water{display:flex; align-items:center; gap:6px; margin-top:8px; padding-top:8px;
+    border-top:1px dashed var(--hair); font-size:12px; color:var(--txt-2);}
+  .m-pe-water>span:first-child{flex:1;}
   .m-pe-add{display:flex; align-items:center; gap:7px; margin-top:8px;}
   .m-pe-sel{flex:1; padding:8px 10px; font-size:13px;}
 
@@ -2815,16 +2830,16 @@ function mealStampAt(d){
   if(now.getHours()<mealBoundary()) base.setDate(base.getDate()+1);   // 深夜ぶんは翌日の実時刻＝その日の記録
   return base.toISOString();
 }
-function pushMeal(name,n,items){
+function pushMeal(name,n,items,ml){
   const d=mealViewD();
   const m={ id:'m'+Date.now()+Math.random().toString(36).slice(2,6), d, at:mealStampAt(d),
     n:name, k:Math.round(n.kcal*10)/10, p:Math.round(n.proteinG*10)/10, f:Math.round(n.fatG*10)/10, c:Math.round(n.carbG*10)/10,
-    items:items||[] };
+    ml:Math.max(0,+ml||0), items:items||[] };
   meals.push(m); saveAll(); renderMeal(); showMealUndo(m); return m;
 }
 function logMealPreset(p){
   let n; try{ n=KEIRYO.nutritionOfPreset(p,myFoods); }catch(e){ toast('この定型セットに未登録の食品があります'); return; }
-  pushMeal(p.name,n,p.items);
+  pushMeal(p.name,n,p.items,p.ml);
 }
 function delMeal(id){ meals=meals.filter(x=>x.id!==id); saveAll(); if(tab==='meal')renderMeal(); }
 
@@ -2839,6 +2854,9 @@ function renderMeal(){
   const plan=nutriPlan(), list=mealPresetList(), rowsOn=mealsOn(vd);
   // 飲み物のカロリー（カフェオレ等）も、その日の合計に含める
   const dOn=drinksOn(vd), dSum=KEIRYO.sumDrinks(dOn.map(x=>({ml:x.ml,caffeineMg:x.caf,kcal:x.k})));
+  // 食事にひもづく水分（プロテインの水・味噌汁など）も水分に数える。ボタンを2回押させない
+  const mealMl=rowsOn.reduce((a,m)=>a+(+m.ml||0),0);
+  const totalMl=dSum.ml+mealMl;
   const eatenFood=KEIRYO.sumNutrition(rowsOn.map(m=>({kcal:m.k,proteinG:m.p,fatG:m.f,carbG:m.c})));
   const eaten=Object.assign({},eatenFood,{kcal:eatenFood.kcal+dSum.kcal});
   const hasBw=!!latestBw(), n=nutriCfg();
@@ -2912,20 +2930,27 @@ function renderMeal(){
 
     if(wt==null){
       waterCard=`<div class="card"><div class="lbl">水分</div>
-        <div class="hint" style="margin-top:8px">体重を記録すると、1日に必要な水分の目安が出ます。</div>
+        <div class="hint" style="margin-top:8px">体重を記録すると、1日に何本ぶん飲めばいいかが出ます。</div>
         <div class="m-drs">${chips}</div>${rowsD}</div>`;
     }else{
-      const hs=KEIRYO.hydrationStatus(dSum.ml, wt);
-      const col=hs.level==='done'?'var(--pos)':(hs.level==='ok'?'#4a9e86':'#3f8fb0');
+      const cup=(n.cupMl>0?+n.cupMl:500);
+      const cu=KEIRYO.waterCups(totalMl, wt, cup);
+      const hs=KEIRYO.hydrationStatus(totalMl, wt);
+      const col=hs.level==='done'?'var(--pos)':'#3f8fb0';
+      // 「あと3,100ml」ではなく「あと6本」。ml のままだと何をすればいいか分からない
+      const pips=Array.from({length:cu.total},(_,i)=>`<span class="m-pip${i<cu.done?' on':''}"></span>`).join('');
+      const headline=cu.remaining===0?'今日のぶんは飲みきりました':`あと <b>${cu.remaining}</b> 本`;
       waterCard=`<div class="card">
         <div class="m-wk-top"><span class="lbl" style="margin:0">水分</span>
-          <span class="m-wk-n">${dSum.ml.toLocaleString()}<small> / ${wt.toLocaleString()} ml</small></span></div>
-        <div class="m-bar" style="margin-top:9px"><span style="width:${hs.pct}%;background:${col}"></span></div>
-        <div class="m-wk-msg">${hs.message}${train>0?`　<span style="color:var(--txt-3)">（筋トレ${fmtDur(train)}ぶん +${Math.round(train/60*KEIRYO.WATER_ML_PER_TRAINING_HOUR).toLocaleString()}ml 込み）`:''}${train>0?'</span>':''}</div>
+          <span class="m-wk-n">${totalMl.toLocaleString()}<small> / ${wt.toLocaleString()} ml</small></span></div>
+        <div class="m-water-h" style="color:${col}">${headline}<span class="m-water-u">${cup}ml を1本として</span></div>
+        <div class="m-pips">${pips}</div>
+        <div class="m-wk-msg">1日の目安 ${wt.toLocaleString()}ml ＝ ${cup}ml で <b>${cu.total}本</b>。体重${(+latestBw().kg).toFixed(1)}kg${train>0?` ＋ 筋トレ${fmtDur(train)}ぶん`:''}から計算しています。</div>
+        ${mealMl>0?`<div class="m-wk-msg" style="margin-top:5px">うち ${mealMl.toLocaleString()}ml は食事ぶん（プロテインの水・味噌汁など）を自動で数えています。</div>`:''}
         ${dSum.caffeineMg>0?`<div class="m-caf" style="color:${cafCol}">カフェイン ${dSum.caffeineMg}mg / 目安 ${KEIRYO.CAFFEINE_DAILY_MAX_MG}mg${caf.message?'　'+_me(caf.message):''}</div>`:''}
         <div class="m-drs">${chips}</div>
         ${rowsD}
-        <div class="hint" style="margin-top:9px">飲み物として記録したぶんだけ数えます（食事の水分は入りません）。目安は体重×35ml＋運動ぶんです。</div>
+        <div class="hint" style="margin-top:9px">目安は体重×35ml＋運動ぶん（一般的な計算です。持病や薬がある方は医師の指示を優先してください）。</div>
       </div>`;
     }
   }
@@ -3050,7 +3075,9 @@ function renderMeal(){
     <div class="hint" style="margin-bottom:11px">${autoW!=null
       ? `いまの自動計算は <b>${autoW.toLocaleString()}ml</b>（体重×35ml${mealTrainMin(vd)>0?` ＋ 筋トレ${fmtDur(mealTrainMin(vd))}ぶん`:''}）。手で決めたい時だけ下に入れてください。`
       : '体重を記録すると自動で目安が出ます。'}</div>
-    <div class="field"><label class="lbl">目標を手で決める</label><input type="number" inputmode="numeric" step="100" id="sWat" value="${n.waterOverride??''}" placeholder="空欄＝自動"><span class="unit">ml</span></div>
+    <div class="field"><label class="lbl">1本（1杯）の大きさ</label><input type="number" inputmode="numeric" step="50" id="sCup" value="${n.cupMl??500}"><span class="unit">ml</span></div>
+    <div class="hint" style="margin-top:7px">いつも使っているペットボトルやコップの大きさ。これで「あと何本」を数えます。</div>
+    <div class="field" style="margin-top:11px"><label class="lbl">目標を手で決める</label><input type="number" inputmode="numeric" step="100" id="sWat" value="${n.waterOverride??''}" placeholder="空欄＝自動"><span class="unit">ml</span></div>
     ${n.waterOverride!=null?`<button class="m-link" id="sWatClear" style="margin-top:7px">自動に戻す</button>`:''}
     <div class="lbl" style="margin-top:15px">飲み物のボタン</div>
     <div style="margin-top:9px">${dlist2.map((p,i)=>`<div class="m-de">
@@ -3072,6 +3099,8 @@ function renderMeal(){
         return `<div class="m-pe-it"><span>${_me(nm)}</span>
           <input type="number" inputmode="decimal" step="0.1" class="m-pe-q" data-peq="${i}.${j}" value="${it.qty}">
           <button class="m-link" data-peidel="${i}.${j}">×</button></div>`; }).join('')||'<div class="hint" style="border:none;padding:2px 0">中身がありません</div>'}</div>
+      <div class="m-pe-water"><span>一緒に飲む水分</span>
+        <input type="number" inputmode="numeric" step="50" class="m-pe-q" data-peml="${i}" value="${p.ml==null?0:p.ml}"><span class="m-de-u">ml</span></div>
       <div class="m-pe-add"><select class="m-sel m-pe-sel" data-pesel="${i}">${
         KEIRYO.FOODS.concat(myFoods).map(f=>`<option value="${_me(f.id)}">${_me(f.name)}（${_me(f.unit)}）</option>`).join('')}</select>
         <button class="m-link" data-peadd="${i}">追加</button></div>
@@ -3181,6 +3210,9 @@ function renderMeal(){
   const swat=document.getElementById('sSaveWater');
   if(swat)swat.onclick=()=>{
     const c=nutriCfg(), dl=drinkPresetList();
+    const cupv=parseFloat(document.getElementById('sCup').value);
+    if(!(cupv>=50&&cupv<=2000)){ toast('1本の大きさは 50〜2000ml で入れてください'); return; }
+    c.cupMl=cupv;
     const wv=document.getElementById('sWat').value.trim();
     if(wv===''){ delete c.waterOverride; }
     else { const w=parseFloat(wv); if(!(w>=300&&w<=8000)){ toast('目標は 300〜8000ml で入れてください'); return; } c.waterOverride=w; }
@@ -3213,6 +3245,9 @@ function renderMeal(){
   v.querySelectorAll('[data-peq]').forEach(inp=>{ inp.onchange=()=>{ const a=inp.dataset.peq.split('.'), i=+a[0], j=+a[1];
     const q=parseFloat(inp.value); if(!(q>0)){ toast('数量は0より大きい値で'); renderMeal(); return; }
     list[i].items[j].qty=q; syncPresetSummary(list[i]); saveAll(); renderMeal(); }; });
+  v.querySelectorAll('[data-peml]').forEach(inp=>{ inp.onchange=()=>{ const i=+inp.dataset.peml;
+    const q=parseFloat(inp.value); if(!(q>=0&&q<=3000)){ toast('水分は 0〜3000ml で'); renderMeal(); return; }
+    list[i].ml=q; saveAll(); renderMeal(); }; });
   v.querySelectorAll('[data-peidel]').forEach(b=>{ b.onclick=()=>{ const a=b.dataset.peidel.split('.'), i=+a[0], j=+a[1];
     list[i].items.splice(j,1); syncPresetSummary(list[i]); saveAll(); renderMeal(); }; });
   v.querySelectorAll('[data-peadd]').forEach(b=>{ b.onclick=()=>{ const i=+b.dataset.peadd;

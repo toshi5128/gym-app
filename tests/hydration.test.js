@@ -141,8 +141,8 @@ describe('カフェインと就寝時刻（就寝2:00の生活）', () => {
 })
 
 describe('初期の飲み物', () => {
-  it('7種類そろっている', () => {
-    expect(K.DEFAULT_DRINKS.length).toBe(7)
+  it('8種類そろっている', () => {
+    expect(K.DEFAULT_DRINKS.length).toBe(8)
   })
 
   it('id の重複がない', () => {
@@ -166,5 +166,87 @@ describe('初期の飲み物', () => {
     expect(c.caffeineMg).toBe(90)
     expect(K.caffeineStatus(c.caffeineMg * 4).level).toBe('near')
     expect(K.caffeineStatus(c.caffeineMg * 5).level).toBe('over')
+  })
+})
+
+describe('「あと何本」に言い換える（mlのままだと行動に結びつかない）', () => {
+  it('3,900ml は 500mlボトル 8本ぶん', () => {
+    const c = K.waterCups(0, 3900, 500)
+    expect(c.total).toBe(8)
+    expect(c.remaining).toBe(8)
+    expect(c.done).toBe(0)
+  })
+
+  it('800ml 飲んだら 1本ぶん済み・あと7本', () => {
+    const c = K.waterCups(800, 3900, 500)
+    expect(c.done).toBe(1)
+    expect(c.remaining).toBe(7)
+    expect(c.remainingMl).toBe(3100)
+  })
+
+  it('コップ250mlで数えることもできる', () => {
+    const c = K.waterCups(0, 3000, 250)
+    expect(c.total).toBe(12)
+  })
+
+  it('目標に届いたら「あと0本」・済みは総数を超えない', () => {
+    const c = K.waterCups(4200, 3900, 500)
+    expect(c.remaining).toBe(0)
+    expect(c.done).toBe(8)
+  })
+
+  it('容器サイズが未設定でも500mlで計算する', () => {
+    expect(K.waterCups(0, 3900, 0).cupMl).toBe(500)
+    expect(K.waterCups(0, 3900).cupMl).toBe(500)
+  })
+
+  it('本数は必ず1以上（目標が極端に小さくても0本にしない）', () => {
+    expect(K.waterCups(0, 100, 500).total).toBe(1)
+  })
+})
+
+describe('ネスプレッソ ヴァーチュオ', () => {
+  const v = K.DEFAULT_DRINKS.find((d) => d.id === 'vertuo')
+
+  it('初期の飲み物に入っている', () => {
+    expect(v).toBeTruthy()
+    expect(v.name).toContain('ヴァーチュオ')
+  })
+
+  it('マグ230ml・カフェイン170mg を初期値にしている', () => {
+    expect(v.ml).toBe(230)
+    expect(v.caffeineMg).toBe(170)
+  })
+
+  it('ヴァーチュオ2杯（340mg）で目安に近づく。3杯で超える', () => {
+    expect(K.caffeineStatus(v.caffeineMg * 2).level).toBe('near')
+    expect(K.caffeineStatus(v.caffeineMg * 3).level).toBe('over')
+  })
+})
+
+describe('食事にも水分がひもづく（プロテインを飲めば自動で水分が入る）', () => {
+  it('プロテインのセットは 250ml を持っている', () => {
+    expect(K.DEFAULT_PRESETS.find((p) => p.id === 'protein').ml).toBe(250)
+  })
+
+  it('1食目（プロテイン込み）も 250ml', () => {
+    expect(K.DEFAULT_PRESETS.find((p) => p.id === 'meal-1').ml).toBe(250)
+  })
+
+  it('3食目は味噌汁ぶんの 200ml', () => {
+    expect(K.DEFAULT_PRESETS.find((p) => p.id === 'meal-3').ml).toBe(200)
+  })
+
+  it('2食目は飲み物なしなので 0', () => {
+    expect(K.DEFAULT_PRESETS.find((p) => p.id === 'meal-2').ml).toBe(0)
+  })
+
+  it('プロテインを2回飲めば、それだけで500ml入る', () => {
+    const p = K.DEFAULT_PRESETS.find((x) => x.id === 'protein')
+    expect(p.ml * 2).toBe(500)
+  })
+
+  it('全部のセットに ml が入っている（未定義で NaN にならない）', () => {
+    for (const p of K.DEFAULT_PRESETS) expect(typeof p.ml, p.name).toBe('number')
   })
 })
