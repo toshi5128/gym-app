@@ -865,8 +865,11 @@
   .m-pe-h{display:flex; align-items:center; gap:7px;}
   .m-pe-n{flex:1; padding:8px 10px; border-radius:9px; border:1px solid var(--hair); background:var(--surface); color:var(--txt); font-size:14px; font-weight:700; font-family:var(--font-jp);}
   .m-pe-items{margin-top:8px;}
-  .m-pe-it{display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--txt-2); padding:4px 0;}
-  .m-pe-it span{flex:1;}
+  .m-pe-it{display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--txt-2); padding:5px 0;}
+  .m-pe-nm{flex:1; min-width:0; display:flex; flex-direction:column; line-height:1.35;}
+  .m-pe-nm small{font-size:9.5px; color:var(--txt-3); font-family:var(--font-disp);}
+  .m-pe-amt{flex-shrink:0; min-width:62px; text-align:right; font-size:12px; font-weight:700;
+    color:var(--txt); font-family:var(--font-disp);}
   .m-pe-q{width:66px; padding:6px 8px; border-radius:8px; border:1px solid var(--hair); background:var(--surface); color:var(--txt); font-size:13px; text-align:right; font-family:var(--font-disp);}
   .m-pe-water{display:flex; align-items:center; gap:6px; margin-top:8px; padding-top:8px;
     border-top:1px dashed var(--hair); font-size:12px; color:var(--txt-2);}
@@ -3106,13 +3109,18 @@ function renderMeal(){
     <button class="btn primary" id="sSaveWater" style="width:100%;margin-top:11px">保存する</button>
     <div class="hint" style="margin-top:9px">目安は一般的な計算です（体重×35ml＋運動1時間あたり500ml）。持病がある方や薬を飲んでいる方は、医師の指示を優先してください。</div>`;
 
-  const presetSet=list.map((p,i)=>`<div class="m-pe">
+  const presetSet=`<div class="hint" style="margin-bottom:11px">まん中の数字は「単位いくつぶん」です。右に<b>実際の量</b>が出ます。
+    キムチなら 1＝50g なので、100g 食べる日は 2 にします。</div>`+list.map((p,i)=>`<div class="m-pe">
       <div class="m-pe-h"><input type="text" class="m-pe-n" data-pen="${i}" value="${_me(p.name)}">
         <button class="m-link" data-pedel="${i}">削除</button></div>
       <div class="m-pe-items">${p.items.map((it,j)=>{
-        let nm=it.foodId; try{ nm=KEIRYO.getFood(it.foodId,myFoods).name; }catch(e){ nm='（未登録）'+it.foodId; }
-        return `<div class="m-pe-it"><span>${_me(nm)}</span>
+        let nm=it.foodId, amt='', uh='';
+        try{ const fd=KEIRYO.getFood(it.foodId,myFoods); nm=fd.name; amt=KEIRYO.itemAmountLabel(fd,it.qty); uh=KEIRYO.itemUnitHint(fd); }
+        catch(e){ nm='（未登録）'+it.foodId; }
+        return `<div class="m-pe-it">
+          <span class="m-pe-nm">${_me(nm)}<small>${_me(uh)}</small></span>
           <input type="number" inputmode="decimal" step="0.1" class="m-pe-q" data-peq="${i}.${j}" value="${it.qty}">
+          <span class="m-pe-amt">${_me(amt)}</span>
           <button class="m-link" data-peidel="${i}.${j}">×</button></div>`; }).join('')||'<div class="hint" style="border:none;padding:2px 0">中身がありません</div>'}</div>
       <div class="m-pe-water"><span>一緒に飲む水分</span>
         <input type="number" inputmode="numeric" step="50" class="m-pe-q" data-peml="${i}" value="${p.ml==null?0:p.ml}"><span class="m-de-u">ml</span></div>

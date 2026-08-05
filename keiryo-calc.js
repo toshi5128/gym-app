@@ -514,6 +514,30 @@
       items:[{foodId:'chicken-thigh-skinless',qty:2},{foodId:'salmon',qty:1},{foodId:'tofu-momen',qty:1},{foodId:'rice',qty:1.5},{foodId:'misoshiru',qty:1}] }
   ]
 
+  /**
+   * 数量を「実際の量」に言い換える。
+   * 編集画面に「1」とだけ出ても、何の1なのか分からない（キムチは1＝50g、卵は1＝1個）。
+   *   キムチ(50g) × 1   → '50g'
+   *   白米(100g) × 1.5  → '150g'
+   *   卵(1個)   × 3     → '3個（150g）'
+   */
+  function itemAmountLabel(food, qty) {
+    var unit = String(food.unit || '')
+    var grams = Math.round((+food.g || 0) * qty)
+    // 「100g」のような純粋な重さ単位は、そのままグラムで出す
+    if (/^\d+(\.\d+)?\s*g$/.test(unit)) return grams + 'g'
+    // 「1個」「1パック45g」のような個数単位は、個数＋（グラム）で出す
+    var m = unit.match(/^(\d+(?:\.\d+)?)\s*([^\d]+?)(?:\d+(?:\.\d+)?\s*g)?$/)
+    if (!m) return grams + 'g'
+    var count = Math.round(parseFloat(m[1]) * qty * 100) / 100
+    return count + m[2] + '（' + grams + 'g）'
+  }
+
+  /** 「1あたり何か」の説明。編集画面で数量の意味を示す */
+  function itemUnitHint(food) {
+    return '1 ＝ ' + String(food.unit || '')
+  }
+
   function nutritionOfPreset(preset, extraFoods) { return nutritionOfItems(preset.items, extraFoods) }
 
   /** 定型セットを全部食べた場合の1日合計。設定画面で目標とのズレを見せる */
@@ -697,6 +721,7 @@
     FOODS: FOODS, getFood: getFood, DEFAULT_PRESETS: DEFAULT_PRESETS,
     EMPTY_NUTRITION: EMPTY_NUTRITION, addNutrition: addNutrition,
     nutritionOfItem: nutritionOfItem, nutritionOfItems: nutritionOfItems,
+    itemAmountLabel: itemAmountLabel, itemUnitHint: itemUnitHint,
     nutritionOfPreset: nutritionOfPreset, nutritionOfAllPresets: nutritionOfAllPresets,
     sumNutrition: sumNutrition
   }

@@ -98,3 +98,64 @@ describe('記録済みの食事の合計', () => {
     expect(K.sumNutrition([])).toEqual({ kcal: 0, proteinG: 0, fatG: 0, carbG: 0 })
   })
 })
+
+describe('数量を「実際の量」に言い換える（「1」だけでは何の1か分からない）', () => {
+  const f = (id) => K.FOODS.find((x) => x.id === id)
+
+  it('キムチ（50g単位）×1 → 50g', () => {
+    expect(K.itemAmountLabel(f('kimchi'), 1)).toBe('50g')
+  })
+
+  it('キムチ ×2 → 100g', () => {
+    expect(K.itemAmountLabel(f('kimchi'), 2)).toBe('100g')
+  })
+
+  it('白米（100g単位）×1.5 → 150g', () => {
+    expect(K.itemAmountLabel(f('rice'), 1.5)).toBe('150g')
+  })
+
+  it('卵（1個）×3 → 3個（150g）', () => {
+    expect(K.itemAmountLabel(f('egg-m'), 3)).toBe('3個（150g）')
+  })
+
+  it('納豆（1パック45g）×1 → 1パック（45g）', () => {
+    expect(K.itemAmountLabel(f('natto'), 1)).toBe('1パック（45g）')
+  })
+
+  it('鮭（1切れ80g）×2 → 2切れ（160g）', () => {
+    expect(K.itemAmountLabel(f('salmon'), 2)).toBe('2切れ（160g）')
+  })
+
+  it('プロテイン（1杯30g）×1 → 1杯（30g）', () => {
+    expect(K.itemAmountLabel(f('whey'), 1)).toBe('1杯（30g）')
+  })
+
+  it('味噌汁（1杯・g表記なし）×1 → 1杯（200g）', () => {
+    expect(K.itemAmountLabel(f('misoshiru'), 1)).toBe('1杯（200g）')
+  })
+
+  it('サバ缶（1缶190g）×1 → 1缶（190g）', () => {
+    expect(K.itemAmountLabel(f('saba-can'), 1)).toBe('1缶（190g）')
+  })
+
+  it('豆腐（半丁150g・数字で始まらない単位）はグラムで出す', () => {
+    expect(K.itemAmountLabel(f('tofu-momen'), 1)).toBe('150g')
+  })
+
+  it('0.5 のような端数でも壊れない', () => {
+    expect(K.itemAmountLabel(f('rice'), 0.5)).toBe('50g')
+    expect(K.itemAmountLabel(f('egg-m'), 0.5)).toBe('0.5個（25g）')
+  })
+
+  it('全食品で例外を投げない', () => {
+    for (const food of K.FOODS) {
+      expect(() => K.itemAmountLabel(food, 1), food.name).not.toThrow()
+      expect(K.itemAmountLabel(food, 1), food.name).toBeTruthy()
+    }
+  })
+
+  it('単位の説明が出せる', () => {
+    expect(K.itemUnitHint(f('kimchi'))).toBe('1 ＝ 50g')
+    expect(K.itemUnitHint(f('egg-m'))).toBe('1 ＝ 1個')
+  })
+})
