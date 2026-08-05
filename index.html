@@ -775,6 +775,45 @@
   .m-list .x svg{width:15px; height:15px; stroke-width:2;}
   .m-list .x:active{color:var(--danger);}
 
+  /* 手入力ボタン（定型セットの最後） */
+  .mpreset.mp-manual{background:var(--surface-2); border-style:dashed;}
+
+  /* 週予算 */
+  .m-wk{display:flex; align-items:baseline; gap:8px;}
+  .m-wk-n{font-size:27px; font-weight:700; font-family:var(--font-disp); color:var(--txt); line-height:1;}
+  .m-wk-u{font-size:11.5px; color:var(--txt-3);}
+  .m-wk-msg{font-size:12px; color:var(--txt-2); margin-top:8px;}
+
+  /* からだ：目標までの残り */
+  .m-goal{margin-top:13px; border-top:1px solid var(--hair-2); padding-top:11px;}
+  .m-goal-r{display:flex; justify-content:space-between; font-size:12.5px; color:var(--txt-2); padding:3px 0;}
+  .m-goal-r b{font-family:var(--font-disp); color:var(--txt);}
+  .m-ref{display:flex; align-items:center; gap:7px; font-size:12px; color:var(--txt-2); white-space:nowrap; padding:0 4px;}
+  .m-ref input{width:17px; height:17px; accent-color:var(--blue);}
+
+  /* 週次レビュー */
+  .m-rev{display:flex; align-items:baseline; gap:11px; flex-wrap:wrap;}
+  .m-rev-d{font-size:25px; font-weight:700; font-family:var(--font-disp); line-height:1;}
+  .m-rev-t{font-size:12.5px; color:var(--txt-2); flex:1; min-width:160px; line-height:1.6;}
+
+  /* 設定 */
+  .m-sel{width:100%; padding:11px 12px; border-radius:11px; border:1px solid var(--hair);
+    background:var(--surface-2); color:var(--txt); font-size:14px; font-family:var(--font-jp); appearance:none;}
+  .m-link{background:none; border:none; color:var(--blue); font-size:12px; font-weight:700; cursor:pointer; padding:3px 5px; font-family:var(--font-jp);}
+  .m-warn{margin-top:11px; padding:10px 12px; border-radius:11px; background:rgba(201,118,47,.14);
+    border:1px solid rgba(201,118,47,.42); color:#8a4f16; font-size:12.5px; line-height:1.7;}
+
+  /* 定型セットの編集 */
+  .m-pe{border:1px solid var(--hair); border-radius:13px; padding:11px; margin-bottom:9px; background:var(--surface-2);}
+  .m-pe-h{display:flex; align-items:center; gap:7px;}
+  .m-pe-n{flex:1; padding:8px 10px; border-radius:9px; border:1px solid var(--hair); background:var(--surface); color:var(--txt); font-size:14px; font-weight:700; font-family:var(--font-jp);}
+  .m-pe-items{margin-top:8px;}
+  .m-pe-it{display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--txt-2); padding:4px 0;}
+  .m-pe-it span{flex:1;}
+  .m-pe-q{width:66px; padding:6px 8px; border-radius:8px; border:1px solid var(--hair); background:var(--surface); color:var(--txt); font-size:13px; text-align:right; font-family:var(--font-disp);}
+  .m-pe-add{display:flex; align-items:center; gap:7px; margin-top:8px;}
+  .m-pe-sel{flex:1; padding:8px 10px; font-size:13px;}
+
   /* 取り消しバー（5秒） */
   .mundo{position:fixed; left:16px; right:16px; bottom:calc(92px + env(safe-area-inset-bottom)); max-width:528px;
     margin:0 auto; z-index:46; background:var(--surface-2); border:1px solid var(--hair); border-radius:18px;
@@ -2623,10 +2662,36 @@ function nutriPlan(){
     overrideKcal:(n.overrideKcal!=null?+n.overrideKcal:undefined) });
 }
 function mealsOn(d){ return meals.filter(m=>m.d===d).sort((a,b)=>((a.at||'')<(b.at||'')?-1:1)); }
-function mealBar(label,now,target){
+/* ---- 集計のもと ---- */
+/** ATLAS の体重記録を、判定用の形に変換。ref=参考値（測定条件が違う）は移動平均から除く */
+function mealWeighIns(){ return (bw||[]).map(b=>({logDate:b.date, weightKg:+b.kg, isReference:!!b.ref})); }
+/** 7日移動平均。判断は生の体重では絶対に行わない（仕様書 §7） */
+function mealAvg(endLogDate){ return KEIRYO.movingAverage(mealWeighIns(), endLogDate, 7); }
+/** 今週の日別カロリー（週予算の消化ぶん） */
+function mealWeekIntakes(){
+  const dates=KEIRYO.weekDates(mealLogDate()), map={};
+  meals.forEach(m=>{ if(dates.indexOf(m.d)>=0){
+    if(!map[m.d]) map[m.d]={logDate:m.d, kcal:0, proteinG:0};
+    map[m.d].kcal+=(+m.k||0); map[m.d].proteinG+=(+m.p||0); } });
+  return Object.keys(map).map(k=>map[k]);
+}
+/** 今週の予算配分。外食日は曜日固定（未設定なら外食日なし） */
+function mealWeekPlan(plan){
+  const n=nutriCfg(), d=mealLogDate();
+  const dates=(n.eatOutDow!=null&&n.eatOutDow!=='')?[KEIRYO.eatOutDateForWeek(d,+n.eatOutDow)]:[];
+  return KEIRYO.planWeek({dailyTargetKcal:plan.kcal, eatOutDates:dates, eatOutKcal:+n.eatOutKcal});
+}
+/** 今日の目標。外食日なら想定値、平日なら再配分後の値。
+    P と F は日次で不変、C だけがその日の枠に合わせて動く（仕様書 §7） */
+function mealDayTarget(plan,wplan){
+  const kcal=KEIRYO.dailyTargetFor(wplan, mealLogDate());
+  const b=latestBw();
+  return KEIRYO.macrosForCalories(kcal, plan.lbmKg, +b.kg);
+}
+function mealBar(label,now,target,color){
   const pct=target>0?Math.min(100,now/target*100):0;
   return `<div class="m-macro"><div class="r"><span>${label}</span><span><b>${Math.round(now)}</b> / ${target} g</span></div>
-    <div class="m-bar"><span style="width:${pct}%"></span></div></div>`;
+    <div class="m-bar"><span style="width:${pct}%${color?';background:'+color:''}"></span></div></div>`;
 }
 
 /* 取り消しバー（5秒）。誤タップ対策はこれで行う＝記録時に確認ダイアログを出さない */
@@ -2645,48 +2710,85 @@ function showMealUndo(m){
 }
 function hideMealUndo(){ const el=document.getElementById('mealUndo'); if(el)el.classList.remove('show'); clearTimeout(_mealUndoT); }
 
-function logMealPreset(p){
-  let n; try{ n=KEIRYO.nutritionOfPreset(p,myFoods); }catch(e){ toast('この定型セットに未登録の食品があります'); return; }
+/* ---- 記録 ---- */
+function pushMeal(name,n,items){
   const now=new Date();
   const m={ id:'m'+Date.now()+Math.random().toString(36).slice(2,6), d:mealLogDate(now), at:now.toISOString(),
-    n:p.name, k:Math.round(n.kcal*10)/10, p:Math.round(n.proteinG*10)/10, f:Math.round(n.fatG*10)/10, c:Math.round(n.carbG*10)/10,
-    items:p.items };
-  meals.push(m); saveAll(); renderMeal(); showMealUndo(m);
+    n:name, k:Math.round(n.kcal*10)/10, p:Math.round(n.proteinG*10)/10, f:Math.round(n.fatG*10)/10, c:Math.round(n.carbG*10)/10,
+    items:items||[] };
+  meals.push(m); saveAll(); renderMeal(); showMealUndo(m); return m;
+}
+function logMealPreset(p){
+  let n; try{ n=KEIRYO.nutritionOfPreset(p,myFoods); }catch(e){ toast('この定型セットに未登録の食品があります'); return; }
+  pushMeal(p.name,n,p.items);
 }
 function delMeal(id){ meals=meals.filter(x=>x.id!==id); saveAll(); if(tab==='meal')renderMeal(); }
+
+/* ---- 画面 ---- */
+const MEAL_WK=['日','月','火','水','木','金','土'];
 
 function renderMeal(){
   const v=document.getElementById('view');
   const d=mealLogDate(), plan=nutriPlan(), list=mealPresetList(), today=mealsOn(d);
   const eaten=KEIRYO.sumNutrition(today.map(m=>({kcal:m.k,proteinG:m.p,fatG:m.f,carbG:m.c})));
-  const hasBw=!!latestBw();
+  const hasBw=!!latestBw(), n=nutriCfg();
 
+  /* --- 定型セット：1タップで即記録 --- */
   const presets=list.map((p,i)=>{
-    let n; try{ n=KEIRYO.nutritionOfPreset(p,myFoods); }catch(e){ n=KEIRYO.EMPTY_NUTRITION; }
+    let nu; try{ nu=KEIRYO.nutritionOfPreset(p,myFoods); }catch(e){ nu=KEIRYO.EMPTY_NUTRITION; }
     return `<button class="mpreset" data-mp="${i}"><span class="mp-n">${_me(p.name)}</span>
       <span class="mp-s">${_me(p.summary||'')}</span>
-      <span class="mp-k">${Math.round(n.kcal).toLocaleString()} kcal ・ P${Math.round(n.proteinG)}</span></button>`;
-  }).join('');
+      <span class="mp-k">${Math.round(nu.kcal).toLocaleString()} kcal ・ P${Math.round(nu.proteinG)}</span></button>`;
+  }).join('')+`<button class="mpreset mp-manual" data-mmanual="1"><span class="mp-n">手で入力</span>
+      <span class="mp-s">外食など。だいたいの値でかまいません</span><span class="mp-k">＋ 追加</span></button>`;
 
+  /* --- 目標が出せない時の案内 --- */
   const setup=plan?'':`<div class="card">
     <div class="lbl">目標を出すのに、あと1つ</div>
     <div class="hint" style="margin:8px 0 13px">${hasBw
       ?'体組成計に出る<b>体脂肪率</b>を入れると、目標カロリーとPFCが自動で決まります。体重は「分析」タブの記録をそのまま使うので、入れ直す必要はありません。'
-      :'まず「分析」タブで<b>体重</b>を記録してください。そのあとここで体脂肪率を入れると目標が出ます。'}</div>
-    ${hasBw?`<div class="field"><label class="lbl">体脂肪率</label><input type="number" inputmode="decimal" step="0.1" id="nBf" value="${nutriCfg().bfPct??''}" placeholder="15.7"><span class="unit">%</span></div>
+      :'まず下の「体重を記録」から<b>体重</b>を入れてください。そのあと体脂肪率を入れると目標が出ます。'}</div>
+    ${hasBw?`<div class="field"><label class="lbl">体脂肪率</label><input type="number" inputmode="decimal" step="0.1" id="nBf" value="${n.bfPct??''}" placeholder="15.7"><span class="unit">%</span></div>
     <button class="btn" id="nSave" style="width:100%;margin-top:11px">目標を計算する</button>`:''}
   </div>`;
 
-  const goal=plan?`<div class="card">
-    <div class="lbl">今日の残り</div>
-    <div class="m-rest"><span class="big">${Math.round(plan.kcal-eaten.kcal).toLocaleString()}</span><span class="u">kcal ／ 目標 ${plan.kcal.toLocaleString()}</span></div>
-    <div class="m-bar"><span style="width:${plan.kcal>0?Math.min(100,eaten.kcal/plan.kcal*100):0}%"></span></div>
-    <div style="margin-top:15px">
-      ${mealBar('タンパク質',eaten.proteinG,plan.proteinG)}
-      ${mealBar('脂質',eaten.fatG,plan.fatG)}
-      ${mealBar('炭水化物',eaten.carbG,plan.carbG)}
-    </div></div>`:'';
+  let wplan=null, dayT=null;
+  if(plan){ wplan=mealWeekPlan(plan); dayT=mealDayTarget(plan,wplan); }
 
+  /* --- 週予算（仕様書 §4-2）。1日の超過では警告しない --- */
+  let weekCard='';
+  if(plan){
+    const wp=KEIRYO.weekProgress(wplan, mealWeekIntakes(), d);
+    const used=wp.weeklyBudgetKcal-wp.remainingKcal;
+    const pct=Math.min(100, Math.max(0, used/wp.weeklyBudgetKcal*100));
+    const col=wp.status==='over'?'var(--danger)':(wp.status==='tight'?'#c9962f':'var(--pos)');
+    const eod=wplan.eatOutDates[0];
+    weekCard=`<div class="card">
+      <div class="lbl">今週の予算</div>
+      <div class="m-wk"><span class="m-wk-n">${Math.round(wp.remainingKcal).toLocaleString()}</span>
+        <span class="m-wk-u">kcal 残り ／ ${wp.weeklyBudgetKcal.toLocaleString()}</span></div>
+      <div class="m-bar" style="margin-top:10px"><span style="width:${pct}%;background:${col}"></span></div>
+      <div class="m-wk-msg">${wp.message}</div>
+      <div class="hint" style="margin-top:10px">${eod
+        ? `外食日は <b>${MEAL_WK[+n.eatOutDow]}曜（${eod.slice(5).replace('-','/')}）</b>で ${(+n.eatOutKcal).toLocaleString()}kcal を先に取り置き。残り${wplan.normalDays}日は1日 <b>${wplan.normalTargetKcal.toLocaleString()}kcal</b> です。`
+        : '外食日を決めると、その日のぶんを先に取り置いて残りの日に配り直します（設定から）。'}</div>
+    </div>`;
+  }
+
+  /* --- 今日の残り。P は毎日 独立して評価する（外食日でも下げない） --- */
+  const goal=plan?`<div class="card">
+    <div class="lbl">今日の残り${wplan.eatOutDates.indexOf(d)>=0?'（外食日）':''}</div>
+    <div class="m-rest"><span class="big">${Math.round(dayT.kcal-eaten.kcal).toLocaleString()}</span><span class="u">kcal ／ 目標 ${dayT.kcal.toLocaleString()}</span></div>
+    <div class="m-bar"><span style="width:${dayT.kcal>0?Math.min(100,eaten.kcal/dayT.kcal*100):0}%"></span></div>
+    <div style="margin-top:15px">
+      ${mealBar('タンパク質',eaten.proteinG,plan.proteinG,eaten.proteinG>=plan.proteinG?'var(--pos)':null)}
+      ${mealBar('脂質',eaten.fatG,dayT.fatG)}
+      ${mealBar('炭水化物',eaten.carbG,dayT.carbG)}
+    </div>
+    <div class="hint" style="margin-top:12px">タンパク質だけは外食日でも ${plan.proteinG}g のままです。カロリーの調整は炭水化物で行います。</div>
+  </div>`:'';
+
+  /* --- 今日の記録 --- */
   const rows=today.length?`<ul class="m-list">${today.map(m=>`<li>
       <span class="t">${m.at?new Date(m.at).toTimeString().slice(0,5):''}</span>
       <span class="n">${_me(m.n)}</span>
@@ -2695,21 +2797,248 @@ function renderMeal(){
     </li>`).join('')}</ul>`
     :`<div class="hint" style="border:none;padding:6px 0">まだ記録がありません。上のボタンを1回押すだけで記録されます。</div>`;
 
+  /* --- からだ（7日移動平均・目標までの残り・着地予定） --- */
+  const avgNow=mealAvg(d), avgPrev=mealAvg(KEIRYO.addLogDays(d,-7));
+  let bodyCard='';
+  {
+    const series=[]; for(let i=27;i>=0;i--){ const a=mealAvg(KEIRYO.addLogDays(d,-i)); if(a!=null)series.push(a); }
+    let goalLine='';
+    if(plan&&avgNow!=null){
+      const g=KEIRYO.goalFromTargetBodyFat(plan.lbmKg, avgNow, +n.targetBf);
+      const wk=(avgPrev!=null)?(avgNow-avgPrev):null;
+      const land=(wk!=null)?KEIRYO.projectLandingDate(avgNow,g.goalWeightKg,Math.round(wk*1000)/1000,new Date()):null;
+      goalLine=`<div class="m-goal">
+        <div class="m-goal-r"><span>目標体重（体脂肪 ${n.targetBf}%）</span><b>${g.goalWeightKg.toFixed(1)} kg</b></div>
+        <div class="m-goal-r"><span>目標まで</span><b>${g.fatToLoseKg>0?g.fatToLoseKg.toFixed(1)+' kg':'達成'}</b></div>
+        <div class="m-goal-r"><span>着地予定</span><b>${land?`${land.date.getFullYear()}年${land.date.getMonth()+1}月${land.date.getDate()}日ごろ`:(g.fatToLoseKg<=0?'—':'ペース待ち')}</b></div>
+      </div>`;
+    }
+    bodyCard=`<div class="card">
+      <div class="lbl">からだ（7日平均で見る）</div>
+      <div class="m-rest" style="margin-top:9px"><span class="big">${avgNow!=null?avgNow.toFixed(2):'--'}</span><span class="u">kg ／ 7日平均${
+        (avgNow!=null&&avgPrev!=null)?` ・ 先週比 <b style="color:${avgNow-avgPrev<0?'var(--pos)':'#c9762f'}">${avgNow-avgPrev>0?'+':''}${(avgNow-avgPrev).toFixed(2)}kg</b>`:''}</span></div>
+      ${series.length>1?spark(series):'<div class="hint" style="border:none;padding:8px 0">体重を2日ぶん記録すると、7日平均の推移が出ます。</div>'}
+      ${goalLine}
+      <div class="bw-input" style="margin-top:12px">
+        <div class="field"><input id="mBwIn" type="number" inputmode="decimal" step="0.1" placeholder="今日の体重"><span class="unit">kg</span></div>
+        <button class="btn primary" style="width:auto;padding:0 18px" id="mBwSave">記録</button></div>
+      <div class="bw-input" style="margin-top:8px">
+        <div class="field"><input id="mBfIn" type="number" inputmode="decimal" step="0.1" placeholder="体脂肪率（任意）"><span class="unit">%</span></div>
+        <label class="m-ref"><input type="checkbox" id="mRefIn"><span>参考値にする</span></label></div>
+      <div class="hint" style="margin-top:9px">条件をそろえて測るのがコツ：<b>${_me(n.cond||'起床後・トイレ後・食前・下着のみ')}</b>。
+        条件から外れた日は「参考値」にすると、7日平均から外れて判断がぶれません。</div>
+    </div>`;
+  }
+
+  /* --- 週次レビュー（仕様書 §7）。カロリー削減と有酸素は必ずどちらか一方 --- */
+  let reviewCard='';
+  if(plan&&avgNow!=null&&avgPrev!=null){
+    const r=KEIRYO.reviewWeek({thisWeekAvgKg:avgNow, lastWeekAvgKg:avgPrev, stalledLastWeek:!!n.stalledLastWeek});
+    const col={too_fast:'#c9762f', on_track:'var(--pos)', slowing:'var(--txt-2)', stalled:'#c9962f'}[r.verdict];
+    reviewCard=`<div class="card">
+      <div class="lbl">今週の判定</div>
+      <div class="m-rev"><span class="m-rev-d" style="color:${col}">${r.deltaKg>0?'+':''}${r.deltaKg.toFixed(2)} kg</span>
+        <span class="m-rev-t">${_me(r.message)}</span></div>
+      ${r.kcalAdjustment!==0?`<button class="btn" id="mRevApply" style="width:100%;margin-top:11px">目標を ${r.kcalAdjustment>0?'+':''}${r.kcalAdjustment}kcal にする</button>
+      <div class="hint" style="margin-top:9px">変えるのは炭水化物だけです。タンパク質 ${plan.proteinG}g と脂質 ${plan.fatG}g は減らしません。</div>`:''}
+      <div class="hint" style="margin-top:9px">外食の翌日は塩分と糖質で1〜1.5kg増えますが、これは水分です。7日平均が吸収するので気にしないでください。</div>
+    </div>`;
+  }
+
+  /* --- 設定（仕様書 §8）--- */
+  const CHEVM='<svg class="acc-x" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>';
+  const accM=(key,title,body)=>`<div class="acc${accOpen.has(key)?' open':''}"><button class="acc-h" data-acc="${key}"><span>${title}</span>${CHEVM}</button><div class="acc-body">${body}</div></div>`;
+
+  let safetyHtml='';
+  if(plan){
+    const s=KEIRYO.evaluateCalorieSafety(KEIRYO.weeklyAvgDailyKcal(wplan), plan.bmr);
+    if(s.level!=='ok') safetyHtml=`<div class="m-warn">${_me(s.message)}</div>`;
+    else safetyHtml=`<div class="hint" style="margin-top:9px">週平均 ${Math.round(KEIRYO.weeklyAvgDailyKcal(wplan)).toLocaleString()}kcal。安全の下限（${Math.round(s.warnThreshold).toLocaleString()}kcal）を上回っています。</div>`;
+  }
+
+  const goalSet=`
+    <div class="field"><label class="lbl">体脂肪率（いま）</label><input type="number" inputmode="decimal" step="0.1" id="sBf" value="${n.bfPct??''}"><span class="unit">%</span></div>
+    <div class="field" style="margin-top:9px"><label class="lbl">目標の体脂肪率</label><input type="number" inputmode="decimal" step="0.5" id="sTbf" value="${n.targetBf}"><span class="unit">%</span></div>
+    <div class="hint" style="margin-top:7px">目標体重は入力しません。除脂肪体重から自動で決まります（体重＝筋肉や骨の重さ ÷（1−目標体脂肪率））。</div>
+    <label class="lbl" style="display:block;margin-top:13px">1日の動き方</label>
+    <select id="sAct" class="m-sel">${KEIRYO.ACTIVITY_LEVELS.map(a=>`<option value="${a.value}"${Math.abs(a.value-(+n.activity))<0.001?' selected':''}>${a.label}</option>`).join('')}</select>
+    <div class="field" style="margin-top:11px"><label class="lbl">1日の赤字</label><input type="number" inputmode="numeric" step="50" id="sDef" value="${n.deficit}"><span class="unit">kcal</span></div>
+    ${n.overrideKcal!=null?`<div class="hint" style="margin-top:9px">いま目標カロリーを <b>${(+n.overrideKcal).toLocaleString()}kcal</b> に手で固定しています。<button class="m-link" id="sClearOv">自動計算に戻す</button></div>`:''}
+    ${safetyHtml}
+    <button class="btn primary" id="sSaveGoal" style="width:100%;margin-top:13px">保存する</button>`;
+
+  const weekSet=`
+    <label class="lbl" style="display:block">外食する曜日</label>
+    <select id="sEod" class="m-sel"><option value=""${(n.eatOutDow==null||n.eatOutDow==='')?' selected':''}>決めない</option>
+      ${MEAL_WK.map((w,i)=>`<option value="${i}"${(+n.eatOutDow===i&&n.eatOutDow!==''&&n.eatOutDow!=null)?' selected':''}>${w}曜日</option>`).join('')}</select>
+    <div class="field" style="margin-top:11px"><label class="lbl">外食日の想定</label><input type="number" inputmode="numeric" step="100" id="sEok" value="${n.eatOutKcal}"><span class="unit">kcal</span></div>
+    <div class="hint" style="margin-top:7px">外食を「失敗」ではなく「予定」として先に予算に入れます。1日超えても警告は出ません。週の合計を超えた時だけお知らせします。</div>
+    <div class="field" style="margin-top:13px"><label class="lbl">1日の区切り</label><input type="number" inputmode="numeric" min="0" max="12" id="sBh" value="${n.boundaryHour}"><span class="unit">時</span></div>
+    <div class="hint" style="margin-top:7px">夜中に食べる人向けの設定です。朝${n.boundaryHour}時までに記録したものは、前の日のぶんとして数えます。</div>
+    <div class="field" style="margin-top:13px"><label class="lbl">測定条件</label><input type="text" id="sCond" value="${_me(n.cond||'起床後・トイレ後・食前・下着のみ')}"></div>
+    <button class="btn primary" id="sSaveWeek" style="width:100%;margin-top:13px">保存する</button>`;
+
+  const presetSet=list.map((p,i)=>`<div class="m-pe">
+      <div class="m-pe-h"><input type="text" class="m-pe-n" data-pen="${i}" value="${_me(p.name)}">
+        <button class="m-link" data-pedel="${i}">削除</button></div>
+      <div class="m-pe-items">${p.items.map((it,j)=>{
+        let nm=it.foodId; try{ nm=KEIRYO.getFood(it.foodId,myFoods).name; }catch(e){ nm='（未登録）'+it.foodId; }
+        return `<div class="m-pe-it"><span>${_me(nm)}</span>
+          <input type="number" inputmode="decimal" step="0.1" class="m-pe-q" data-peq="${i}.${j}" value="${it.qty}">
+          <button class="m-link" data-peidel="${i}.${j}">×</button></div>`; }).join('')||'<div class="hint" style="border:none;padding:2px 0">中身がありません</div>'}</div>
+      <div class="m-pe-add"><select class="m-sel m-pe-sel" data-pesel="${i}">${
+        KEIRYO.FOODS.concat(myFoods).map(f=>`<option value="${_me(f.id)}">${_me(f.name)}（${_me(f.unit)}）</option>`).join('')}</select>
+        <button class="m-link" data-peadd="${i}">追加</button></div>
+    </div>`).join('')+
+    `<button class="btn" id="sPeNew" style="width:100%;margin-top:11px">セットを新しく作る</button>
+     <button class="btn ghost" id="sPeReset" style="width:100%;margin-top:8px">最初のセットに戻す</button>`;
+
+  let presetTotalHtml='';
+  if(plan){
+    try{
+      const t=KEIRYO.nutritionOfAllPresets(list,myFoods);
+      presetTotalHtml=`<div class="hint" style="margin-bottom:11px">いまのセットを全部食べると <b>${Math.round(t.kcal).toLocaleString()}kcal</b>（P${Math.round(t.proteinG)} / F${Math.round(t.fatG)} / C${Math.round(t.carbG)}）。
+        目標は ${plan.kcal.toLocaleString()}kcal（P${plan.proteinG} / F${plan.fatG} / C${plan.carbG}）です。</div>`;
+    }catch(e){}
+  }
+
+  const settings_=`<div style="margin-top:4px">
+    ${accM('mgoal','目標の設定',goalSet)}
+    ${accM('mweek','外食日と1日の区切り',weekSet)}
+    ${accM('mpre','定型セットの中身',presetTotalHtml+presetSet)}
+  </div>`;
+
   v.innerHTML=`<div class="fade-in">
     <div class="eyebrow">食事</div>
     <div class="hint" style="border:none;padding:0 0 13px;margin:0">${KEIRYO.logDateLabel(new Date(),mealBoundary())}</div>
     <div class="mpresets">${presets}</div>
-    ${setup}${goal}
+    ${setup}${weekCard}${goal}
     <div class="card"><div class="lbl">今日の記録</div><div style="margin-top:11px">${rows}</div></div>
+    ${reviewCard}${bodyCard}${settings_}
   </div>`;
 
+  /* ---- 結線 ---- */
   v.querySelectorAll('[data-mp]').forEach(b=>{ b.onclick=()=>logMealPreset(list[+b.dataset.mp]); });
   v.querySelectorAll('[data-mdel]').forEach(b=>{ b.onclick=()=>delMeal(b.dataset.mdel); });
+  v.querySelectorAll('[data-acc]').forEach(h=>h.onclick=()=>{ const k=h.dataset.acc, box=h.closest('.acc');
+    const open=box.classList.toggle('open'); if(open)accOpen.add(k); else accOpen.delete(k); });
+
+  const mm=v.querySelector('[data-mmanual]'); if(mm) mm.onclick=()=>openManualMeal();
+
   const ns=document.getElementById('nSave');
-  if(ns)ns.onclick=()=>{
-    const val=parseFloat(document.getElementById('nBf').value);
+  if(ns)ns.onclick=()=>{ const val=parseFloat(document.getElementById('nBf').value);
     if(!(val>0&&val<70)){ toast('体脂肪率を正しく入れてください'); return; }
-    nutriCfg().bfPct=val; saveAll(); renderMeal(); toast('目標を計算しました');
+    nutriCfg().bfPct=val; saveAll(); renderMeal(); toast('目標を計算しました'); };
+
+  const bs=document.getElementById('mBwSave');
+  if(bs)bs.onclick=()=>{
+    const kg=parseFloat(document.getElementById('mBwIn').value);
+    if(!(kg>0)){ toast('体重を入力してください'); return; }
+    const bf=parseFloat(document.getElementById('mBfIn').value);
+    const ref=document.getElementById('mRefIn').checked;
+    const date=mealLogDate();
+    const ex=bw.find(x=>x.date===date);
+    const rec={date, kg}; if(bf>0)rec.bf=bf; if(ref)rec.ref=true;
+    if(ex)Object.assign(ex,rec); else bw.push(rec);
+    if(bf>0)nutriCfg().bfPct=bf;
+    saveAll(); renderMeal(); toast('体重を記録しました');
+  };
+
+  const ra=document.getElementById('mRevApply');
+  if(ra)ra.onclick=()=>{
+    const r=KEIRYO.reviewWeek({thisWeekAvgKg:avgNow, lastWeekAvgKg:avgPrev, stalledLastWeek:!!nutriCfg().stalledLastWeek});
+    const next=plan.kcal+r.kcalAdjustment;
+    const wtest=KEIRYO.planWeek({dailyTargetKcal:next, eatOutDates:wplan.eatOutDates, eatOutKcal:wplan.eatOutKcal});
+    const s=KEIRYO.evaluateCalorieSafety(KEIRYO.weeklyAvgDailyKcal(wtest), plan.bmr);
+    if(s.level==='blocked'){ toast(s.message); return; }
+    nutriCfg().overrideKcal=next;
+    nutriCfg().stalledLastWeek=(r.verdict==='stalled');
+    saveAll(); renderMeal(); toast(`目標を ${next.toLocaleString()}kcal にしました`);
+  };
+
+  const sg=document.getElementById('sSaveGoal');
+  if(sg)sg.onclick=()=>{
+    const c=nutriCfg();
+    const bf=parseFloat(document.getElementById('sBf').value);
+    const tbf=parseFloat(document.getElementById('sTbf').value);
+    const def=parseFloat(document.getElementById('sDef').value);
+    if(!(bf>0&&bf<70)){ toast('体脂肪率を正しく入れてください'); return; }
+    if(!(tbf>0&&tbf<70)){ toast('目標の体脂肪率を正しく入れてください'); return; }
+    if(tbf>bf){ toast('目標の体脂肪率が、いまの値より高くなっています'); return; }
+    if(!(def>=0&&def<=1500)){ toast('1日の赤字は 0〜1500kcal で入れてください'); return; }
+    c.bfPct=bf; c.targetBf=tbf; c.activity=parseFloat(document.getElementById('sAct').value); c.deficit=def;
+    const p2=nutriPlan();
+    if(p2){ const w2=mealWeekPlan(p2);
+      const s=KEIRYO.evaluateCalorieSafety(KEIRYO.weeklyAvgDailyKcal(w2), p2.bmr);
+      if(s.level==='blocked'){ toast(s.message); return; } }
+    saveAll(); renderMeal(); toast('保存しました');
+  };
+  const sco=document.getElementById('sClearOv');
+  if(sco)sco.onclick=()=>{ delete nutriCfg().overrideKcal; saveAll(); renderMeal(); toast('自動計算に戻しました'); };
+
+  const sw=document.getElementById('sSaveWeek');
+  if(sw)sw.onclick=()=>{
+    const c=nutriCfg();
+    const dow=document.getElementById('sEod').value;
+    const eok=parseFloat(document.getElementById('sEok').value);
+    const bh=parseInt(document.getElementById('sBh').value,10);
+    if(!(eok>0&&eok<=8000)){ toast('外食日の想定カロリーを正しく入れてください'); return; }
+    if(!(bh>=0&&bh<=12)){ toast('1日の区切りは 0〜12時で入れてください'); return; }
+    c.eatOutDow=(dow===''?null:+dow); c.eatOutKcal=eok; c.boundaryHour=bh;
+    c.cond=document.getElementById('sCond').value.trim()||'起床後・トイレ後・食前・下着のみ';
+    saveAll(); renderMeal(); toast('保存しました');
+  };
+
+  /* 定型セットの編集 */
+  v.querySelectorAll('[data-pen]').forEach(inp=>{ inp.onchange=()=>{ list[+inp.dataset.pen].name=inp.value.trim()||'セット'; syncPresetSummary(list[+inp.dataset.pen]); saveAll(); renderMeal(); }; });
+  v.querySelectorAll('[data-peq]').forEach(inp=>{ inp.onchange=()=>{ const [i,j]=inp.dataset.peq.split('.').map(Number);
+    const q=parseFloat(inp.value); if(!(q>0)){ toast('数量は0より大きい値で'); renderMeal(); return; }
+    list[i].items[j].qty=q; syncPresetSummary(list[i]); saveAll(); renderMeal(); }; });
+  v.querySelectorAll('[data-peidel]').forEach(b=>{ b.onclick=()=>{ const [i,j]=b.dataset.peidel.split('.').map(Number);
+    list[i].items.splice(j,1); syncPresetSummary(list[i]); saveAll(); renderMeal(); }; });
+  v.querySelectorAll('[data-peadd]').forEach(b=>{ b.onclick=()=>{ const i=+b.dataset.peadd;
+    const sel=v.querySelector(`[data-pesel="${i}"]`); list[i].items.push({foodId:sel.value, qty:1});
+    syncPresetSummary(list[i]); saveAll(); renderMeal(); }; });
+  v.querySelectorAll('[data-pedel]').forEach(b=>{ b.onclick=()=>{ const i=+b.dataset.pedel;
+    if(list.length<=1){ toast('セットは1つ以上必要です'); return; }
+    list.splice(i,1); saveAll(); renderMeal(); }; });
+  const pn=document.getElementById('sPeNew');
+  if(pn)pn.onclick=()=>{ list.push({id:'p'+Date.now(), name:'新しいセット', summary:'', hour:12, items:[]}); saveAll(); renderMeal(); };
+  const pr=document.getElementById('sPeReset');
+  if(pr)pr.onclick=()=>{ mealPresets=JSON.parse(JSON.stringify(KEIRYO.DEFAULT_PRESETS)); saveAll(); renderMeal(); toast('最初のセットに戻しました'); };
+}
+
+/** ボタンの説明文を中身から作り直す */
+function syncPresetSummary(p){
+  p.summary=p.items.map(it=>{ try{ const f=KEIRYO.getFood(it.foodId,myFoods); return f.name.replace(/（.*?）/g,'')+(it.qty!==1?'×'+it.qty:''); }catch(e){ return ''; } })
+    .filter(Boolean).join('・');
+}
+
+/** 外食など手入力（仕様書 §4-3：外食は推定値でよい） */
+function openManualMeal(){
+  let el=document.getElementById('mealManual');
+  if(!el){ el=document.createElement('div'); el.id='mealManual'; el.className='authgate'; document.body.appendChild(el); }
+  el.style.display='flex';
+  el.innerHTML=`<div class="auth-card" style="max-width:420px">
+    <div class="lbl">手で入力</div>
+    <div class="hint" style="margin:8px 0 13px">外食など。だいたいの値でかまいません。カロリーだけでも記録できます。</div>
+    <div class="field"><label class="lbl">名前</label><input type="text" id="mmN" value="外食" ></div>
+    <div class="field" style="margin-top:9px"><label class="lbl">カロリー</label><input type="number" inputmode="numeric" id="mmK" placeholder="3000"><span class="unit">kcal</span></div>
+    <div class="field" style="margin-top:9px"><label class="lbl">タンパク質</label><input type="number" inputmode="decimal" id="mmP" placeholder="0"><span class="unit">g</span></div>
+    <div class="field" style="margin-top:9px"><label class="lbl">脂質</label><input type="number" inputmode="decimal" id="mmF" placeholder="0"><span class="unit">g</span></div>
+    <div class="field" style="margin-top:9px"><label class="lbl">炭水化物</label><input type="number" inputmode="decimal" id="mmC" placeholder="0"><span class="unit">g</span></div>
+    <button class="btn primary" id="mmOk" style="width:100%;margin-top:14px">記録する</button>
+    <button class="btn ghost" id="mmNg" style="width:100%;margin-top:8px">やめる</button>
+  </div>`;
+  const close=()=>{ el.style.display='none'; };
+  document.getElementById('mmNg').onclick=close;
+  document.getElementById('mmOk').onclick=()=>{
+    const k=parseFloat(document.getElementById('mmK').value);
+    if(!(k>0)){ toast('カロリーを入れてください'); return; }
+    const num=id=>{ const x=parseFloat(document.getElementById(id).value); return x>0?x:0; };
+    close();
+    pushMeal(document.getElementById('mmN').value.trim()||'外食',
+      {kcal:k, proteinG:num('mmP'), fatG:num('mmF'), carbG:num('mmC')}, []);
   };
 }
 
