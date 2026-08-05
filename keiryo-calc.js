@@ -647,9 +647,11 @@
     { id: 'water500',  name: '水',            ml: 500, caffeineMg: 0,  kcal: 0 },
     { id: 'water250',  name: '水（コップ）',   ml: 250, caffeineMg: 0,  kcal: 0 },
     { id: 'coffee',    name: 'コーヒー',       ml: 150, caffeineMg: 90, kcal: 4 },
-    // ネスプレッソ ヴァーチュオ（マグ 230ml のカプセル想定）。氷入りのアイスでも量は同じ。
-    // カプセルのサイズで量もカフェインも変わるので、設定から自分のサイズに直せる。
-    { id: 'vertuo',    name: 'ヴァーチュオ',   ml: 230, caffeineMg: 170, kcal: 2 },
+    // ネスプレッソ ヴァーチュオを氷に注いだアイスコーヒー。
+    // ★水分として数えるのは「最終的に口に入る量」。氷は溶ければ水になるので、
+    //   コーヒー＋溶けた氷でグラス1杯ぶん＝500ml として数える。
+    //   カフェインはカプセル由来なので氷では増えない（マグ相当 170mg を初期値）。
+    { id: 'vertuo',    name: 'ヴァーチュオ（氷入り）', ml: 500, caffeineMg: 170, kcal: 2 },
     { id: 'cafeaulait',name: 'カフェオレ',     ml: 200, caffeineMg: 60, kcal: 90 },
     { id: 'greentea',  name: '緑茶',          ml: 200, caffeineMg: 40, kcal: 0 },
     { id: 'mugicha',   name: '麦茶',          ml: 500, caffeineMg: 0,  kcal: 0 },

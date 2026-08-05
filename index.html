@@ -2777,7 +2777,22 @@ function mealDayTarget(plan,wplan,vd){
    筋トレした日は ATLAS のトレ時間から自動で目標が増える。 */
 function drinkPresetList(){
   if(!Array.isArray(drinkPresets)){ drinkPresets=JSON.parse(JSON.stringify(KEIRYO.DEFAULT_DRINKS)); saveAllLocal(); }
+  migrateDrinks();
   return drinkPresets;
+}
+/* 既に保存済みの人向けの1回だけの直し。
+   ヴァーチュオを初期値(230ml)のまま使っている人だけ 500ml に直す。
+   自分で数字を変えた人は上書きしない。 */
+function migrateDrinks(){
+  const n=nutriCfg(); if(n.drinkMig1) return;
+  const v=drinkPresets.find(d=>d.id==='vertuo');
+  if(!v){
+    const def=KEIRYO.DEFAULT_DRINKS.find(d=>d.id==='vertuo');
+    if(def) drinkPresets.push(JSON.parse(JSON.stringify(def)));
+  }else if(+v.ml===230){
+    v.ml=500; v.name='ヴァーチュオ（氷入り）';
+  }
+  n.drinkMig1=1; saveAllLocal();
 }
 function drinksOn(d){ return drinks.filter(x=>x.d===d).sort((a,b)=>((a.at||'')<(b.at||'')?-1:1)); }
 /** その日のトレ時間（分）。ATLAS の記録をそのまま使う */
