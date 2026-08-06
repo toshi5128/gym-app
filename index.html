@@ -1083,7 +1083,7 @@
 <script>
 /* アプリの版。deploy.sh が sw.js の atlas-vN と一緒に自動で書き換える。
    画面に出しておかないと「更新が届いているのか」を誰も判断できない。 */
-const APP_VER='atlas-v82';
+const APP_VER='atlas-v83';
 
 /* ============ アイコン ============ */
 const IC={
@@ -1482,7 +1482,10 @@ const HYP_TEMPLATES=[
 ];
 function ensureEx(name,muscle){ const e=exercises.find(x=>x.name===name); if(e)return e.id; const id=uid(); exercises.push({id,name,muscle}); return id; }
 function applyTemplate(key){ const t=HYP_TEMPLATES.find(x=>x.key===key); if(!t)return;
-  routines=t.days.map((d,i)=>({id:'r_'+key+'_'+i, name:d.name, exIds:d.ex.map(([n,m])=>ensureEx(n,m))})); saveAll(); }
+  routines=t.days.map((d,i)=>({id:'r_'+key+'_'+i, name:d.name, exIds:d.ex.map(([n,m])=>ensureEx(n,m))}));
+  saveAll();
+  ensureAbsExercises();   // どの分割を選んでも「腹」の日は残す（テンプレは腹を含まないため消えてしまう）
+}
 
 const EXLIB={
   'ベンチプレス':{m:'胸・二の腕・前肩',cue:['肩甲骨を寄せて下げ、胸を張る','足で床を押す（脚の力も使う）','バーはみぞおち〜乳首へ、軌道はやや斜め'],sub:['ダンベルプレス','腕立て伏せ']},
@@ -3613,14 +3616,21 @@ if(!settings.fixedSplit5){
      そのため「腹の種目が0件なら足す」を何度でも実行できる形にし、
      クラウドにも書き戻して定着させる。 */
 function ensureAbsExercises(){
-  if(exercises.some(e=>e.muscle==='腹')) return false;
   let changed=false;
-  DEFAULT_EX.filter(e=>e.muscle==='腹').forEach(e=>{
-    if(!exercises.some(x=>x.id===e.id)){ exercises.push(JSON.parse(JSON.stringify(e))); changed=true; }
-  });
-  if(!routines.some(r=>r.id==='r_abs')){
-    const r=DEFAULT_ROUTINES.find(x=>x.id==='r_abs');
-    if(r){ routines.push(JSON.parse(JSON.stringify(r))); changed=true; }
+  // ① 種目：1つも無い時だけ既定を入れ直す（自分で消した1種目が毎回復活するのを避ける）
+  if(!exercises.some(e=>e.muscle==='腹')){
+    DEFAULT_EX.filter(e=>e.muscle==='腹').forEach(e=>{
+      if(!exercises.some(x=>x.id===e.id)){ exercises.push(JSON.parse(JSON.stringify(e))); changed=true; }
+    });
+  }
+  /* ② 部位ボタン（分割の日）：★種目とは独立に判定する。
+        v82 は「腹の種目が既にある」と即 return していたため、
+        applyTemplate('split4') が routines を 胸/背中/肩/足/腕 に作り直した後、
+        腹の日だけ復活せず「部位を選ぶ」から消えたままだった。 */
+  if(!routines.some(r=>RT_MUS[r.name]==='腹')){
+    const ids=exercises.filter(e=>e.muscle==='腹').map(e=>e.id);   // 実在する腹の種目を紐づける
+    routines.push({id:'r_abs_'+uid(), name:'腹', exIds:ids});
+    changed=true;
   }
   if(changed) saveAll();      // クラウドにも入れる。入れないと毎回消され続ける
   return changed;
