@@ -1083,7 +1083,7 @@
 <script>
 /* アプリの版。deploy.sh が sw.js の atlas-vN と一緒に自動で書き換える。
    画面に出しておかないと「更新が届いているのか」を誰も判断できない。 */
-const APP_VER='atlas-v81';
+const APP_VER='atlas-v82';
 
 /* ============ アイコン ============ */
 const IC={
@@ -1200,6 +1200,8 @@ function applyPayload(p){
   if(p.supps&&typeof p.supps==='object') supps=p.supps;
   if(Array.isArray(p.suppPresets))  suppPresets=p.suppPresets;
   saveAllLocal();
+  // クラウドの中身で上書きしたあと、足りない既定（腹の種目など）を入れ直す
+  try{ if(ensureAbsExercises() && typeof render==='function') render(); }catch(e){}
   return true;
 }
 
@@ -2794,7 +2796,7 @@ function migratePresets(){
     });
   }
   mealPresets.forEach(p=>{ if(!p.summary) syncPresetSummary(p); });
-  n.presetMig1=1; saveAllLocal();
+  n.presetMig1=1; saveAll();
 }
 /** 体重は ATLAS の記録（bw）を使う。食事タブで二重に入力させない */
 function latestBw(){ if(!bw||!bw.length) return null; return [...bw].sort((a,b)=>a.date<b.date?1:-1)[0]; }
@@ -2828,7 +2830,7 @@ function migrateDrinks(){
   }else if(+v.ml===230){
     v.ml=500; v.name='ヴァーチュオ（氷入り）';
   }
-  n.drinkMig1=1; saveAllLocal();
+  n.drinkMig1=1; saveAll();
 }
 function drinksOn(d){ return drinks.filter(x=>x.d===d).sort((a,b)=>((a.at||'')<(b.at||'')?-1:1)); }
 /** その日のトレ時間（分）。ATLAS の記録をそのまま使う */
@@ -3602,22 +3604,28 @@ if(!settings.fixedSplit5){
 }
 
 { const _we=document.getElementById('wkbEnd'); if(_we) _we.onclick=endWorkout; }
-/* 腹の種目を1回だけ足す。
+/* 腹の種目をそろえる。
    部位ボタンに「腹」はあったのに種目が0件で、押しても何も出ない状態だった。
-   すでに自分で腹の種目を作っている人には足さない。 */
-(function migrateAbs(){
-  if(settings.absMig1) return;
-  if(!exercises.some(e=>e.muscle==='腹')){
-    DEFAULT_EX.filter(e=>e.muscle==='腹').forEach(e=>{
-      if(!exercises.some(x=>x.id===e.id)) exercises.push(JSON.parse(JSON.stringify(e)));
-    });
-    if(!routines.some(r=>r.id==='r_abs')){
-      const r=DEFAULT_ROUTINES.find(x=>x.id==='r_abs');
-      if(r) routines.push(JSON.parse(JSON.stringify(r)));
-    }
+
+   ★一度きりのフラグ方式にしていたら、起動直後に足した種目を
+     クラウド同期(applyPayload)の上書きが消してしまい、
+     フラグだけ残って二度と復活しない、という不具合になった。
+     そのため「腹の種目が0件なら足す」を何度でも実行できる形にし、
+     クラウドにも書き戻して定着させる。 */
+function ensureAbsExercises(){
+  if(exercises.some(e=>e.muscle==='腹')) return false;
+  let changed=false;
+  DEFAULT_EX.filter(e=>e.muscle==='腹').forEach(e=>{
+    if(!exercises.some(x=>x.id===e.id)){ exercises.push(JSON.parse(JSON.stringify(e))); changed=true; }
+  });
+  if(!routines.some(r=>r.id==='r_abs')){
+    const r=DEFAULT_ROUTINES.find(x=>x.id==='r_abs');
+    if(r){ routines.push(JSON.parse(JSON.stringify(r))); changed=true; }
   }
-  settings.absMig1=1; saveAllLocal();
-})();
+  if(changed) saveAll();      // クラウドにも入れる。入れないと毎回消され続ける
+  return changed;
+}
+ensureAbsExercises();
 
 render();
 rescueStaleWorkout();     // 前回「終了」を押し忘れたセッションを拾う
