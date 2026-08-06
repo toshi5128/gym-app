@@ -55,6 +55,20 @@
 3. **テスト**：`npm test`（keiryo-calc.js を触ったら必須）
 4. **デプロイ**：`bash deploy.sh "コミットメッセージ"`（sw.jsのatlas-vNを自動+1→commit→push）
    ※ `keiryo-calc.js` は `sw.js` の ASSETS に入っている。新規ファイルを足したら ASSETS にも追加すること。
+
+### Pages の配信について（2026-08-06 に方式変更）
+- **旧方式(legacy＝ブランチから自動ビルド)が「Page build failed」で全滅したため、新方式(GitHub Actions)へ移行した。**
+  設定は `build_type: workflow`、ワークフローは `.github/workflows/pages.yml`。
+- **`.github/workflows/pages.yml` を消さないこと。**消すと配信が止まる。
+- `.nojekyll` あり（Jekyll処理を飛ばす）。
+- 反映確認：`curl https://toshi5128.github.io/gym-app/sw.js` に新しい atlas-vN が出るまで（通常3〜4分）。
+- 詰まった時の調べ方（git の認証情報でAPIを叩ける）：
+  `TOK=$(printf "protocol=https
+host=github.com
+
+" | git credential fill | sed -n 's/^password=//p')`
+  → `curl -H "Authorization: Bearer $TOK" .../actions/runs?per_page=1` で実行状況、
+    `.../pages` で配信設定を確認できる。**トークンは絶対に画面に出さない。**
 4. 反映確認：`curl https://toshi5128.github.io/gym-app/sw.js` に新vが出るまで。出なければユーザーに「末尾 `?v=N`」を案内。
 
 ## ルール
