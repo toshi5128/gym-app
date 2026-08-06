@@ -1097,6 +1097,8 @@ const DEFAULT_EX=[
   {id:'squat',name:'スクワット',muscle:'脚'},{id:'legp',name:'レッグプレス',muscle:'脚'},{id:'lcurl',name:'レッグカール',muscle:'脚'},{id:'lext',name:'レッグエクステンション',muscle:'脚'},{id:'calf',name:'カーフレイズ',muscle:'脚'},
   // 腕
   {id:'curl',name:'アームカール',muscle:'腕'},{id:'tri',name:'トライセプスプッシュダウン',muscle:'腕'},{id:'hcurl',name:'ハンマーカール',muscle:'腕'},
+  // 腹（自重が中心。セットの「自重」ボタンを押すと 自重＋加重 で記録できる）
+  {id:'crunch',name:'クランチ',muscle:'腹'},{id:'legraise',name:'レッグレイズ',muscle:'腹'},{id:'hlegraise',name:'ハンギングレッグレイズ',muscle:'腹'},{id:'abroller',name:'アブローラー',muscle:'腹'},{id:'ccrunch',name:'ケーブルクランチ',muscle:'腹'},
 ];
 const DEFAULT_ROUTINES=[
   {id:'r_chest',name:'胸',exIds:['bench','incb','fly','dbp']},
@@ -1104,6 +1106,7 @@ const DEFAULT_ROUTINES=[
   {id:'r_sho',  name:'肩', exIds:['ohp','side','rear']},
   {id:'r_leg',  name:'足', exIds:['squat','legp','lcurl','lext','calf']},
   {id:'r_arm',  name:'腕', exIds:['curl','tri','hcurl']},
+  {id:'r_abs',  name:'腹', exIds:['crunch','legraise','hlegraise','abroller','ccrunch']},
 ];
 const MUSCLES=['胸','背中','脚','肩','腕','腹','その他'];
 const RT_MUS={'胸':'胸','背中':'背中','肩':'肩','足':'脚','脚':'脚','腕':'腕','腹':'腹','腹筋':'腹','お腹':'腹'};  // 分割の日名 → 部位
@@ -3558,6 +3561,23 @@ if(!settings.fixedSplit5){
 }
 
 { const _we=document.getElementById('wkbEnd'); if(_we) _we.onclick=endWorkout; }
+/* 腹の種目を1回だけ足す。
+   部位ボタンに「腹」はあったのに種目が0件で、押しても何も出ない状態だった。
+   すでに自分で腹の種目を作っている人には足さない。 */
+(function migrateAbs(){
+  if(settings.absMig1) return;
+  if(!exercises.some(e=>e.muscle==='腹')){
+    DEFAULT_EX.filter(e=>e.muscle==='腹').forEach(e=>{
+      if(!exercises.some(x=>x.id===e.id)) exercises.push(JSON.parse(JSON.stringify(e)));
+    });
+    if(!routines.some(r=>r.id==='r_abs')){
+      const r=DEFAULT_ROUTINES.find(x=>x.id==='r_abs');
+      if(r) routines.push(JSON.parse(JSON.stringify(r)));
+    }
+  }
+  settings.absMig1=1; saveAllLocal();
+})();
+
 render();
 rescueStaleWorkout();     // 前回「終了」を押し忘れたセッションを拾う
 if(!settings.onboarded) showOnboard();
