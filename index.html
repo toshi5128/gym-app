@@ -837,6 +837,18 @@
   .m-warn{margin-top:11px; padding:10px 12px; border-radius:11px; background:rgba(201,118,47,.14);
     border:1px solid rgba(201,118,47,.42); color:#8a4f16; font-size:12.5px; line-height:1.7;}
 
+  /* PFC のリングゲージ */
+  .m-rings{display:flex; gap:5px; margin-top:15px;}
+  /* align-items:center を使うと SVG の width:100% が潰れて 0px になるため、text-align で中央寄せする */
+  .m-ring{flex:1; min-width:0; text-align:center;}
+  .m-ring-l{display:block; font-size:11px; color:var(--txt-2); font-family:var(--font-jp); white-space:nowrap;}
+  .m-ring-s{width:100%; max-width:92px; aspect-ratio:1/1; height:auto; display:block; margin:2px auto 3px;}
+  .m-ring-v{font-size:19px; font-weight:700; fill:var(--txt); text-anchor:middle; font-family:var(--font-disp);}
+  .m-ring-t{font-size:9.5px; fill:var(--txt-3); text-anchor:middle; font-family:var(--font-disp);}
+  .m-ring-b{display:inline-block; font-size:10px; font-weight:700; padding:2px 9px; border-radius:99px; white-space:nowrap;
+    background:var(--surface-3); color:var(--txt-2); font-family:var(--font-jp);}
+  .m-ring-b.on{background:rgba(31,122,82,.16); color:var(--pos);}
+
   /* サプリ：飲んだかどうかだけ */
   .m-sups{display:flex; flex-direction:column; gap:7px; margin-top:12px;}
   .m-sup{display:flex; align-items:center; gap:10px; text-align:left; cursor:pointer;
@@ -2891,10 +2903,27 @@ function mealWeekPlan(plan,vd){
 function mealDayTarget(plan,wplan,vd){
   return KEIRYO.macrosForCalories(KEIRYO.dailyTargetFor(wplan,vd), plan.lbmKg, +latestBw().kg);
 }
-function mealBar(label,now,target,color){
-  const pct=target>0?Math.min(100,now/target*100):0;
-  return `<div class="m-macro"><div class="r"><span>${label}</span><span><b>${Math.round(now)}</b> / ${target} g</span></div>
-    <div class="m-bar"><span style="width:${pct}%${color?';background:'+color:''}"></span></div></div>`;
+/** PFC のリングゲージ。真ん中に今の量、下に「あと◯g」。
+    横棒だと3本並んだ時に「どれがどれだけ足りないか」が瞬時に読めないため、
+    数字を主役にしたゲージにしている。 */
+function macroRing(label,now,target){
+  const r=30, C=2*Math.PI*r, ARC=C*0.75;                 // 下を開けた270度のゲージ
+  const pct=target>0?Math.min(1,now/target):0;
+  const done=target>0&&now>=target;
+  const col=done?'var(--pos)':'var(--blue)';
+  const left=Math.max(0,Math.round(target-now));
+  return `<div class="m-ring">
+    <div class="m-ring-l">${label}</div>
+    <svg viewBox="0 0 80 80" class="m-ring-s" aria-hidden="true">
+      <circle cx="40" cy="40" r="${r}" fill="none" stroke="var(--surface-3)" stroke-width="7" stroke-linecap="round"
+        stroke-dasharray="${ARC.toFixed(1)} ${C.toFixed(1)}" transform="rotate(135 40 40)"/>
+      <circle cx="40" cy="40" r="${r}" fill="none" stroke="${col}" stroke-width="7" stroke-linecap="round"
+        stroke-dasharray="${(ARC*pct).toFixed(1)} ${C.toFixed(1)}" transform="rotate(135 40 40)"/>
+      <text x="40" y="40" class="m-ring-v">${Math.round(now)}</text>
+      <text x="40" y="53" class="m-ring-t">/ ${target}g</text>
+    </svg>
+    <div class="m-ring-b${done?' on':''}">${done?'達成':'あと '+left+'g'}</div>
+  </div>`;
 }
 /** その日の摂取合計（食事＋飲み物）。飲み物のカロリーも1日の合計に入れる */
 function mealEatenOn(vd){
@@ -2999,10 +3028,10 @@ function renderMeal(){
     <div class="lbl">${isToday?'今日':mealMD(vd)}の残り${isEatOut?'（外食日）':''}</div>
     <div class="m-rest"><span class="big">${Math.round(dayT.kcal-E.kcal).toLocaleString()}</span><span class="u">kcal ／ 目標 ${dayT.kcal.toLocaleString()}</span></div>
     <div class="m-bar"><span style="width:${dayT.kcal>0?Math.min(100,E.kcal/dayT.kcal*100):0}%"></span></div>
-    <div style="margin-top:15px">
-      ${mealBar('タンパク質',E.proteinG,plan.proteinG,E.proteinG>=plan.proteinG?'var(--pos)':null)}
-      ${mealBar('脂質',E.fatG,dayT.fatG)}
-      ${mealBar('炭水化物',E.carbG,dayT.carbG)}
+    <div class="m-rings">
+      ${macroRing('タンパク質',E.proteinG,plan.proteinG)}
+      ${macroRing('脂質',E.fatG,dayT.fatG)}
+      ${macroRing('炭水化物',E.carbG,dayT.carbG)}
     </div>
   </div>`:'';
 
