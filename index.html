@@ -93,6 +93,7 @@
     border:none; display:flex; align-items:center; justify-content:center; color:#fff; box-shadow:0 6px 16px -5px rgba(168,132,47,.55), inset 0 1px 0 rgba(255,255,255,.25);}
   .brand .t{font-size:19px; font-weight:700; letter-spacing:.26em;}
   .brand .sub{font-size:10px; color:var(--txt-3); letter-spacing:.28em; margin-top:1px; font-weight:700;}
+  .brand .sub #hdrVer{letter-spacing:.06em; color:var(--blue); font-family:var(--font-disp);}
   .brand .date{margin-left:auto; text-align:right;}
   .brand .date .d{font-size:14px; font-weight:700; font-family:var(--font-disp);}
   .brand .date .w{font-size:11px; color:var(--txt-3); letter-spacing:.12em;}
@@ -1014,7 +1015,7 @@
 <header>
   <div class="brand">
     <div class="mark"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6.5 6v12M3.5 8.5v7M17.5 6v12M20.5 8.5v7M6.5 12h11"/></svg></div>
-    <div><div class="t">ATLAS</div><div class="sub">STRENGTH LOG</div></div>
+    <div><div class="t">ATLAS</div><div class="sub">STRENGTH LOG <span id="hdrVer"></span></div></div>
     <div class="date"><div class="d" id="hdrDate"></div><div class="w" id="hdrWeek"></div></div>
   </div>
   <div class="wkbar" id="wkbar">
@@ -1080,6 +1081,10 @@
 <script src="keiryo-calc.js"></script>
 
 <script>
+/* アプリの版。deploy.sh が sw.js の atlas-vN と一緒に自動で書き換える。
+   画面に出しておかないと「更新が届いているのか」を誰も判断できない。 */
+const APP_VER='atlas-v81';
+
 /* ============ アイコン ============ */
 const IC={
   today:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M13 2L4.5 13.5H11l-1 8.5 9-12H12l1-8z" stroke-linejoin="round" stroke-linecap="round"/></svg>',
@@ -2502,6 +2507,12 @@ function renderMore(){
     ${acc('split','分割メニュー（テンプレ・種目の割り当て）',splitPanelHtml())}
 
     ${mealSettingsHtml(acc)}
+    ${acc('update','アプリの更新',`
+      <div style="font-size:13px;color:var(--txt-2);line-height:1.8">いま動いている版：<b id="verNow">${APP_VER}</b></div>
+      <div class="hint" style="margin:9px 0 13px">新しい版が出ているのに画面が変わらない時は、下のボタンを押してください。
+        端末に残った古い中身を消して、最新を取り直します。<b>記録したデータは消えません。</b></div>
+      <button class="btn primary" id="updBtn">最新か確認して更新する</button>
+    `)}
     ${acc('data','データ（バックアップ）',`
       <div style="font-size:13px;color:var(--txt-2);line-height:1.7;margin-bottom:13px">全記録（写真も含む）はこの端末内に保存されます。機種変や万一の消失に備え、ときどき書き出しておくと安心です。<br><span style="color:var(--txt-3);font-size:12px">※写真が多いとファイルが大きくなります。</span></div>
       <div class="bk-status">最終バックアップ：<b>${settings.lastBackupAt?fmtDate(settings.lastBackupAt.slice(0,10))+`（${Math.floor(daysSince(settings.lastBackupAt))}日前）`:'まだありません'}</b></div>
@@ -2518,6 +2529,7 @@ function renderMore(){
 
   v.querySelectorAll('[data-acc]').forEach(h=>h.onclick=()=>{ const k=h.dataset.acc, box=h.closest('.acc'); const open=box.classList.toggle('open'); if(open)accOpen.add(k); else accOpen.delete(k); });
   bindMealSettings(v, ()=>renderMore());
+  const _ub=document.getElementById('updBtn'); if(_ub) _ub.onclick=forceAppUpdate;
   { const logoutBtn=document.getElementById('logoutBtn'); if(logoutBtn) logoutBtn.onclick=()=>{ if(confirm('ログアウトしますか？\nこの端末の記録はクラウドに保存済みなので、次に同じIDでログインすれば戻ります。')) logoutCloud(); };
     const adminBtn=document.getElementById('adminBtn'); if(adminBtn) adminBtn.onclick=()=>openAdmin(); }
   document.getElementById('redoOb').onclick=()=>showOnboard();
@@ -3622,6 +3634,26 @@ photoAllDB().then(a=>{ photoCache=a; if(tab==='log'||tab==='history'||tab==='pho
 bootSync();
 
 /* ============ PWA: サービスワーカー登録（https/Pages公開時に有効） ============ */
+{ const _hv=document.getElementById('hdrVer'); if(_hv) _hv.textContent=APP_VER.replace('atlas-',''); }
+
+/* 端末に古い版が居座った時の脱出口。
+   サービスワーカーとキャッシュを全部消してから読み直す。
+   記録データ（localStorage / クラウド）には一切触らない。 */
+async function forceAppUpdate(){
+  toast('最新を取りに行きます…');
+  try{
+    if('serviceWorker' in navigator){
+      const rs=await navigator.serviceWorker.getRegistrations();
+      for(const r of rs){ try{ await r.unregister(); }catch(e){} }
+    }
+    if(window.caches){
+      const ks=await caches.keys();
+      for(const k of ks){ try{ await caches.delete(k); }catch(e){} }
+    }
+  }catch(e){}
+  location.replace(location.pathname+'?u='+Date.now());
+}
+
 if('serviceWorker' in navigator){
   // 新しいバージョンが有効になったら自動で1回だけリロード（更新が確実に届く）
   let _swReloaded=false;

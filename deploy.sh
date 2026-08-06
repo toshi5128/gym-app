@@ -20,6 +20,8 @@ node --check "$TEMP/_atlaschk.js"
 cur=$(grep -o "atlas-v[0-9]*" sw.js | head -1 | grep -o "[0-9]*")
 next=$((cur+1))
 sed -i "s/atlas-v${cur}/atlas-v${next}/" sw.js
+# 画面に出す版も一緒に上げる（ズレると「今どの版か」が分からなくなる）
+sed -i "s/atlas-v${cur}/atlas-v${next}/" index.html
 
 git add -A
 git commit -q -m "${msg} (v${next})
