@@ -1,0 +1,43 @@
+# GitHub Pages への配信。
+#
+# 2026-08-06、旧方式（legacy / ブランチから自動ビルド）が
+# 「Page build failed」で全滅したため、新方式（GitHub Actions）へ切り替えた。
+# main に push すると、このワークフローがリポジトリの中身をそのまま公開する。
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 走行中のデプロイは止めない（途中で切ると公開物が壊れるため）
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: チェックアウト
+        uses: actions/checkout@v4
+
+      - name: Pages の設定
+        uses: actions/configure-pages@v5
+
+      - name: 公開物をアップロード（リポジトリ直下をそのまま）
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: 配信
+        id: deployment
+        uses: actions/deploy-pages@v4
