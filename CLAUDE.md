@@ -69,6 +69,10 @@ host=github.com
 " | git credential fill | sed -n 's/^password=//p')`
   → `curl -H "Authorization: Bearer $TOK" .../actions/runs?per_page=1` で実行状況、
     `.../pages` で配信設定を確認できる。**トークンは絶対に画面に出さない。**
+- **run が `waiting` のまま固まったら、それを cancel しないと後続が永久に `pending`。**（2026-08-06〜07 の GitHub 障害時に実際に発生。
+  障害中に投げた run が environment `github-pages` を掴んだまま6時間半ゾンビ化し、concurrency group `pages` が塞がって v81〜83 が配信されなかった。）
+  → `POST .../actions/runs/<id>/cancel` で古い run を落としてから `POST .../actions/workflows/pages.yml/dispatches` を投げ直す。
+  status が `waiting`/`pending` の時は**認証やワークフロー設定を疑う前に、まず GitHub 側の障害**を `https://www.githubstatus.com/api/v2/summary.json` で確認する。
 4. 反映確認：`curl https://toshi5128.github.io/gym-app/sw.js` に新vが出るまで。出なければユーザーに「末尾 `?v=N`」を案内。
 
 ## ルール
