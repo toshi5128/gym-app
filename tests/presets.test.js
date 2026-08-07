@@ -47,67 +47,121 @@ describe('§4-3 定型セット', () => {
     expect(K.DEFAULT_PRESETS.map((p) => p.id)).toEqual(['meal-1', 'protein', 'meal-2', 'meal-3'])
   })
 
+  // 「1日のメニュー表（2026-08-07）」の小計と一致すること。
+  // メニュー表: 1食目683 / 間食120 / 2食目566 / 3食目786
   it.each([
-    ['meal-1', 695],
+    ['meal-1', 683],
     ['protein', 120],
-    ['meal-2', 687],
-    ['meal-3', 639.5],
-  ])('%s のカロリー', (id, kcal) => {
+    ['meal-2', 566.05],
+    ['meal-3', 785.5],
+  ])('%s のカロリーがメニュー表の小計と合う', (id, kcal) => {
     const p = K.DEFAULT_PRESETS.find((x) => x.id === id)
     expect(K.nutritionOfPreset(p).kcal).toBeCloseTo(kcal, 1)
   })
 
-  it('3食目は深夜（0時台）を想定している', () => {
-    expect(K.DEFAULT_PRESETS.find((p) => p.id === 'meal-3').hour).toBe(0)
+  it('各食のタンパク質がメニュー表と合う（P は日次で守る数字なのでズレを許さない）', () => {
+    const p = (id) => K.nutritionOfPreset(K.DEFAULT_PRESETS.find((x) => x.id === id)).proteinG
+    expect(p('meal-1')).toBeCloseTo(45.9, 1)   // 表: 45
+    expect(p('protein')).toBeCloseTo(21, 1)    // 表: 21
+    expect(p('meal-2')).toBeCloseTo(46.0, 1)   // 表: 46
+    expect(p('meal-3')).toBeCloseTo(62.45, 1)  // 表: 62
   })
 
-  it('★2食目（仕事終わり）が1日のメイン＝3食目より多い', () => {
+  it('時刻はメニュー表どおり（1食目9時台・間食15時・2食目19時・3食目は深夜0時台）', () => {
+    const h = (id) => K.DEFAULT_PRESETS.find((p) => p.id === id).hour
+    expect(h('meal-1')).toBe(9)
+    expect(h('protein')).toBe(15)
+    expect(h('meal-2')).toBe(19)
+    expect(h('meal-3')).toBe(0)
+  })
+
+  it('★1日のメインは3食目（トレ後）＝2食目より多い', () => {
     const k = (id) => K.nutritionOfPreset(K.DEFAULT_PRESETS.find((p) => p.id === id)).kcal
-    expect(k('meal-2')).toBeGreaterThan(k('meal-3'))
+    expect(k('meal-3')).toBeGreaterThan(k('meal-2'))
   })
 
-  it('2食目の鮭は「焼き」・豆腐は入れない（本人が食べないため）', () => {
-    const ids = K.DEFAULT_PRESETS.find((p) => p.id === 'meal-2').items.map((i) => i.foodId)
-    expect(ids).toContain('salmon-grilled')
-    expect(ids).not.toContain('salmon')
-    expect(ids).not.toContain('tofu-momen')
+  it('1食目は卵かけご飯（卵3個＋ご飯200g）＋キムチ＋プロテイン', () => {
+    const items = K.DEFAULT_PRESETS.find((p) => p.id === 'meal-1').items
+    const q = (id) => (items.find((i) => i.foodId === id) || {}).qty
+    expect(q('egg-m')).toBe(3)
+    expect(q('rice')).toBe(2)      // 白米100g単位 ×2 ＝ 200g
+    expect(q('kimchi')).toBe(1)    // 50g
+    expect(q('whey')).toBe(1)
+    expect(items.length).toBe(4)   // 納豆は1食目から3食目へ移した
   })
 
-  it('豆腐の代わりにギリシャヨーグルトを入れ、タンパク質を落としていない', () => {
-    const tofu = K.FOODS.find((f) => f.id === 'tofu-momen')
-    const yog = K.FOODS.find((f) => f.id === 'greek-yogurt')
-    expect(K.DEFAULT_PRESETS.find((p) => p.id === 'meal-2').items.map((i) => i.foodId)).toContain('greek-yogurt')
-    expect(Math.abs(yog.p - tofu.p)).toBeLessThan(1)   // P はほぼ同じ
-    expect(yog.f).toBeLessThan(tofu.f)                 // 脂質は大幅に少ない
+  it('2食目は 鶏もも185g・白米200g・ブロッコリー150g の3点のみ', () => {
+    const items = K.DEFAULT_PRESETS.find((p) => p.id === 'meal-2').items
+    const q = (id) => (items.find((i) => i.foodId === id) || {}).qty
+    expect(q('chicken-thigh-skinless')).toBe(1.85)
+    expect(q('rice')).toBe(2)
+    expect(q('broccoli')).toBe(1.5)
+    expect(items.length).toBe(3)
   })
 
-  it('3食目の野菜は「ブロッコリー」と具体名で入っている', () => {
-    expect(K.DEFAULT_PRESETS.find((p) => p.id === 'meal-3').items.map((i) => i.foodId)).toContain('broccoli')
+  it('3食目は 鶏もも250g・納豆1パック・白米250g・キムチ50g', () => {
+    const items = K.DEFAULT_PRESETS.find((p) => p.id === 'meal-3').items
+    const q = (id) => (items.find((i) => i.foodId === id) || {}).qty
+    expect(q('chicken-thigh-skinless')).toBe(2.5)
+    expect(q('natto')).toBe(1)
+    expect(q('rice')).toBe(2.5)
+    expect(q('kimchi')).toBe(1)
+    expect(items.length).toBe(4)
+  })
+
+  // 味噌汁・豆腐なし版。鮭とヨーグルトもこの版では使わない（食品としては残っている）。
+  it('定型セットに 味噌汁・豆腐・鮭・ヨーグルト は入っていない', () => {
+    const all = K.DEFAULT_PRESETS.flatMap((p) => p.items.map((i) => i.foodId))
+    for (const id of ['misoshiru', 'tofu-momen', 'salmon', 'salmon-grilled', 'greek-yogurt']) {
+      expect(all, id).not.toContain(id)
+    }
+  })
+
+  it('外した食品は「食品」としては残してある（単品で記録できる）', () => {
+    for (const id of ['misoshiru', 'tofu-momen', 'salmon-grilled', 'greek-yogurt']) {
+      expect(K.FOODS.some((f) => f.id === id), id).toBe(true)
+    }
+  })
+
+  it('1日の食材量がメニュー表と合う（鶏435g・白米650g・卵3個・プロテイン2杯）', () => {
+    const qty = (foodId) =>
+      K.DEFAULT_PRESETS.reduce(
+        (s, p) => s + p.items.filter((i) => i.foodId === foodId).reduce((a, i) => a + i.qty, 0), 0)
+    expect(qty('chicken-thigh-skinless') * 100).toBeCloseTo(435, 0)  // 185 + 250
+    expect(qty('rice') * 100).toBeCloseTo(650, 0)                    // 200 + 200 + 250
+    expect(qty('egg-m')).toBe(3)
+    expect(qty('whey')).toBe(2)
+    expect(qty('natto')).toBe(1)
+    expect(qty('kimchi') * 50).toBeCloseTo(100, 0)                   // 50 + 50
+    expect(qty('broccoli') * 100).toBeCloseTo(150, 0)
   })
 })
 
-describe('★指摘③: 定型セット4つの合計と目標のズレ', () => {
+describe('定型セット4つの合計と目標のズレ（メニュー表 2026-08-07）', () => {
   const total = K.nutritionOfAllPresets()
   const plan = K.buildPlan({ body: { weightKg: 83.3, bodyFatPct: 15.7 } })
 
-  it('合計 2,142 kcal — 目標 2,200 より少し少ない', () => {
-    expect(total.kcal).toBeCloseTo(2141.5, 0)
-    expect(plan.kcal - total.kcal).toBeLessThan(100)
+  it('合計 2,155 kcal — メニュー表の DAILY TOTAL と一致', () => {
+    expect(total.kcal).toBeCloseTo(2154.55, 0)
   })
 
-  it('脂質 53g — 目標 60g を下回る（豆腐を抜いたぶん軽くなった）', () => {
-    expect(total.fatG).toBeCloseTo(53.4, 1)
+  it('タンパク質 175g — 日次ノルマ 170g を満たす', () => {
+    expect(total.proteinG).toBeCloseTo(175.35, 1)
+    expect(total.proteinG).toBeGreaterThan(170)
+  })
+
+  it('炭水化物 267g — メニュー表の各食の C の合計と一致', () => {
+    expect(total.carbG).toBeCloseTo(267.4, 1)
+  })
+
+  /* ★脂質は 48g で、ホルモン維持の下限 58g（体重×0.7）を約10g 下回る。
+     味噌汁・豆腐・鮭・ヨーグルトを外したぶん脂質源が卵と鶏だけになったため。
+     メニュー表自身も「ブロッコリーをオリーブオイル小さじ1で和える（+4.5g）」を勧めている。
+     ここは「気づかないまま下限割れが続く」のを防ぐための見張りなので、
+     脂質源を足したら期待値ごと更新すること。 */
+  it('脂質 48g — 下限 58g を下回っている（脂質源を足すまでの既知の状態）', () => {
+    expect(total.fatG).toBeCloseTo(47.8, 1)
     expect(total.fatG).toBeLessThan(plan.fatG)
-  })
-
-  it('タンパク質 208g — 目標 170g を約38g 上回る', () => {
-    expect(total.proteinG).toBeCloseTo(208.45, 1)
-    expect(total.proteinG - plan.proteinG).toBeGreaterThan(35)
-  })
-
-  it('炭水化物 216g — 目標 245g を約29g 下回る', () => {
-    expect(total.carbG).toBeCloseTo(215.85, 1)
-    expect(plan.carbG - total.carbG).toBeGreaterThan(20)
   })
 })
 

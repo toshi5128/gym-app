@@ -1083,7 +1083,7 @@
 <script>
 /* アプリの版。deploy.sh が sw.js の atlas-vN と一緒に自動で書き換える。
    画面に出しておかないと「更新が届いているのか」を誰も判断できない。 */
-const APP_VER='atlas-v83';
+const APP_VER='atlas-v84';
 
 /* ============ アイコン ============ */
 const IC={
@@ -2778,6 +2778,7 @@ function mealLogDate(dt){ return KEIRYO.toLogDate(dt||new Date(), mealBoundary()
 function mealPresetList(){
   if(!Array.isArray(mealPresets)){ mealPresets=JSON.parse(JSON.stringify(KEIRYO.DEFAULT_PRESETS)); saveAllLocal(); }
   migratePresets();
+  migratePresets2();
   return mealPresets;
 }
 /* 既に保存済みの人向けの1回だけの直し（2食目をメインに・鮭は焼き・豆腐→ヨーグルト）。
@@ -2800,6 +2801,22 @@ function migratePresets(){
   }
   mealPresets.forEach(p=>{ if(!p.summary) syncPresetSummary(p); });
   n.presetMig1=1; saveAll();
+}
+/* 「1日のメニュー表（2026-08-07・味噌汁/豆腐なし版）」へ4セットを合わせる。
+   ★mig1 と違い「触っていない人だけ」の条件を付けない。
+     条件付きにすると、端末で少しでも編集していた場合に静かに何も起きず、
+     「直したはずなのに変わらない」になる（腹の種目で実際に起きた）。
+     本人がメニュー表を正として指定したので、この4つは無条件で上書きする。
+   本人が自分で作った他のセットには触らない。 */
+function migratePresets2(){
+  const n=nutriCfg(); if(n.presetMig2) return;
+  ['meal-1','protein','meal-2','meal-3'].forEach(id=>{
+    const cur=mealPresets.find(x=>x.id===id), def=KEIRYO.DEFAULT_PRESETS.find(x=>x.id===id);
+    if(!def) return;
+    if(cur){ cur.items=JSON.parse(JSON.stringify(def.items)); cur.hour=def.hour; syncPresetSummary(cur); }
+    else   { const add=JSON.parse(JSON.stringify(def)); mealPresets.push(add); syncPresetSummary(add); }
+  });
+  n.presetMig2=1; saveAll();
 }
 /** 体重は ATLAS の記録（bw）を使う。食事タブで二重に入力させない */
 function latestBw(){ if(!bw||!bw.length) return null; return [...bw].sort((a,b)=>a.date<b.date?1:-1)[0]; }
