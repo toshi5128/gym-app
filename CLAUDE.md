@@ -44,6 +44,9 @@
   **医学的助言ではなく目安**である旨を画面に明記している。消さないこと。
 - **タブの役割は1つずつ**：食事＝記録だけ／分析>からだ＝変化のグラフと体重入力（**入力口はここ1箇所**）／設定＝食事の設定。入力欄を2箇所に作らないこと。
 - **サプリ**：`supps`（{日付:[id]}）/ `suppPresets`。カロリーは数えない（飲んだかどうかだけ）。
+  項目は `{id,name,dose,timing,note}`＝何粒・いつ飲む・効果。設定＞サプリメントで全部編集できる。
+  **サプリの中身を変える時は id を変えない**（id を変えると過去の「飲んだ」記録が別物になって消える）。
+  2026-08-09：フィッシュオイル→**オメガ3（EPA・DHA）**に差し替え（id は `fishoil` のまま）。移行＝`migrateSupps1()`。
 - 記録の時刻は一覧から直せる（`setRecordTime`）。日付(`d`)は動かさず時刻だけ付け替える。
 - データ：`meals` / `mealPresets` / `myFoods` / `drinks` / `drinkPresets` / `supps` / `suppPresets`（`collectPayload`・`applyPayload`・`saveAllLocal` に登録済み）。
   設定は `settings.nutri`（bfPct/activity/deficit/targetBf/boundaryHour/eatOutDow/eatOutKcal/cond/overrideKcal）。
