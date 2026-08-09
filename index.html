@@ -1083,7 +1083,7 @@
 <script>
 /* アプリの版。deploy.sh が sw.js の atlas-vN と一緒に自動で書き換える。
    画面に出しておかないと「更新が届いているのか」を誰も判断できない。 */
-const APP_VER='atlas-v84';
+const APP_VER='atlas-v85';
 
 /* ============ アイコン ============ */
 const IC={
@@ -2779,6 +2779,7 @@ function mealPresetList(){
   if(!Array.isArray(mealPresets)){ mealPresets=JSON.parse(JSON.stringify(KEIRYO.DEFAULT_PRESETS)); saveAllLocal(); }
   migratePresets();
   migratePresets2();
+  migratePresets3();
   return mealPresets;
 }
 /* 既に保存済みの人向けの1回だけの直し（2食目をメインに・鮭は焼き・豆腐→ヨーグルト）。
@@ -2817,6 +2818,28 @@ function migratePresets2(){
     else   { const add=JSON.parse(JSON.stringify(def)); mealPresets.push(add); syncPresetSummary(add); }
   });
   n.presetMig2=1; saveAll();
+}
+/* 卵3個を1食目にまとめず、1食目・2食目・3食目へ1個ずつ分散する（2026-08-09 本人の希望）。
+   ★mig2 と同じく「触っていない人だけ」の条件は付けない（付けると編集済みの端末で静かに何も起きない）。
+     ただし丸ごと上書きはせず、卵の数だけを直す。
+     mig2 以降に本人が足した食材（脂質源など）を巻き添えで消さないため。
+   1日の合計は変わらない（卵は合計3個のまま）。動くのは各食のPFCだけ。 */
+function migratePresets3(){
+  const n=nutriCfg(); if(n.presetMig3) return;
+  ['meal-1','meal-2','meal-3'].forEach(id=>{
+    const cur=mealPresets.find(x=>x.id===id); if(!cur||!Array.isArray(cur.items)) return;
+    const eggs=cur.items.filter(i=>i.foodId==='egg-m');
+    if(eggs.length){
+      eggs[0].qty=1;                                          // 1個に揃える
+      cur.items=cur.items.filter(i=>i.foodId!=='egg-m'||i===eggs[0]);  // 重複行は畳む
+    }else{
+      // 卵が無い食（2食目・3食目）は主菜の直後に1個入れる。無ければ末尾。
+      const at=cur.items.findIndex(i=>i.foodId==='chicken-thigh-skinless');
+      cur.items.splice(at<0?cur.items.length:at+1, 0, {foodId:'egg-m',qty:1});
+    }
+    syncPresetSummary(cur);
+  });
+  n.presetMig3=1; saveAll();
 }
 /** 体重は ATLAS の記録（bw）を使う。食事タブで二重に入力させない */
 function latestBw(){ if(!bw||!bw.length) return null; return [...bw].sort((a,b)=>a.date<b.date?1:-1)[0]; }
