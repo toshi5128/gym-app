@@ -862,6 +862,8 @@
   .m-sup-t{display:flex; flex-direction:column; line-height:1.4; min-width:0;}
   .m-sup-t b{font-size:13px; color:var(--txt); font-family:var(--font-jp);}
   .m-sup-t small{font-size:10px; color:var(--txt-3);}
+  /* 何粒・いつ飲むか。効果（note）より目立たせる＝手に取った時に見たいのはこの1行 */
+  .m-sup-d{font-size:10.5px; font-weight:700; color:var(--blue); font-family:var(--font-jp); letter-spacing:.01em;}
   .m-sup.on .m-sup-t b{color:var(--pos);}
   /* 記録の時刻（押すと直せる） */
   .m-t{min-width:52px; width:52px; flex-shrink:0; padding:3px 4px; font-size:11.5px; text-align:center;
@@ -1083,7 +1085,7 @@
 <script>
 /* アプリの版。deploy.sh が sw.js の atlas-vN と一緒に自動で書き換える。
    画面に出しておかないと「更新が届いているのか」を誰も判断できない。 */
-const APP_VER='atlas-v86';
+const APP_VER='atlas-v87';
 
 /* ============ アイコン ============ */
 const IC={
@@ -2905,7 +2907,22 @@ function waterTargetFor(d){
    カロリーはほぼ無いので「今日飲んだかどうか」だけを記録する。押すたびに 飲んだ↔まだ が切り替わる。 */
 function suppPresetList(){
   if(!Array.isArray(suppPresets)){ suppPresets=JSON.parse(JSON.stringify(KEIRYO.DEFAULT_SUPPS)); saveAllLocal(); }
+  migrateSupps1();
   return suppPresets;
+}
+/* 「フィッシュオイル」を オメガ3（EPA・DHA）＝粒数・タイミング・効果つき に差し替える（2026-08-09 本人の希望）。
+   ★中身は同じものなので id は 'fishoil' のまま使う。id を変えると
+     これまで「飲んだ」と付けた記録（supps）が別物あつかいになって消える。
+   ★プリセット移行と同じ考え方で「触っていない人だけ」の条件は付けない。行1つだけを直す。 */
+function migrateSupps1(){
+  const n=nutriCfg(); if(n.suppMig1) return;
+  const def=KEIRYO.DEFAULT_SUPPS.find(s=>s.id==='fishoil');
+  const cur=suppPresets.find(s=>s.id==='fishoil');
+  if(def){
+    if(cur){ cur.name=def.name; cur.dose=def.dose; cur.timing=def.timing; cur.note=def.note; }
+    else   { suppPresets.push(JSON.parse(JSON.stringify(def))); }   // 消していた人には足し直す
+  }
+  n.suppMig1=1; saveAll();
 }
 function suppsOn(d){ return Array.isArray(supps[d])?supps[d]:[]; }
 function toggleSupp(d,sid){
@@ -3163,9 +3180,10 @@ function renderMeal(){
       <span class="m-wk-n">${taken.length}<small> / ${slist.length}</small></span></div>
     <div class="m-sups">${slist.map(sp=>{
       const on=taken.indexOf(sp.id)>=0;
+      const dt=[sp.dose,sp.timing].filter(Boolean).join(' ・ ');   // 「2粒 ・ 1食目か2食目の食後」
       return `<button class="m-sup${on?' on':''}" data-sup="${_me(sp.id)}">
         <span class="m-sup-c">${on?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5 5 11-11"/></svg>':''}</span>
-        <span class="m-sup-t"><b>${_me(sp.name)}</b><small>${_me(sp.note||'')}</small></span></button>`;
+        <span class="m-sup-t"><b>${_me(sp.name)}</b>${dt?`<span class="m-sup-d">${_me(dt)}</span>`:''}<small>${_me(sp.note||'')}</small></span></button>`;
     }).join('')||'<div class="hint" style="border:none;padding:2px 0">サプリが登録されていません。設定から追加できます。</div>'}</div>
     <div class="hint" style="margin-top:9px">押すと「飲んだ」になります。カロリーは数えません（サプリはほぼ0kcalのため）。</div>
   </div>`;
@@ -3397,11 +3415,14 @@ function mealSettingsHtml(acc){
 
   const slist=suppPresetList();
   const suppSet=`<div class="hint" style="margin-bottom:11px">飲んでいるサプリを登録すると、食事タブでワンタップの「飲んだ」チェックが出ます。
-    カロリーは数えません。<b>これは医学的な指示ではありません。</b>持病がある方や薬を飲んでいる方は、医師や薬剤師に相談してください。</div>
+    カロリーは数えません。<b>粒数は商品ごとに濃度が違います</b>ので、お手持ちのパッケージの表示に合わせて直してください。
+    <b>これは医学的な指示ではありません。</b>持病がある方や薬を飲んでいる方は、医師や薬剤師に相談してください。</div>
     <div>${slist.map((sp,i)=>`<div class="m-de" style="flex-wrap:wrap">
       <input type="text" class="m-de-n" data-sn="${i}" value="${_me(sp.name)}" placeholder="名前">
       <button class="m-link" data-sdel="${i}">×</button>
-      <input type="text" class="m-de-n" data-snote="${i}" value="${_me(sp.note||'')}" placeholder="メモ（任意）" style="flex:1 1 100%">
+      <input type="text" class="m-de-n" data-sdose="${i}" value="${_me(sp.dose||'')}" placeholder="何粒（例：2粒）" style="flex:1 1 40%">
+      <input type="text" class="m-de-n" data-stime="${i}" value="${_me(sp.timing||'')}" placeholder="いつ飲む（例：1食目の食後）" style="flex:1 1 40%">
+      <input type="text" class="m-de-n" data-snote="${i}" value="${_me(sp.note||'')}" placeholder="効果・メモ（任意）" style="flex:1 1 100%">
     </div>`).join('')}</div>
     <button class="btn" id="sSupNew" style="width:100%;margin-top:11px">サプリを追加する</button>
     <button class="btn ghost" id="sSupReset" style="width:100%;margin-top:8px">最初のサプリに戻す</button>
@@ -3507,14 +3528,15 @@ function bindMealSettings(v, rerender){
   if(ss)ss.onclick=()=>{
     const sl=suppPresetList();
     sl.forEach((sp,i)=>{ const nm=v.querySelector('[data-sn="'+i+'"]'); if(!nm)return;
+      const val=k=>{ const el=v.querySelector('[data-'+k+'="'+i+'"]'); return el?el.value.trim():''; };
       sp.name=nm.value.trim()||'サプリ';
-      sp.note=v.querySelector('[data-snote="'+i+'"]').value.trim(); });
+      sp.dose=val('sdose'); sp.timing=val('stime'); sp.note=val('snote'); });
     saveAll(); rerender(); toast('保存しました');
   };
   v.querySelectorAll('[data-sdel]').forEach(b=>{ b.onclick=()=>{ const sl=suppPresetList();
     sl.splice(+b.dataset.sdel,1); saveAll(); rerender(); }; });
   const sn=v.querySelector('#sSupNew');
-  if(sn)sn.onclick=()=>{ suppPresetList().push({id:'s'+Date.now(), name:'新しいサプリ', note:''}); saveAll(); rerender(); };
+  if(sn)sn.onclick=()=>{ suppPresetList().push({id:'s'+Date.now(), name:'新しいサプリ', dose:'', timing:'', note:''}); saveAll(); rerender(); };
   const sr=v.querySelector('#sSupReset');
   if(sr)sr.onclick=()=>{ suppPresets=JSON.parse(JSON.stringify(KEIRYO.DEFAULT_SUPPS)); saveAll(); rerender(); toast('最初のサプリに戻しました'); };
 }

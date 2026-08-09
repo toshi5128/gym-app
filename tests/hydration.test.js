@@ -156,6 +156,22 @@ describe('サプリメント', () => {
   it('カロリーは持たない（サプリはほぼ0kcalなので数えない方針）', () => {
     for (const s of K.DEFAULT_SUPPS) expect(s.kcal, s.name).toBeUndefined()
   })
+
+  /* オメガ3＝フィッシュオイル。中身が同じなので id は 'fishoil' のまま使う
+     （id を変えると「飲んだ」記録が別物あつかいになって消える）。 */
+  it('オメガ3が入っていて、粒数・タイミング・効果が書いてある', () => {
+    const o = K.DEFAULT_SUPPS.find((s) => s.id === 'fishoil')
+    expect(o).toBeTruthy()
+    expect(o.name).toContain('オメガ3')
+    expect(o.dose).toMatch(/粒/)      // 何粒か
+    expect(o.timing).toMatch(/食後/)  // いつ飲むか
+    expect(o.note.length).toBeGreaterThan(10)  // 何のために飲むか
+  })
+
+  it('オメガ3とフィッシュオイルが二重に登録されていない', () => {
+    const omega = K.DEFAULT_SUPPS.filter((s) => /オメガ3|フィッシュオイル/.test(s.name))
+    expect(omega.length).toBe(1)
+  })
 })
 
 describe('初期の飲み物', () => {
