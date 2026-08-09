@@ -47,14 +47,15 @@ describe('§4-3 定型セット', () => {
     expect(K.DEFAULT_PRESETS.map((p) => p.id)).toEqual(['meal-1', 'protein', 'meal-2', 'meal-3'])
   })
 
-  // 「1日のメニュー表（2026-08-07）」の小計 ±卵の移動分（2026-08-09）。
+  // 「1日のメニュー表（2026-08-07）」の小計 ±食材の移動分（2026-08-09）。
   // メニュー表: 1食目683 / 間食120 / 2食目566 / 3食目786
-  // 卵M 1個 = 76kcal を 1食目から2食目・3食目へ1個ずつ移した。
+  // ・卵M 1個 = 76kcal を 1食目から2食目・3食目へ1個ずつ移した
+  // ・納豆 1パック = 90kcal を 3食目から1食目へ移した
   it.each([
-    ['meal-1', 683 - 76 * 2],
+    ['meal-1', 683 - 76 * 2 + 90],
     ['protein', 120],
     ['meal-2', 566.05 + 76],
-    ['meal-3', 785.5 + 76],
+    ['meal-3', 785.5 + 76 - 90],
   ])('%s のカロリーがメニュー表の小計と合う', (id, kcal) => {
     const p = K.DEFAULT_PRESETS.find((x) => x.id === id)
     expect(K.nutritionOfPreset(p).kcal).toBeCloseTo(kcal, 1)
@@ -62,10 +63,10 @@ describe('§4-3 定型セット', () => {
 
   it('各食のタンパク質がメニュー表と合う（P は日次で守る数字なのでズレを許さない）', () => {
     const p = (id) => K.nutritionOfPreset(K.DEFAULT_PRESETS.find((x) => x.id === id)).proteinG
-    expect(p('meal-1')).toBeCloseTo(45.9 - 6.2 * 2, 1)  // 表: 45 − 卵2個分
-    expect(p('protein')).toBeCloseTo(21, 1)             // 表: 21
-    expect(p('meal-2')).toBeCloseTo(46.0 + 6.2, 1)      // 表: 46 ＋ 卵1個分
-    expect(p('meal-3')).toBeCloseTo(62.45 + 6.2, 1)     // 表: 62 ＋ 卵1個分
+    expect(p('meal-1')).toBeCloseTo(45.9 - 6.2 * 2 + 7.4, 1)  // 表: 45 − 卵2個 ＋ 納豆
+    expect(p('protein')).toBeCloseTo(21, 1)                   // 表: 21
+    expect(p('meal-2')).toBeCloseTo(46.0 + 6.2, 1)            // 表: 46 ＋ 卵1個
+    expect(p('meal-3')).toBeCloseTo(62.45 + 6.2 - 7.4, 1)     // 表: 62 ＋ 卵1個 − 納豆
   })
 
   it('時刻はメニュー表どおり（1食目9時台・間食15時・2食目19時・3食目は深夜0時台）', () => {
@@ -81,14 +82,15 @@ describe('§4-3 定型セット', () => {
     expect(k('meal-3')).toBeGreaterThan(k('meal-2'))
   })
 
-  it('1食目は卵かけご飯（卵1個＋ご飯200g）＋キムチ＋プロテイン', () => {
+  it('1食目は卵かけご飯（卵1個＋ご飯200g）＋納豆＋キムチ＋プロテイン', () => {
     const items = K.DEFAULT_PRESETS.find((p) => p.id === 'meal-1').items
     const q = (id) => (items.find((i) => i.foodId === id) || {}).qty
     expect(q('egg-m')).toBe(1)
+    expect(q('natto')).toBe(1)     // 3食目（深夜）から1食目へ戻した
     expect(q('rice')).toBe(2)      // 白米100g単位 ×2 ＝ 200g
     expect(q('kimchi')).toBe(1)    // 50g
     expect(q('whey')).toBe(1)
-    expect(items.length).toBe(4)   // 納豆は1食目から3食目へ移した
+    expect(items.length).toBe(5)
   })
 
   it('2食目は 鶏もも185g・卵1個・白米200g・ブロッコリー150g', () => {
@@ -101,15 +103,15 @@ describe('§4-3 定型セット', () => {
     expect(items.length).toBe(4)
   })
 
-  it('3食目は 鶏もも250g・卵1個・納豆1パック・白米250g・キムチ50g', () => {
+  it('3食目は 鶏もも250g・卵1個・白米250g・キムチ50g（納豆は1食目へ移した）', () => {
     const items = K.DEFAULT_PRESETS.find((p) => p.id === 'meal-3').items
     const q = (id) => (items.find((i) => i.foodId === id) || {}).qty
     expect(q('chicken-thigh-skinless')).toBe(2.5)
     expect(q('egg-m')).toBe(1)
-    expect(q('natto')).toBe(1)
+    expect(q('natto')).toBeUndefined()
     expect(q('rice')).toBe(2.5)
     expect(q('kimchi')).toBe(1)
-    expect(items.length).toBe(5)
+    expect(items.length).toBe(4)
   })
 
   // 卵は「1食にまとめ食い」ではなく毎食1個ずつ（2026-08-09 本人の希望）。

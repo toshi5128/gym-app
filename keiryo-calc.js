@@ -510,20 +510,21 @@
      ★この版から 味噌汁・豆腐・鮭・ヨーグルト は定型セットから外れた（食品としては残してある）。
      ★一番大きい食事は 2食目 ではなく 3食目（トレ後）になった。
      ★2026-08-09：卵3個を1食目にまとめず、1食目・2食目・3食目へ1個ずつ分散（本人の希望）。
-       1日の合計（卵3個）は変わらない。各食のPFCだけが動く。 */
+       1日の合計（卵3個）は変わらない。各食のPFCだけが動く。
+     ★2026-08-09：納豆は3食目（深夜）ではなく1食目へ（本人の希望）。これも1日の合計は変わらない。 */
   var DEFAULT_PRESETS = [
-    // 1食目 9:45（起床30分以内）＝卵かけご飯（卵1個＋ご飯200g）＋キムチ＋プロテイン
+    // 1食目 9:45（起床30分以内）＝卵かけご飯（卵1個＋ご飯200g）＋納豆＋キムチ＋プロテイン
     { id:'meal-1',  name:'1食目',     summary:'', hour:9, ml:250,
-      items:[{foodId:'egg-m',qty:1},{foodId:'rice',qty:2},{foodId:'kimchi',qty:1},{foodId:'whey',qty:1}] },
+      items:[{foodId:'egg-m',qty:1},{foodId:'natto',qty:1},{foodId:'rice',qty:2},{foodId:'kimchi',qty:1},{foodId:'whey',qty:1}] },
     // 間食 15:00 ＝プロテイン1杯だけ
     { id:'protein', name:'プロテイン', summary:'ホエイ1杯（30g）', hour:15, ml:250,
       items:[{foodId:'whey',qty:1}] },
     // 2食目 19:00（仕事から帰ってきた時）＝鶏もも185g・白米200g・ブロッコリー150g・卵1個
     { id:'meal-2',  name:'2食目',     summary:'', hour:19, ml:200,
       items:[{foodId:'chicken-thigh-skinless',qty:1.85},{foodId:'egg-m',qty:1},{foodId:'rice',qty:2},{foodId:'broccoli',qty:1.5}] },
-    // 3食目 24:00（筋トレ後・深夜）＝1日で一番大きい。鶏もも250g・卵1個・納豆・白米250g・キムチ
+    // 3食目 24:00（筋トレ後・深夜）＝1日で一番大きい。鶏もも250g・卵1個・白米250g・キムチ（納豆は1食目へ移した）
     { id:'meal-3',  name:'3食目',     summary:'', hour:0, ml:0,
-      items:[{foodId:'chicken-thigh-skinless',qty:2.5},{foodId:'egg-m',qty:1},{foodId:'natto',qty:1},{foodId:'rice',qty:2.5},{foodId:'kimchi',qty:1}] }
+      items:[{foodId:'chicken-thigh-skinless',qty:2.5},{foodId:'egg-m',qty:1},{foodId:'rice',qty:2.5},{foodId:'kimchi',qty:1}] }
   ]
 
   /**

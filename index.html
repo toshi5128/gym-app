@@ -1083,7 +1083,7 @@
 <script>
 /* アプリの版。deploy.sh が sw.js の atlas-vN と一緒に自動で書き換える。
    画面に出しておかないと「更新が届いているのか」を誰も判断できない。 */
-const APP_VER='atlas-v85';
+const APP_VER='atlas-v86';
 
 /* ============ アイコン ============ */
 const IC={
@@ -2780,6 +2780,7 @@ function mealPresetList(){
   migratePresets();
   migratePresets2();
   migratePresets3();
+  migratePresets4();
   return mealPresets;
 }
 /* 既に保存済みの人向けの1回だけの直し（2食目をメインに・鮭は焼き・豆腐→ヨーグルト）。
@@ -2840,6 +2841,21 @@ function migratePresets3(){
     syncPresetSummary(cur);
   });
   n.presetMig3=1; saveAll();
+}
+/* 納豆を3食目（深夜）から1食目へ移す（2026-08-09 本人の希望）。
+   mig3 と同じく条件は付けず、動かすのは納豆の行だけ。1日の合計は変わらない。 */
+function migratePresets4(){
+  const n=nutriCfg(); if(n.presetMig4) return;
+  const m1=mealPresets.find(x=>x.id==='meal-1'), m3=mealPresets.find(x=>x.id==='meal-3');
+  if(m3&&Array.isArray(m3.items)&&m3.items.some(i=>i.foodId==='natto')){
+    m3.items=m3.items.filter(i=>i.foodId!=='natto'); syncPresetSummary(m3);
+  }
+  if(m1&&Array.isArray(m1.items)&&!m1.items.some(i=>i.foodId==='natto')){
+    const at=m1.items.findIndex(i=>i.foodId==='egg-m');       // 卵の直後に置く。無ければ先頭
+    m1.items.splice(at<0?0:at+1, 0, {foodId:'natto',qty:1});
+    syncPresetSummary(m1);
+  }
+  n.presetMig4=1; saveAll();
 }
 /** 体重は ATLAS の記録（bw）を使う。食事タブで二重に入力させない */
 function latestBw(){ if(!bw||!bw.length) return null; return [...bw].sort((a,b)=>a.date<b.date?1:-1)[0]; }
