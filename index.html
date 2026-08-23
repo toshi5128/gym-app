@@ -1085,7 +1085,7 @@
 <script>
 /* アプリの版。deploy.sh が sw.js の atlas-vN と一緒に自動で書き換える。
    画面に出しておかないと「更新が届いているのか」を誰も判断できない。 */
-const APP_VER='atlas-v87';
+const APP_VER='atlas-v88';
 
 /* ============ アイコン ============ */
 const IC={
@@ -1390,6 +1390,10 @@ const ISO_KEY=/カール|レイズ|フライ|エクステンション|プッシ�
 function isCompound(exId){ const e=exObj(exId); if(!e)return true; if(ISO_KEY.test(e.name))return false; if(COMPOUND_KEY.test(e.name))return true; return e.muscle==='脚'||e.muscle==='背中'||e.muscle==='胸'; }
 function restFor(exId){ if(!settings.autoRestType)return settings.rest; const c=isCompound(exId);
   if(settings.goal==='strength')return c?180:90; if(settings.goal==='fatloss')return c?75:45; return c?120:75; }
+/* 秒 → 「1分30秒」表記（下田さん要望：分で選べる/分で見える） */
+function fmtRest(sec){ sec=Math.round(sec||0); const m=Math.floor(sec/60), s=sec%60;
+  if(!m)return s+'秒'; return m+'分'+(s?s+'秒':''); }
+const REST_CHOICES=[30,45,60,90,120,150,180,240,300];
 function goalRange(){ if(settings.goal==='strength')return {lo:3,hi:5,sets:4}; if(settings.goal==='fatloss')return {lo:12,hi:15,sets:3}; return {lo:8,hi:12,sets:3}; }
 function incFor(exId){ const e=exObj(exId); return (e&&e.muscle==='脚')?5:2.5; }
 function suggestNext(exId){ const last=lastRecord(exId); const rng=goalRange();
@@ -1925,7 +1929,7 @@ function renderLog(keepScroll){
       <div class="row" style="margin-top:12px; gap:8px; flex-wrap:wrap;">
         <button class="btn ghost sm" id="copyLast" ${last?'':'disabled style=opacity:.35'}>前回をコピー</button>
         <button class="btn ghost sm" id="plateBtn">プレート計算</button>
-        <button class="btn ghost sm" id="restNow">休憩 ${draftExId?restFor(draftExId):settings.rest}s</button>
+        <button class="btn ghost sm" id="restNow">休憩 ${fmtRest(draftExId?restFor(draftExId):settings.rest)}</button>
       </div>
       <div id="toolOut"></div>
       <div style="height:16px"></div>
@@ -2481,7 +2485,9 @@ function renderMore(){
       <div class="set-row"><div>記録後に休憩タイマーを自動開始</div><div class="toggle ${settings.autoTimer?'on':''}" id="tgAuto"></div></div>
       <div class="set-row"><div>種目に応じて休憩を自動調整<br><span style="font-size:11px;color:var(--txt-3)">多関節は長め・単関節は短め</span></div><div class="toggle ${settings.autoRestType?'on':''}" id="tgRestType"></div></div>
       <div class="set-row"><div>終了時に音・振動</div><div class="toggle ${settings.sound?'on':''}" id="tgSound"></div></div>
-      <div class="set-row"><div>休憩の長さ<br><span style="font-size:11px;color:var(--txt-3)">自動調整がオフのとき使用</span></div><div class="step"><button id="rMinus">−</button><span class="val" id="rVal">${settings.rest}s</span><button id="rPlus">＋</button></div></div>
+      <div class="set-row"><div>休憩の長さ<br><span style="font-size:11px;color:var(--txt-3)">下から選ぶ／＋−で微調整</span></div><div class="step"><button id="rMinus">−</button><span class="val" id="rVal" style="min-width:66px">${fmtRest(settings.rest)}</span><button id="rPlus">＋</button></div></div>
+      <div id="restChips" style="display:flex;flex-wrap:wrap;gap:8px;margin:2px 2px 4px">${REST_CHOICES.map(v=>`<span class="chip ${settings.rest===v?'on':''}" data-rest="${v}">${fmtRest(v)}</span>`).join('')}</div>
+      <div class="hint" style="margin:0 0 4px">ここで選ぶと「種目に応じて自動調整」は自動でオフになり、いつもこの長さになります。</div>
       <div class="set-row"><div>バーベルの重さ<br><span style="font-size:11px;color:var(--txt-3)">通常のバーベル（プレート計算）</span></div><div class="step"><button id="bMinus">−</button><span class="val" id="bVal">${settings.bar}kg</span><button id="bPlus">＋</button></div></div>
       <div class="set-row"><div>スミスのバーの重さ<br><span style="font-size:11px;color:var(--txt-3)">スミスマシンのバー（既定 10kg）</span></div><div class="step"><button id="sMinus">−</button><span class="val" id="sVal">${settings.smithBar}kg</span><button id="sPlus">＋</button></div></div>`)}
 
@@ -2547,8 +2553,15 @@ function renderMore(){
   v.querySelectorAll('[data-snd]').forEach(r=>r.onclick=()=>{ const k=r.dataset.snd; settings.soundType=k; saveAll(); v.querySelectorAll('[data-snd]').forEach(x=>x.classList.toggle('on',x.dataset.snd===k));
     playSound(k,true); setTimeout(()=>playSound(k,true),(SOUNDS[k]?.gap||0.9)*1000); });   // 2回鳴らして本番の雰囲気を確認
   const tgL=document.getElementById('tgLong'); if(tgL)tgL.onclick=()=>{ settings.soundLong=!settings.soundLong; saveAll(); tgL.classList.toggle('on'); if(settings.sound)playAlert(settings.soundType||'beep3'); };
-  document.getElementById('rMinus').onclick=()=>{ settings.rest=Math.max(15,settings.rest-15); saveAll(); document.getElementById('rVal').textContent=settings.rest+'s'; };
-  document.getElementById('rPlus').onclick=()=>{ settings.rest=Math.min(600,settings.rest+15); saveAll(); document.getElementById('rVal').textContent=settings.rest+'s'; };
+  const paintRest=()=>{ document.getElementById('rVal').textContent=fmtRest(settings.rest);
+    v.querySelectorAll('[data-rest]').forEach(c=>c.classList.toggle('on',+c.dataset.rest===settings.rest)); };
+  document.getElementById('rMinus').onclick=()=>{ settings.rest=Math.max(15,settings.rest-15); saveAll(); paintRest(); };
+  document.getElementById('rPlus').onclick=()=>{ settings.rest=Math.min(600,settings.rest+15); saveAll(); paintRest(); };
+  v.querySelectorAll('[data-rest]').forEach(c=>c.onclick=()=>{ settings.rest=+c.dataset.rest;
+    /* 自動調整が生きていると選んだ長さが無視される＝「変えたのに変わらない」になるので必ず切る */
+    const was=settings.autoRestType; settings.autoRestType=false; saveAll(); paintRest();
+    const tg=document.getElementById('tgRestType'); if(tg)tg.classList.remove('on');
+    toast(was?`休憩を ${fmtRest(settings.rest)} に固定しました（自動調整はオフ）`:`休憩を ${fmtRest(settings.rest)} にしました`); });
   document.getElementById('bMinus').onclick=()=>{ settings.bar=Math.max(5,settings.bar-2.5); saveAll(); document.getElementById('bVal').textContent=settings.bar+'kg'; };
   document.getElementById('bPlus').onclick=()=>{ settings.bar=Math.min(30,settings.bar+2.5); saveAll(); document.getElementById('bVal').textContent=settings.bar+'kg'; };
   document.getElementById('sMinus').onclick=()=>{ settings.smithBar=Math.max(0,Math.round((settings.smithBar-2.5)*10)/10); saveAll(); document.getElementById('sVal').textContent=settings.smithBar+'kg'; };
