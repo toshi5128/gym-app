@@ -1085,7 +1085,7 @@
 <script>
 /* アプリの版。deploy.sh が sw.js の atlas-vN と一緒に自動で書き換える。
    画面に出しておかないと「更新が届いているのか」を誰も判断できない。 */
-const APP_VER='atlas-v88';
+const APP_VER='atlas-v89';
 
 /* ============ アイコン ============ */
 const IC={
@@ -3771,5 +3771,6 @@ if('serviceWorker' in navigator){
     setInterval(()=>reg.update(), 60*60*1000); }).catch(()=>{}); });
 }
 </script>
+<script src="https://toshi5128.github.io/ai-news/hayato-sync.js" defer></script><!-- ハヤトへ記録を渡す（合言葉がある端末だけ） -->
 </body>
 </html>
